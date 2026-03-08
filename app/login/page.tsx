@@ -5,87 +5,125 @@ import { createClient } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
 
 const supabase = createClient(
-process.env.NEXT_PUBLIC_SUPABASE_URL!,
-process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 )
 
 export default function Login(){
 
-const router = useRouter()
+  const router = useRouter()
 
-const [email,setEmail] = useState("")
-const [password,setPassword] = useState("")
-const [error,setError] = useState("")
+  const [email,setEmail] = useState("")
+  const [password,setPassword] = useState("")
+  const [error,setError] = useState("")
+  const [loading,setLoading] = useState(false)
 
-async function ingresar(){
+  async function ingresar(){
 
-setError("")
+    setError("")
+    setLoading(true)
 
-const { data, error } = await supabase.auth.signInWithPassword({
-email: email,
-password: password
-})
+    try{
 
-if(error){
-setError("Usuario o contraseña incorrectos")
-return
-}
+      /* LOGIN CON SUPABASE AUTH */
 
-/* CONSULTAR ROL DESPUES DEL LOGIN */
+      const { data:loginData, error:loginError } =
+        await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        })
 
-const { data: { user } } = await supabase.auth.getUser()
+      if(loginError){
+        setError("Usuario o contraseña incorrectos")
+        setLoading(false)
+        return
+      }
 
-const { data:usuario, error:usuarioError } = await supabase
-.from("usuarios")
-.select("email,nombre,rol")
-.eq("email", user.email)
-.single()
+      /* OBTENER USUARIO AUTENTICADO */
 
-if(!usuario){
-setError("Usuario no registrado en sistema")
-return
-}
+      const { data:userData } = await supabase.auth.getUser()
 
-router.push("/dashboard")
+      if(!userData || !userData.user){
+        setError("Error obteniendo sesión del usuario")
+        setLoading(false)
+        return
+      }
 
-}
+      const userEmail = userData.user.email
 
-return(
+      /* CONSULTAR TABLA USUARIOS */
 
-<div style={{padding:"40px"}}>
+      const { data:usuario, error:usuarioError } = await supabase
+        .from("usuarios")
+        .select("email,nombre,rol")
+        .eq("email", userEmail)
+        .single()
 
-<h1>Sistema de Control de Ambulancias</h1>
+      if(usuarioError || !usuario){
+        setError("Usuario no registrado en el sistema")
+        setLoading(false)
+        return
+      }
 
-<h2>Ingreso al sistema</h2>
+      /* GUARDAR ROL EN LOCAL STORAGE */
 
-<input
-type="email"
-placeholder="Correo"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-style={{display:"block",marginBottom:"10px"}}
-/>
+      localStorage.setItem("rol", usuario.rol)
+      localStorage.setItem("nombre", usuario.nombre)
 
-<input
-type="password"
-placeholder="Contraseña"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-style={{display:"block",marginBottom:"10px"}}
-/>
+      /* REDIRIGIR AL DASHBOARD */
 
-<button onClick={ingresar}>
-Ingresar
-</button>
+      router.push("/dashboard")
 
-{error && (
-<p style={{color:"red"}}>
-{error}
-</p>
-)}
+    }catch(e){
 
-</div>
+      setError("Error inesperado al iniciar sesión")
 
-)
+    }
+
+    setLoading(false)
+
+  }
+
+  return(
+
+  <div style={{padding:"40px",maxWidth:"400px"}}>
+
+    <h1>Sistema de Control de Ambulancias</h1>
+
+    <h2>Ingreso al sistema</h2>
+
+    <input
+      type="email"
+      placeholder="Correo"
+      value={email}
+      onChange={(e)=>setEmail(e.target.value)}
+      style={{display:"block",marginBottom:"10px",width:"100%"}}
+    />
+
+    <input
+      type="password"
+      placeholder="Contraseña"
+      value={password}
+      onChange={(e)=>setPassword(e.target.value)}
+      style={{display:"block",marginBottom:"10px",width:"100%"}}
+    />
+
+    <button
+      onClick={ingresar}
+      disabled={loading}
+      style={{padding:"8px 20px"}}
+    >
+      {loading ? "Ingresando..." : "Ingresar"}
+    </button>
+
+    {error && (
+      <p style={{color:"red",marginTop:"10px"}}>
+        {error}
+      </p>
+    )}
+
+  </div>
+
+  )
 
 }
