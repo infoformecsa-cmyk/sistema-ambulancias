@@ -33,10 +33,12 @@ return
 
 /* CONSULTAR ROL DESPUES DEL LOGIN */
 
+const { data: { user } } = await supabase.auth.getUser()
+
 const { data:usuario, error:usuarioError } = await supabase
-.from("public.usuarios")
+.from("usuarios")
 .select("email,nombre,rol")
-.eq("email", email)
+.eq("email", user.email)
 .single()
 
 if(!usuario){
