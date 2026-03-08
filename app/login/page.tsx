@@ -34,7 +34,7 @@ return
 /* CONSULTAR ROL DESPUES DEL LOGIN */
 
 const { data:usuario, error:usuarioError } = await supabase
-.from("usuarios")
+.from("public.usuarios")
 .select("email,nombre,rol")
 .eq("email", email)
 .single()
