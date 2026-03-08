@@ -33,11 +33,11 @@ return
 
 /* CONSULTAR ROL DESPUES DEL LOGIN */
 
-const { data:usuario } = await supabase
+const { data:usuario, error:usuarioError } = await supabase
 .from("usuarios")
-.select("*")
-.eq("email",email)
-.maybeSingle()
+.select("email,nombre,rol")
+.eq("email", email)
+.single()
 
 if(!usuario){
 setError("Usuario no registrado en sistema")
