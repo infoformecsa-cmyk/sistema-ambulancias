@@ -1,58 +1,89 @@
 "use client"
 
 import { useState } from "react"
-import { getSupabase } from "../../lib/supabaseClient"
+import { createClient } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
 
-export default function Login() {
+const supabase = createClient(
+process.env.NEXT_PUBLIC_SUPABASE_URL!,
+process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+)
 
-  const [email,setEmail] = useState("")
-  const [password,setPassword] = useState("")
-  const [error,setError] = useState("")
+export default function Login(){
 
-  const login = async () => {
+const router = useRouter()
 
-    const supabase = getSupabase()
-    if (!supabase) {
-      setError("Configuración del servidor incompleta")
-      return
-    }
+const [email,setEmail] = useState("")
+const [password,setPassword] = useState("")
+const [error,setError] = useState("")
 
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("email",email)
-      .eq("password",password)
-      .single()
+async function ingresar(){
 
-    if(error){
-      setError("Usuario o contraseña incorrecta")
-      return
-    }
+setError("")
 
-    localStorage.setItem("usuario",JSON.stringify(data))
-    window.location.href="/dashboard"
-  }
+const { data, error } = await supabase.auth.signInWithPassword({
+email: email,
+password: password
+})
 
-  return(
-    <div style={{padding:"40px"}}>
-      <h1>Ingreso al Sistema</h1>
+if(error){
+setError("Usuario o contraseña incorrectos")
+return
+}
 
-      <input
-        placeholder="Correo"
-        value={email}
-        onChange={(e)=>setEmail(e.target.value)}
-      />
+/* CONSULTAR ROL DESPUES DEL LOGIN */
 
-      <input
-        type="password"
-        placeholder="Contraseña"
-        value={password}
-        onChange={(e)=>setPassword(e.target.value)}
-      />
+const { data:usuario } = await supabase
+.from("usuarios")
+.select("*")
+.eq("email",email)
+.maybeSingle()
 
-      <button onClick={login}>Ingresar</button>
+if(!usuario){
+setError("Usuario no registrado en sistema")
+return
+}
 
-      <p style={{color:"red"}}>{error}</p>
-    </div>
-  )
+router.push("/dashboard")
+
+}
+
+return(
+
+<div style={{padding:"40px"}}>
+
+<h1>Sistema de Control de Ambulancias</h1>
+
+<h2>Ingreso al sistema</h2>
+
+<input
+type="email"
+placeholder="Correo"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+style={{display:"block",marginBottom:"10px"}}
+/>
+
+<input
+type="password"
+placeholder="Contraseña"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+style={{display:"block",marginBottom:"10px"}}
+/>
+
+<button onClick={ingresar}>
+Ingresar
+</button>
+
+{error && (
+<p style={{color:"red"}}>
+{error}
+</p>
+)}
+
+</div>
+
+)
+
 }

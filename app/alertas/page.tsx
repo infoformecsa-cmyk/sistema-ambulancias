@@ -1,70 +1,155 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react"
+import { createClient } from "@supabase/supabase-js"
 
-type Alerta = {
-  id: number;
-  ambulancia_id: string;
-  mensaje: string;
-  fecha: string;
-};
+const supabase = createClient(
+process.env.NEXT_PUBLIC_SUPABASE_URL!,
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-export default function AlertasPage() {
+export default function Alertas(){
 
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
+const [alertas,setAlertas] = useState<any[]>([])
 
-  useEffect(() => {
-    cargarAlertas();
-  }, []);
+/* ================================
+CARGAR ALERTAS
+================================ */
 
-  const cargarAlertas = async () => {
+useEffect(()=>{
+generarAlertas()
+},[])
 
-    const { data, error } = await supabase
-      .from("alertas")
-      .select("*")
-      .order("fecha", { ascending: false });
+const generarAlertas = async ()=>{
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+let lista:any[] = []
 
-    if (data) {
-      setAlertas(data);
-    }
-  };
+/* ================================
+OBTENER AMBULANCIAS
+================================ */
 
-  return (
-    <div style={{ padding: 40 }}>
+const {data:ambulancias} = await supabase
+.from("ambulancias")
+.select("*")
 
-      <h1>Alertas del Sistema</h1>
+if(!ambulancias) return
 
-      {alertas.length === 0 && (
-        <p>No hay alertas registradas.</p>
-      )}
+/* ================================
+OBTENER MANTENIMIENTOS
+================================ */
 
-      {alertas.map((alerta) => (
+const {data:mantenimientos} = await supabase
+.from("mantenimientos")
+.select("*")
 
-        <div
-          key={alerta.id}
-          style={{
-            border: "1px solid #ccc",
-            padding: 10,
-            marginTop: 10
-          }}
-        >
+ambulancias.forEach((a:any)=>{
 
-          <b>{alerta.ambulancia_id}</b>
+/* ================================
+FILTRAR HISTORIAL
+================================ */
 
-          <p>{alerta.mensaje}</p>
+const historial = mantenimientos?.filter(
+(m:any)=>m.ambulancia_id === a.id
+)
 
-          <small>{alerta.fecha}</small>
+/* ================================
+ULTIMO MANTENIMIENTO
+================================ */
 
-        </div>
+let ultimo = historial?.sort((a:any,b:any)=>{
 
-      ))}
+return new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
 
-    </div>
-  );
+})[0]
+
+/* ================================
+ALERTA POR MANTENIMIENTO
+================================ */
+
+if(!ultimo){
+
+lista.push({
+codigo:a.codigo_operativo,
+mensaje:"Sin mantenimiento registrado"
+})
+
+}
+
+if(ultimo){
+
+let dias = Math.floor(
+(Date.now() - new Date(ultimo.fecha).getTime()) / (1000*60*60*24)
+)
+
+if(dias > 60){
+
+lista.push({
+codigo:a.codigo_operativo,
+mensaje:"Mantenimiento vencido ("+dias+" días)"
+})
+
+}
+
+}
+
+/* ================================
+ALERTA ESTADO
+================================ */
+
+if(a.estado === "no operativa"){
+
+lista.push({
+codigo:a.codigo_operativo,
+mensaje:"Ambulancia no operativa"
+})
+
+}
+
+})
+
+setAlertas(lista)
+
+}
+
+/* ================================
+INTERFAZ
+================================ */
+
+return(
+
+<div style={{padding:"40px"}}>
+
+<h1>SSM Guayas – APH</h1>
+
+<h2>Alertas mecánicas</h2>
+
+<hr style={{margin:"20px 0"}}/>
+
+{alertas.length === 0 && (
+<p>No hay alertas activas</p>
+)}
+
+{alertas.map((a:any,i:number)=>(
+
+<div
+key={i}
+style={{
+border:"1px solid red",
+padding:"10px",
+marginBottom:"10px"
+}}
+>
+
+<b>{a.codigo}</b>
+
+<div>{a.mensaje}</div>
+
+</div>
+
+))}
+
+</div>
+
+)
+
 }

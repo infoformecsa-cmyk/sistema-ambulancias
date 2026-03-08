@@ -1,19 +1,16 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 
-let supabase: SupabaseClient | null = null
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
-export function getSupabase() {
-  if (supabase) return supabase
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url || !key) {
-    // Evita romper el build de Next.js
-    console.warn("Supabase env vars not found during build")
-    return null
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseKey,
+  {
+    global: {
+      headers: {
+        apikey: supabaseKey
+      }
+    }
   }
-
-  supabase = createClient(url, key)
-  return supabase
-}
+)
