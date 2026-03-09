@@ -15,9 +15,21 @@ const [marca,setMarca]=useState("")
 const [ano,setAno]=useState("")
 const [base,setBase]=useState("")
 const [tipo,setTipo]=useState("ALFA")
+const [rol,setRol]=useState("")
 
 useEffect(()=>{
+
+const rolLocal=localStorage.getItem("rol")
+
+if(!rolLocal){
+window.location.href="/"
+return
+}
+
+setRol(rolLocal)
+
 cargarAmbulancias()
+
 },[])
 
 async function cargarAmbulancias(){
@@ -76,15 +88,195 @@ return "red"
 
 }
 
+function cerrarSesion(){
+
+localStorage.removeItem("rol")
+localStorage.removeItem("nombre")
+
+window.location.href="/"
+
+}
+
 const operativas=ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
+
+
+/* =============================
+PANEL CONDUCTOR
+============================= */
+
+if(rol==="conductor"){
+
+return(
+
+<div style={{padding:40,fontFamily:"Arial"}}>
+
+<h1>Panel Conductor</h1>
+
+<button
+onClick={cerrarSesion}
+style={{background:"red",color:"white",padding:"6px 12px"}}
+>
+
+Cerrar sesión
+
+</button>
+
+<hr/>
+
+<h2>Reportar novedades de ambulancia</h2>
+
+<table border={1} cellPadding={8}>
+
+<thead>
+<tr>
+<th>Código</th>
+<th>Estado</th>
+<th>Acción</th>
+</tr>
+</thead>
+
+<tbody>
+
+{ambulancias.map(a=>(
+
+<tr key={a.id}>
+
+<td>{a.codigo_operativo}</td>
+
+<td style={{color:colorEstado(a.estado)}}>
+{a.estado}
+</td>
+
+<td>
+
+<button
+onClick={()=>router.push(`/ambulancia/${a.id}`)}
+>
+
+Registrar novedad
+
+</button>
+
+</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
+
+</div>
+
+)
+
+}
+
+
+/* =============================
+PANEL SUPERVISOR
+============================= */
+
+if(rol==="supervisor"){
+
+return(
+
+<div style={{padding:40,fontFamily:"Arial"}}>
+
+<h1>Panel Supervisor</h1>
+
+<button
+onClick={cerrarSesion}
+style={{background:"red",color:"white",padding:"6px 12px"}}
+>
+
+Cerrar sesión
+
+</button>
+
+<hr/>
+
+<h2>Control de mantenimiento</h2>
+
+<table border={1} cellPadding={8}>
+
+<thead>
+<tr>
+<th>Código</th>
+<th>Estado</th>
+<th>Ficha</th>
+</tr>
+</thead>
+
+<tbody>
+
+{ambulancias.map(a=>(
+
+<tr key={a.id}>
+
+<td>{a.codigo_operativo}</td>
+
+<td style={{color:colorEstado(a.estado)}}>
+
+{a.estado}
+
+</td>
+
+<td>
+
+<button
+onClick={()=>router.push(`/ambulancia/${a.id}`)}
+>
+
+Abrir ficha
+
+</button>
+
+</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
+
+</div>
+
+)
+
+}
+
+
+/* =============================
+PANEL ADMIN
+============================= */
 
 return(
 
 <div style={{padding:40,fontFamily:"Arial"}}>
 
 <h1>Sistema de Control de Ambulancias</h1>
+
+<button
+onClick={cerrarSesion}
+style={{
+marginTop:10,
+background:"red",
+color:"white",
+padding:"6px 12px",
+border:"none",
+cursor:"pointer"
+}}
+>
+
+Cerrar sesión
+
+</button>
 
 <hr/>
 
