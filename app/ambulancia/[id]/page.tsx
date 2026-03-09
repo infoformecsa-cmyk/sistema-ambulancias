@@ -1,125 +1,304 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect,useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
 
-type Falla = {
-  id: number;
-  descripcion: string;
-  criticidad: string;
-  fecha: string;
-};
+type Falla={
+id:number
+descripcion:string
+criticidad:string
+fecha:string
+foto:string
+}
 
-export default function AmbulanciaPage({ params }: { params: { id: string } }) {
+export default function AmbulanciaPage({params}:{params:{id:string}}){
 
-  const [fallas, setFallas] = useState<Falla[]>([]);
-  const [descripcion, setDescripcion] = useState("");
-  const [criticidad, setCriticidad] = useState("Media");
+const [fallas,setFallas]=useState<Falla[]>([])
+const [descripcion,setDescripcion]=useState("")
+const [criticidad,setCriticidad]=useState("Media")
+const [foto,setFoto]=useState<File|null>(null)
 
-  const cargarFallas = async () => {
+const [kilometraje,setKilometraje]=useState("")
+const [ambulancia,setAmbulancia]=useState<any>(null)
 
-    const { data, error } = await supabase
-      .from("fallas")
-      .select("*")
-      .eq("ambulancia_id", params.id)
-      .order("fecha", { ascending: false });
+const [alerta,setAlerta]=useState("")
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+useEffect(()=>{
 
-    if (data) {
-      setFallas(data);
-    }
-  };
+cargarAmbulancia()
+cargarFallas()
 
-  useEffect(() => {
-    cargarFallas();
-  }, []);
+},[])
 
-  const registrarFalla = async () => {
+async function cargarAmbulancia(){
 
-    const { error } = await supabase
-      .from("fallas")
-      .insert([
-        {
-          ambulancia_id: params.id,
-          descripcion,
-          criticidad
-        }
-      ]);
+const {data}=await supabase
+.from("ambulancias")
+.select("*")
+.eq("id",params.id)
+.single()
 
-    if (error) {
-      alert("Error registrando falla");
-      return;
-    }
+if(data){
 
-    setDescripcion("");
-    cargarFallas();
-  };
+setAmbulancia(data)
 
-  return (
-    <div style={{ padding: 40 }}>
+const proximo=data.kilometraje_mtto+5000
+const restante=proximo-data.kilometraje_actual
 
-      <h1>Ficha Ambulancia {params.id}</h1>
+if(restante<=400){
 
-      <h2>Reportar falla mecánica</h2>
+setAlerta(`⚠ mantenimiento en ${restante} km`)
 
-      <textarea
-        placeholder="Describa la falla"
-        value={descripcion}
-        onChange={(e) => setDescripcion(e.target.value)}
-        style={{ width: "100%", height: 100 }}
-      />
+}
 
-      <br /><br />
+}
 
-      <select
-        value={criticidad}
-        onChange={(e) => setCriticidad(e.target.value)}
-      >
-        <option>Alta</option>
-        <option>Media</option>
-        <option>Baja</option>
-      </select>
+}
 
-      <br /><br />
+async function cargarFallas(){
 
-      <button onClick={registrarFalla}>
-        Registrar falla
-      </button>
+const {data,error}=await supabase
+.from("fallas")
+.select("*")
+.eq("ambulancia_id",params.id)
+.order("fecha",{ascending:false})
 
-      <hr style={{ marginTop: 40 }} />
+if(data){
+setFallas(data)
+}
 
-      <h3>Historial de fallas</h3>
+}
 
-      <table border={1} cellPadding={10}>
+async function subirFoto(){
 
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Descripción</th>
-            <th>Criticidad</th>
-          </tr>
-        </thead>
+if(!foto) return ""
 
-        <tbody>
+const nombre=Date.now()+"_"+foto.name
 
-          {fallas.map((falla) => (
+const {data,error}=await supabase.storage
+.from("Fallas")
+.upload(nombre,foto)
 
-            <tr key={falla.id}>
-              <td>{falla.fecha}</td>
-              <td>{falla.descripcion}</td>
-              <td>{falla.criticidad}</td>
-            </tr>
+if(error) return ""
 
-          ))}
+const url=supabase
+.storage
+.from("fallas")
+.getPublicUrl(nombre)
 
-        </tbody>
+return url.data.publicUrl
 
-      </table>
+}
 
-    </div>
-  );
+async function registrarFalla(){
+
+const url=await subirFoto()
+
+const {error}=await supabase
+.from("fallas")
+.insert([{
+
+ambulancia_id:params.id,
+descripcion,
+criticidad,
+foto:url
+
+}])
+
+if(error){
+
+alert("Error registrando falla")
+return
+
+}
+
+setDescripcion("")
+setFoto(null)
+
+cargarFallas()
+
+}
+
+async function registrarKilometraje(){
+
+const km=parseInt(kilometraje)
+
+await supabase
+.from("ambulancias")
+.update({
+
+kilometraje_actual:km
+
+})
+.eq("id",params.id)
+
+setKilometraje("")
+
+cargarAmbulancia()
+
+}
+
+async function registrarMantenimiento(){
+
+await supabase
+.from("ambulancias")
+.update({
+
+kilometraje_mtto:ambulancia.kilometraje_actual
+
+})
+.eq("id",params.id)
+
+alert("Mantenimiento registrado")
+
+cargarAmbulancia()
+
+}
+
+return(
+
+<div style={{padding:40}}>
+
+<h1>Ficha Ambulancia {ambulancia?.codigo_operativo}</h1>
+
+<hr/>
+
+<h2>Estado</h2>
+
+<p>Kilometraje actual: {ambulancia?.kilometraje_actual}</p>
+
+<p>Último mantenimiento: {ambulancia?.kilometraje_mtto}</p>
+
+{alerta && (
+
+<div style={{
+background:"orange",
+padding:10,
+marginTop:10
+}}>
+
+{alerta}
+
+</div>
+
+)}
+
+<hr/>
+
+<h2>Registrar Kilometraje</h2>
+
+<input
+placeholder="Nuevo kilometraje"
+value={kilometraje}
+onChange={(e)=>setKilometraje(e.target.value)}
+/>
+
+<button onClick={registrarKilometraje}>
+Actualizar
+</button>
+
+<hr/>
+
+<h2>Registrar mantenimiento</h2>
+
+<button onClick={registrarMantenimiento}>
+Marcar mantenimiento realizado
+</button>
+
+<hr/>
+
+<h2>Reportar falla</h2>
+
+<textarea
+placeholder="Descripción de la falla"
+value={descripcion}
+onChange={(e)=>setDescripcion(e.target.value)}
+style={{width:"100%",height:100}}
+/>
+
+<br/><br/>
+
+<select
+value={criticidad}
+onChange={(e)=>setCriticidad(e.target.value)}
+>
+
+<option>Alta</option>
+<option>Media</option>
+<option>Baja</option>
+
+</select>
+
+<br/><br/>
+
+<input
+type="file"
+onChange={(e)=>{
+
+if(e.target.files){
+setFoto(e.target.files[0])
+}
+
+}}
+/>
+
+<br/><br/>
+
+<button onClick={registrarFalla}>
+Registrar falla
+</button>
+
+<hr/>
+
+<h2>Historial de fallas</h2>
+
+<table border={1} cellPadding={10}>
+
+<thead>
+
+<tr>
+
+<th>Fecha</th>
+<th>Descripción</th>
+<th>Criticidad</th>
+<th>Foto</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{fallas.map((f)=>(
+
+<tr key={f.id}>
+
+<td>{f.fecha}</td>
+<td>{f.descripcion}</td>
+<td>{f.criticidad}</td>
+
+<td>
+
+{f.foto && (
+
+<a href={f.foto} target="_blank">
+Ver foto
+</a>
+
+)}
+
+</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
+
+</div>
+
+)
+
 }
