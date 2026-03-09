@@ -6,73 +6,124 @@ import { supabase } from "@/lib/supabaseClient"
 
 export default function Login(){
 
-const router = useRouter()
+  const router = useRouter()
 
-const [email,setEmail] = useState("")
-const [password,setPassword] = useState("")
-const [error,setError] = useState("")
+  const [email,setEmail] = useState("")
+  const [password,setPassword] = useState("")
+  const [error,setError] = useState("")
+  const [loading,setLoading] = useState(false)
 
-const iniciarSesion = async () => {
+  const iniciarSesion = async () => {
 
-setError("")
+    setError("")
+    setLoading(true)
 
-const { data, error } = await supabase
-.from("usuarios")
-.select("*")
-.eq("email", email)
-.single()
+    try{
 
-if(error || !data){
-setError("Usuario no encontrado")
-return
-}
+      /* LOGIN CON SUPABASE AUTH */
 
-localStorage.setItem("usuario", JSON.stringify(data))
+      const { data:loginData, error:loginError } =
+        await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        })
 
-router.push("/dashboard")
+      if(loginError){
+        setError("Usuario o contraseña incorrectos")
+        setLoading(false)
+        return
+      }
 
-}
+      /* OBTENER USUARIO AUTENTICADO */
 
-return(
+      const { data:userData } = await supabase.auth.getUser()
 
-<div style={{padding:"40px"}}>
+      if(!userData || !userData.user){
+        setError("Error obteniendo sesión del usuario")
+        setLoading(false)
+        return
+      }
 
-<h1>Sistema de Control de Ambulancias</h1>
+      const userEmail = userData.user.email
 
-<h2>Ingreso al sistema</h2>
+      /* CONSULTAR TABLA USUARIOS */
 
-<div style={{marginTop:"20px"}}>
+      const { data:usuario, error:usuarioError } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("email", userEmail)
+        .single()
 
-<input
-type="email"
-placeholder="Correo"
-value={email}
-onChange={(e)=>setEmail(e.target.value)}
-style={{display:"block",marginBottom:"10px"}}
-/>
+      if(usuarioError || !usuario){
+        setError("Usuario no registrado en el sistema")
+        setLoading(false)
+        return
+      }
 
-<input
-type="password"
-placeholder="Contraseña"
-value={password}
-onChange={(e)=>setPassword(e.target.value)}
-style={{display:"block",marginBottom:"10px"}}
-/>
+      /* GUARDAR DATOS DEL USUARIO */
 
-<button onClick={iniciarSesion}>
-Ingresar
-</button>
+      localStorage.setItem("usuario", JSON.stringify(usuario))
+      localStorage.setItem("rol", usuario.rol)
+      localStorage.setItem("nombre", usuario.nombre)
 
-</div>
+      /* REDIRIGIR AL DASHBOARD */
 
-{error && (
-<p style={{color:"red",marginTop:"20px"}}>
-{error}
-</p>
-)}
+      router.push("/dashboard")
 
-</div>
+    }catch(e){
 
-)
+      setError("Error inesperado al iniciar sesión")
+
+    }
+
+    setLoading(false)
+
+  }
+
+  return(
+
+  <div style={{padding:"40px",maxWidth:"400px"}}>
+
+    <h1>Sistema de Control de Ambulancias</h1>
+
+    <h2>Ingreso al sistema</h2>
+
+    <div style={{marginTop:"20px"}}>
+
+      <input
+        type="email"
+        placeholder="Correo"
+        value={email}
+        onChange={(e)=>setEmail(e.target.value)}
+        style={{display:"block",marginBottom:"10px",width:"100%"}}
+      />
+
+      <input
+        type="password"
+        placeholder="Contraseña"
+        value={password}
+        onChange={(e)=>setPassword(e.target.value)}
+        style={{display:"block",marginBottom:"10px",width:"100%"}}
+      />
+
+      <button
+        onClick={iniciarSesion}
+        disabled={loading}
+        style={{padding:"8px 20px"}}
+      >
+        {loading ? "Ingresando..." : "Ingresar"}
+      </button>
+
+    </div>
+
+    {error && (
+      <p style={{color:"red",marginTop:"20px"}}>
+        {error}
+      </p>
+    )}
+
+  </div>
+
+  )
 
 }
