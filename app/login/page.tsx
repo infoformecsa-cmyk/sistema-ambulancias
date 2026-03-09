@@ -53,10 +53,11 @@ export default function Login(){
 
       /* CONSULTAR TABLA USUARIOS */
 
-      const { data:usuarios } = await supabase
-	.from("usuarios")
-	.select("email,nombre,rol")
-	.eq("email", user.email)
+      const { data:usuario } = await supabase
+.from("usuarios")
+.select("*")
+.eq("id", user.id)
+.maybeSingle()
 
 	const usuario = usuarios && usuarios.length > 0 ? usuarios[0] : null
 
