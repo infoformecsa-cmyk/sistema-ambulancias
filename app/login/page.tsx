@@ -53,11 +53,11 @@ export default function Login(){
 
       /* CONSULTAR TABLA USUARIOS */
 
-      const { data:usuario, error:usuarioError } = await supabase
-        .from("usuarios")
-        .select("email,nombre,rol")
-        .eq("email", userEmail)
-        .single()
+      const { data:usuario } = await supabase
+	.from("usuarios")
+	.select("email,nombre,rol")
+	.eq("email", user.email)
+	.maybeSingle()
 
       if(usuarioError || !usuario){
         setError("Usuario no registrado en el sistema")
