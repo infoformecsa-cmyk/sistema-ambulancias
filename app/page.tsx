@@ -6,46 +6,45 @@ import { useRouter } from "next/navigation"
 
 export default function Login(){
 
-const router=useRouter()
+const router = useRouter()
 
-const [email,setEmail]=useState("")
-const [password,setPassword]=useState("")
-const [error,setError]=useState("")
+const [email,setEmail] = useState("")
+const [password,setPassword] = useState("")
+const [error,setError] = useState("")
+const [loading,setLoading] = useState(false)
 
 async function login(){
 
 setError("")
+setLoading(true)
 
-const {data,error:authError}=await supabase.auth.signInWithPassword({
+const {data,error:dbError} = await supabase
+.from("usuarios")
+.select("*")
+.eq("email",email)
+.single()
 
-email:email,
-password:password
+if(dbError || !data){
 
-})
-
-if(authError){
-
-setError("Usuario o contraseña incorrectos")
+setError("Usuario no encontrado")
+setLoading(false)
 return
 
 }
 
-const user=data.user
+if(data.password !== password){
 
-if(!user){
-
-setError("No se pudo iniciar sesión")
+setError("Contraseña incorrecta")
+setLoading(false)
 return
 
 }
 
-let rol="conductor"
+/* guardar sesión */
 
-if(email.includes("admin")) rol="admin"
-if(email.includes("supervisor")) rol="supervisor"
-
-localStorage.setItem("rol",rol)
-localStorage.setItem("nombre",email)
+localStorage.setItem("usuario_id",data.id)
+localStorage.setItem("rol",data.rol)
+localStorage.setItem("nombre",data.nombre)
 
 router.push("/dashboard")
 
@@ -63,7 +62,12 @@ return(
 placeholder="Correo"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
-style={{display:"block",marginBottom:"10px",width:"300px"}}
+style={{
+display:"block",
+marginBottom:"10px",
+width:"300px",
+padding:"8px"
+}}
 />
 
 <input
@@ -71,16 +75,34 @@ type="password"
 placeholder="Contraseña"
 value={password}
 onChange={(e)=>setPassword(e.target.value)}
-style={{display:"block",marginBottom:"10px",width:"300px"}}
+style={{
+display:"block",
+marginBottom:"10px",
+width:"300px",
+padding:"8px"
+}}
 />
 
-<button onClick={login}>
-Ingresar
+<button
+onClick={login}
+disabled={loading}
+style={{
+padding:"10px 20px",
+background:"#667eea",
+color:"white",
+border:"none",
+borderRadius:"4px",
+cursor:"pointer"
+}}
+>
+
+{loading ? "Ingresando..." : "Ingresar"}
+
 </button>
 
 {error && (
 
-<p style={{color:"red"}}>
+<p style={{color:"red",marginTop:"10px"}}>
 
 {error}
 
