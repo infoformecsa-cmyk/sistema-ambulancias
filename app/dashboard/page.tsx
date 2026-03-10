@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect,useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -15,13 +15,26 @@ const [marca,setMarca]=useState("")
 const [ano,setAno]=useState("")
 const [base,setBase]=useState("")
 const [tipo,setTipo]=useState("ALFA")
-
+const [rol,setRol]=useState("")
 const [editandoId,setEditandoId]=useState<string | null>(null)
 const [editKm,setEditKm]=useState("")
 const [editKmMtto,setEditKmMtto]=useState("")
 
 useEffect(()=>{
+
+const rolLocal=localStorage.getItem("rol")
+
+if(!rolLocal){
+
+window.location.href="/"
+return
+
+}
+
+setRol(rolLocal)
+
 cargarAmbulancias()
+
 },[])
 
 async function cargarAmbulancias(){
@@ -40,6 +53,7 @@ async function crearAmbulancia(){
 await supabase
 .from("ambulancias")
 .insert([{
+
 codigo_operativo:codigo,
 placa,
 marca,
@@ -49,6 +63,7 @@ tipo,
 estado:"operativa",
 kilometraje_actual:0,
 kilometraje_mtto:0
+
 }])
 
 setCodigo("")
@@ -140,19 +155,19 @@ Cerrar sesión
 
 <h2>Panel de Control de Flota</h2>
 
-<div style={{display:"flex",gap:"20px"}}>
+<div style={{display:"flex",gap:"20px",marginBottom:"20px"}}>
 
-<div style={{border:"1px solid black",padding:"20px"}}>
+<div style={{border:"2px solid black",padding:"20px",borderRadius:"6px"}}>
 🚑 Operativas
 <h2>{operativas}</h2>
 </div>
 
-<div style={{border:"1px solid black",padding:"20px"}}>
+<div style={{border:"2px solid black",padding:"20px",borderRadius:"6px"}}>
 🔧 Mantenimiento
 <h2>{mantenimiento}</h2>
 </div>
 
-<div style={{border:"1px solid black",padding:"20px"}}>
+<div style={{border:"2px solid black",padding:"20px",borderRadius:"6px"}}>
 ⛔ Fuera de servicio
 <h2>{fuera}</h2>
 </div>
@@ -215,16 +230,21 @@ Crear Ambulancia
 
 <h2>Flota registrada</h2>
 
-<table border={1} cellPadding={8}>
+<table border={1} cellPadding={8} style={{borderCollapse:"collapse"}}>
 
 <thead>
 
 <tr>
-<th>Código</th>
+
 <th>Estado</th>
-<th>Kilometraje</th>
-<th>Mtto</th>
+<th>Código</th>
+<th>Placa</th>
+<th>Marca</th>
+<th>Tipo</th>
+<th>KM Actual</th>
+<th>KM Mtto</th>
 <th>Acciones</th>
+
 </tr>
 
 </thead>
@@ -235,19 +255,26 @@ Crear Ambulancia
 
 <tr key={a.id}>
 
-<td>{a.codigo_operativo}</td>
-
 <td style={{color:colorEstado(a.estado)}}>
 
 {a.estado}
 
 </td>
 
+<td>{a.codigo_operativo}</td>
+
+<td>{a.placa}</td>
+
+<td>{a.marca}</td>
+
+<td>{a.tipo}</td>
+
 <td>
 
 {editandoId===a.id ?
 
 <input
+type="number"
 value={editKm}
 onChange={(e)=>setEditKm(e.target.value)}
 />
@@ -265,6 +292,7 @@ a.kilometraje_actual
 {editandoId===a.id ?
 
 <input
+type="number"
 value={editKmMtto}
 onChange={(e)=>setEditKmMtto(e.target.value)}
 />
@@ -282,9 +310,7 @@ a.kilometraje_mtto
 <button
 onClick={()=>router.push(`/ambulancia/${a.id}`)}
 >
-
 Ficha
-
 </button>
 
 {editandoId===a.id ?
@@ -295,7 +321,11 @@ Ficha
 Guardar
 </button>
 
-<button onClick={()=>setEditandoId(null)}>
+<button onClick={()=>{
+setEditandoId(null)
+setEditKm("")
+setEditKmMtto("")
+}}>
 Cancelar
 </button>
 
@@ -310,9 +340,7 @@ setEditKm(a.kilometraje_actual?.toString() || "")
 setEditKmMtto(a.kilometraje_mtto?.toString() || "")
 }}
 >
-
 Editar KM
-
 </button>
 
 }
