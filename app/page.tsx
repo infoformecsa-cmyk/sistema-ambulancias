@@ -1,129 +1,95 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
 export default function Login(){
 
-  const router = useRouter()
+const router=useRouter()
 
-  const [email,setEmail] = useState("")
-  const [password,setPassword] = useState("")
-  const [error,setError] = useState("")
-  const [loading,setLoading] = useState(false)
+const [email,setEmail]=useState("")
+const [password,setPassword]=useState("")
+const [error,setError]=useState("")
 
-  const iniciarSesion = async () => {
+async function login(){
 
-    setError("")
-    setLoading(true)
+setError("")
 
-    try{
+const {data,error:authError}=await supabase.auth.signInWithPassword({
 
-      /* LOGIN CON SUPABASE AUTH */
+email:email,
+password:password
 
-      const { data:loginData, error:loginError } =
-        await supabase.auth.signInWithPassword({
-          email: email,
-          password: password
-        })
+})
 
-      if(loginError){
-        setError("Usuario o contraseña incorrectos")
-        setLoading(false)
-        return
-      }
+if(authError){
 
-      /* OBTENER USUARIO AUTENTICADO */
+setError("Usuario o contraseña incorrectos")
+return
 
-      const { data:userData } = await supabase.auth.getUser()
+}
 
-      if(!userData || !userData.user){
-        setError("Error obteniendo sesión del usuario")
-        setLoading(false)
-        return
-      }
+const user=data.user
 
-      const userEmail = userData.user.email
+if(!user){
 
-      /* CONSULTAR TABLA USUARIOS */
+setError("No se pudo iniciar sesión")
+return
 
-      const { data:usuario, error:usuarioError } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("email", userEmail)
-        .single()
+}
 
-      if(usuarioError || !usuario){
-        setError("Usuario no registrado en el sistema")
-        setLoading(false)
-        return
-      }
+let rol="conductor"
 
-      /* GUARDAR DATOS DEL USUARIO */
+if(email.includes("admin")) rol="admin"
+if(email.includes("supervisor")) rol="supervisor"
 
-      localStorage.setItem("usuario", JSON.stringify(usuario))
-      localStorage.setItem("rol", usuario.rol)
-      localStorage.setItem("nombre", usuario.nombre)
+localStorage.setItem("rol",rol)
+localStorage.setItem("nombre",email)
 
-      /* REDIRIGIR AL DASHBOARD */
+router.push("/dashboard")
 
-      router.push("/dashboard")
+}
 
-    }catch(e){
+return(
 
-      setError("Error inesperado al iniciar sesión")
+<div style={{padding:"40px",fontFamily:"Arial"}}>
 
-    }
+<h1>Sistema de Control de Ambulancias</h1>
 
-    setLoading(false)
+<h2>Ingreso al sistema</h2>
 
-  }
+<input
+placeholder="Correo"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+style={{display:"block",marginBottom:"10px",width:"300px"}}
+/>
 
-  return(
+<input
+type="password"
+placeholder="Contraseña"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+style={{display:"block",marginBottom:"10px",width:"300px"}}
+/>
 
-  <div style={{padding:"40px",maxWidth:"400px"}}>
+<button onClick={login}>
+Ingresar
+</button>
 
-    <h1>Sistema de Control de Ambulancias</h1>
+{error && (
 
-    <h2>Ingreso al sistema</h2>
+<p style={{color:"red"}}>
 
-    <div style={{marginTop:"20px"}}>
+{error}
 
-      <input
-        type="email"
-        placeholder="Correo"
-        value={email}
-        onChange={(e)=>setEmail(e.target.value)}
-        style={{display:"block",marginBottom:"10px",width:"100%"}}
-      />
+</p>
 
-      <input
-        type="password"
-        placeholder="Contraseña"
-        value={password}
-        onChange={(e)=>setPassword(e.target.value)}
-        style={{display:"block",marginBottom:"10px",width:"100%"}}
-      />
+)}
 
-      <button
-        onClick={iniciarSesion}
-        disabled={loading}
-        style={{padding:"8px 20px"}}
-      >
-        {loading ? "Ingresando..." : "Ingresar"}
-      </button>
+</div>
 
-    </div>
-
-    {error && (
-      <p style={{color:"red",marginTop:"20px"}}>
-        {error}
-      </p>
-    )}
-
-  </div>
-
-  )
+)
 
 }
