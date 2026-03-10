@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -15,21 +15,13 @@ const [marca,setMarca]=useState("")
 const [ano,setAno]=useState("")
 const [base,setBase]=useState("")
 const [tipo,setTipo]=useState("ALFA")
-const [rol,setRol]=useState("")
+
+const [editandoId,setEditandoId]=useState<string | null>(null)
+const [editKm,setEditKm]=useState("")
+const [editKmMtto,setEditKmMtto]=useState("")
 
 useEffect(()=>{
-
-const rolLocal=localStorage.getItem("rol")
-
-if(!rolLocal){
-window.location.href="/"
-return
-}
-
-setRol(rolLocal)
-
 cargarAmbulancias()
-
 },[])
 
 async function cargarAmbulancias(){
@@ -80,6 +72,26 @@ cargarAmbulancias()
 
 }
 
+async function actualizarKilometraje(id:string){
+
+const update:any={}
+
+if(editKm) update.kilometraje_actual=parseInt(editKm)
+if(editKmMtto) update.kilometraje_mtto=parseInt(editKmMtto)
+
+await supabase
+.from("ambulancias")
+.update(update)
+.eq("id",id)
+
+setEditandoId(null)
+setEditKm("")
+setEditKmMtto("")
+
+cargarAmbulancias()
+
+}
+
 function colorEstado(e:string){
 
 if(e==="operativa") return "green"
@@ -101,161 +113,6 @@ const operativas=ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
 
-
-/* =============================
-PANEL CONDUCTOR
-============================= */
-
-if(rol==="conductor"){
-
-return(
-
-<div style={{padding:40,fontFamily:"Arial"}}>
-
-<h1>Panel Conductor</h1>
-
-<button
-onClick={cerrarSesion}
-style={{background:"red",color:"white",padding:"6px 12px"}}
->
-
-Cerrar sesión
-
-</button>
-
-<hr/>
-
-<h2>Reportar novedades de ambulancia</h2>
-
-<table border={1} cellPadding={8}>
-
-<thead>
-<tr>
-<th>Código</th>
-<th>Estado</th>
-<th>Acción</th>
-</tr>
-</thead>
-
-<tbody>
-
-{ambulancias.map(a=>(
-
-<tr key={a.id}>
-
-<td>{a.codigo_operativo}</td>
-
-<td style={{color:colorEstado(a.estado)}}>
-{a.estado}
-</td>
-
-<td>
-
-<button
-onClick={()=>router.push(`/ambulancia/${a.id}`)}
->
-
-Registrar novedad
-
-</button>
-
-</td>
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
-
-</div>
-
-)
-
-}
-
-
-/* =============================
-PANEL SUPERVISOR
-============================= */
-
-if(rol==="supervisor"){
-
-return(
-
-<div style={{padding:40,fontFamily:"Arial"}}>
-
-<h1>Panel Supervisor</h1>
-
-<button
-onClick={cerrarSesion}
-style={{background:"red",color:"white",padding:"6px 12px"}}
->
-
-Cerrar sesión
-
-</button>
-
-<hr/>
-
-<h2>Control de mantenimiento</h2>
-
-<table border={1} cellPadding={8}>
-
-<thead>
-<tr>
-<th>Código</th>
-<th>Estado</th>
-<th>Ficha</th>
-</tr>
-</thead>
-
-<tbody>
-
-{ambulancias.map(a=>(
-
-<tr key={a.id}>
-
-<td>{a.codigo_operativo}</td>
-
-<td style={{color:colorEstado(a.estado)}}>
-
-{a.estado}
-
-</td>
-
-<td>
-
-<button
-onClick={()=>router.push(`/ambulancia/${a.id}`)}
->
-
-Abrir ficha
-
-</button>
-
-</td>
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
-
-</div>
-
-)
-
-}
-
-
-/* =============================
-PANEL ADMIN
-============================= */
-
 return(
 
 <div style={{padding:40,fontFamily:"Arial"}}>
@@ -265,12 +122,13 @@ return(
 <button
 onClick={cerrarSesion}
 style={{
-marginTop:10,
 background:"red",
 color:"white",
-padding:"6px 12px",
+padding:"8px 14px",
 border:"none",
-cursor:"pointer"
+borderRadius:"6px",
+cursor:"pointer",
+marginBottom:"20px"
 }}
 >
 
@@ -364,6 +222,8 @@ Crear Ambulancia
 <tr>
 <th>Código</th>
 <th>Estado</th>
+<th>Kilometraje</th>
+<th>Mtto</th>
 <th>Acciones</th>
 </tr>
 
@@ -385,6 +245,40 @@ Crear Ambulancia
 
 <td>
 
+{editandoId===a.id ?
+
+<input
+value={editKm}
+onChange={(e)=>setEditKm(e.target.value)}
+/>
+
+:
+
+a.kilometraje_actual
+
+}
+
+</td>
+
+<td>
+
+{editandoId===a.id ?
+
+<input
+value={editKmMtto}
+onChange={(e)=>setEditKmMtto(e.target.value)}
+/>
+
+:
+
+a.kilometraje_mtto
+
+}
+
+</td>
+
+<td>
+
 <button
 onClick={()=>router.push(`/ambulancia/${a.id}`)}
 >
@@ -393,28 +287,46 @@ Ficha
 
 </button>
 
+{editandoId===a.id ?
+
+<>
+
+<button onClick={()=>actualizarKilometraje(a.id)}>
+Guardar
+</button>
+
+<button onClick={()=>setEditandoId(null)}>
+Cancelar
+</button>
+
+</>
+
+:
+
 <button
-onClick={()=>cambiarEstado(a.id,"operativa")}
+onClick={()=>{
+setEditandoId(a.id)
+setEditKm(a.kilometraje_actual?.toString() || "")
+setEditKmMtto(a.kilometraje_mtto?.toString() || "")
+}}
 >
 
+Editar KM
+
+</button>
+
+}
+
+<button onClick={()=>cambiarEstado(a.id,"operativa")}>
 Operativa
-
 </button>
 
-<button
-onClick={()=>cambiarEstado(a.id,"mantenimiento")}
->
-
-Mantenimiento
-
+<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
+Mtto
 </button>
 
-<button
-onClick={()=>cambiarEstado(a.id,"no operativa")}
->
-
+<button onClick={()=>cambiarEstado(a.id,"no operativa")}>
 Fuera
-
 </button>
 
 </td>
