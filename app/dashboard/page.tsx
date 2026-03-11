@@ -68,16 +68,25 @@ cargarAmbulancias()
 
 async function cambiarEstado(id:string,estado:string){
 
+let motivo=null
+
+if(estado==="no operativa"){
+
+motivo=prompt("Motivo por el que la ambulancia queda NO OPERATIVA")
+
+}
+
 await supabase
 .from("ambulancias")
-.update({estado})
+.update({
+estado,
+motivo_no_operativa:motivo
+})
 .eq("id",id)
 
 cargarAmbulancias()
 
 }
-
-/* subir foto real */
 
 async function registrarFalla(id:string){
 
@@ -85,26 +94,7 @@ const descripcion=prompt("Describa la falla")
 
 if(!descripcion) return
 
-const input=document.createElement("input")
-input.type="file"
-input.accept="image/*"
-
-input.onchange=async ()=>{
-
-const file=input.files?.[0]
-
-if(!file) return
-
-const nombreArchivo=Date.now()+"_"+file.name
-
-await supabase.storage
-.from("fallas")
-.upload(nombreArchivo,file)
-
-const {data}=supabase
-.storage
-.from("fallas")
-.getPublicUrl(nombreArchivo)
+const imagen=prompt("URL imagen (opcional)")
 
 await supabase
 .from("reportes_fallas")
@@ -112,16 +102,12 @@ await supabase
 
 ambulancia_id:id,
 descripcion,
-imagen_url:data.publicUrl,
+imagen_url:imagen || null,
 usuario:nombre
 
 }])
 
 alert("Reporte registrado")
-
-}
-
-input.click()
 
 }
 
@@ -157,8 +143,6 @@ const {data}=await supabase
 if(data) setFallas(data)
 
 }
-
-/* PDF */
 
 function descargarPDF(){
 
@@ -212,17 +196,7 @@ const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
 
 const porcentajeOperatividad = total ? Math.round((operativas/total)*100) : 0
 
-/* semaforo */
-
-function estadoFlota(){
-
-if(porcentajeOperatividad>=80) return "🟢 Excelente"
-if(porcentajeOperatividad>=60) return "🟡 Riesgo"
-return "🔴 Crítico"
-
-}
-
-/* ALFA BRAVO */
+/* ===== ALFA / BRAVO ===== */
 
 const alfas=ambulancias.filter(a=>a.tipo==="ALFA")
 const bravos=ambulancias.filter(a=>a.tipo==="BRAVO")
@@ -233,18 +207,7 @@ const bravoOperativas=bravos.filter(a=>a.estado==="operativa").length
 const porcentajeAlfa = alfas.length ? Math.round((alfaOperativas/alfas.length)*100) : 0
 const porcentajeBravo = bravos.length ? Math.round((bravoOperativas/bravos.length)*100) : 0
 
-/* mantenimiento predictivo */
-
-function alertaMtto(km:number){
-
-const limite=10000
-const alerta=limite-km
-
-if(alerta<=500) return "⚠ mantenimiento pronto"
-
-return ""
-
-}
+/* ===== CRITICAS ===== */
 
 const criticas=ambulancias.filter(a=>a.estado==="no operativa")
 
@@ -311,9 +274,8 @@ Cerrar sesión
 </div>
 
 <div style={{border:"1px solid black",padding:20}}>
-📊 Operatividad
+📊 Operatividad total
 <h2>{porcentajeOperatividad}%</h2>
-<p>{estadoFlota()}</p>
 </div>
 
 </div>
@@ -335,9 +297,13 @@ Cerrar sesión
 <h3>⚠ Ambulancias críticas</h3>
 
 {criticas.map(c=>(
-<p key={c.id}>
-{c.codigo_operativo} - {c.estado}
-</p>
+<div key={c.id} style={{marginBottom:10}}>
+
+<strong>{c.codigo_operativo}</strong>
+
+<p>Motivo: {c.motivo_no_operativa || "No registrado"}</p>
+
+</div>
 ))}
 
 <hr/>
@@ -384,14 +350,6 @@ Cerrar sesión
 <td>
 
 {a.kilometraje_actual || 0}
-
-<br/>
-
-<span style={{color:"red"}}>
-
-{alertaMtto(a.kilometraje_actual)}
-
-</span>
 
 </td>
 
@@ -447,48 +405,6 @@ Cerrar sesión
 </tbody>
 
 </table>
-
-{/* FICHA MECANICA */}
-
-{ficha && esAdmin && (
-
-<div style={{marginTop:40,border:"2px solid black",padding:20}}>
-
-<h2>Ficha Mecánica</h2>
-
-<p>Codigo: {ficha.codigo_operativo}</p>
-<p>Placa: {ficha.placa}</p>
-<p>Marca: {ficha.marca}</p>
-<p>Tipo: {ficha.tipo}</p>
-<p>Kilometraje: {ficha.kilometraje_actual}</p>
-
-<h3>Historial de fallas</h3>
-
-{fallas.map(f=>(
-
-<div key={f.id}>
-
-<b>{f.created_at}</b>
-
-<p>{f.descripcion}</p>
-
-{f.imagen_url && (
-<img src={f.imagen_url} width="200"/>
-)}
-
-</div>
-
-))}
-
-<button onClick={descargarPDF}>
-
-Descargar informe técnico
-
-</button>
-
-</div>
-
-)}
 
 </div>
 
