@@ -49,7 +49,7 @@ router.push("/")
 
 }
 
-/* registrar kilometraje */
+/* ===== FUNCIONES ===== */
 
 async function registrarKm(id:string){
 
@@ -66,8 +66,6 @@ cargarAmbulancias()
 
 }
 
-/* cambiar estado */
-
 async function cambiarEstado(id:string,estado:string){
 
 await supabase
@@ -78,8 +76,6 @@ await supabase
 cargarAmbulancias()
 
 }
-
-/* registrar falla */
 
 async function registrarFalla(id:string){
 
@@ -104,8 +100,6 @@ alert("Reporte registrado")
 
 }
 
-/* editar ambulancia ADMIN */
-
 async function editarAmbulancia(a:any){
 
 const placa=prompt("Placa",a.placa)
@@ -114,18 +108,12 @@ const tipo=prompt("Tipo",a.tipo)
 
 await supabase
 .from("ambulancias")
-.update({
-placa,
-marca,
-tipo
-})
+.update({placa,marca,tipo})
 .eq("id",a.id)
 
 cargarAmbulancias()
 
 }
-
-/* abrir ficha mecanica */
 
 async function abrirFicha(a:any){
 
@@ -140,8 +128,6 @@ const {data}=await supabase
 if(data) setFallas(data)
 
 }
-
-/* generar informe */
 
 function descargarPDF(){
 
@@ -179,29 +165,29 @@ a.click()
 
 }
 
-/* permisos */
+/* ===== PERMISOS ===== */
 
 const esAdmin = rol==="admin"
 const esSupervisor = rol==="supervisor"
 const esConductor = rol==="conductor"
 
-/* ===== CALCULOS DE FLOTA ===== */
+/* ===== ESTADISTICAS ===== */
 
-const total = ambulancias.length
+const total=ambulancias.length
 
-const operativas = ambulancias.filter(a=>a.estado==="operativa").length
-const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
-const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
+const operativas=ambulancias.filter(a=>a.estado==="operativa").length
+const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
+const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
 
 const porcentajeOperatividad = total ? Math.round((operativas/total)*100) : 0
 
-/* separar ALFA / BRAVO */
+/* ALFA / BRAVO */
 
-const alfas = ambulancias.filter(a=>a.tipo==="ALFA")
-const bravos = ambulancias.filter(a=>a.tipo==="BRAVO")
+const alfas=ambulancias.filter(a=>a.tipo==="ALFA")
+const bravos=ambulancias.filter(a=>a.tipo==="BRAVO")
 
-const alfaOperativas = alfas.filter(a=>a.estado==="operativa").length
-const bravoOperativas = bravos.filter(a=>a.estado==="operativa").length
+const alfaOperativas=alfas.filter(a=>a.estado==="operativa").length
+const bravoOperativas=bravos.filter(a=>a.estado==="operativa").length
 
 /* mantenimiento predictivo */
 
@@ -210,11 +196,15 @@ function alertaMtto(km:number){
 const limite=10000
 const alerta=limite-km
 
-if(alerta<=500) return "⚠ cerca de mantenimiento"
+if(alerta<=500) return "⚠ mantenimiento pronto"
 
 return ""
 
 }
+
+/* ambulancias críticas */
+
+const criticas=ambulancias.filter(a=>a.estado==="no operativa")
 
 function colorEstado(e:string){
 
@@ -253,13 +243,13 @@ Cerrar sesión
 
 <hr/>
 
-{/* PANEL ADMIN */}
+{/* ===== CENTRO DE MANDO ADMIN ===== */}
 
 {esAdmin && (
 
 <div>
 
-<h2>Panel de Control de Flota</h2>
+<h2>Centro de Control de Flota</h2>
 
 <div style={{display:"flex",gap:20}}>
 
@@ -289,9 +279,19 @@ Cerrar sesión
 
 <h3>Estado por tipo</h3>
 
-<p>ALFA operativas: {alfaOperativas}/{alfas.length}</p>
+<p>🚑 ALFA operativas: {alfaOperativas}/{alfas.length}</p>
 
-<p>BRAVO operativas: {bravoOperativas}/{bravos.length}</p>
+<p>🚑 BRAVO operativas: {bravoOperativas}/{bravos.length}</p>
+
+<br/>
+
+<h3>⚠ Ambulancias críticas</h3>
+
+{criticas.map(c=>(
+<p key={c.id}>
+{c.codigo_operativo} - {c.estado}
+</p>
+))}
 
 <hr/>
 
@@ -401,7 +401,7 @@ Cerrar sesión
 
 </table>
 
-{/* FICHA MECANICA */}
+{/* ===== FICHA MECANICA ===== */}
 
 {ficha && esAdmin && (
 
@@ -431,7 +431,7 @@ Cerrar sesión
 
 <button onClick={descargarPDF}>
 
-Descargar informe
+Descargar informe técnico
 
 </button>
 
