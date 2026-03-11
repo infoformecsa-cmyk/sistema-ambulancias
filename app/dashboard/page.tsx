@@ -8,34 +8,32 @@ export default function Dashboard(){
 
 const router=useRouter()
 
-const [ambulancias,setAmbulancias]=useState<any[]>([])
-const [codigo,setCodigo]=useState("")
-const [placa,setPlaca]=useState("")
-const [marca,setMarca]=useState("")
-const [ano,setAno]=useState("")
-const [base,setBase]=useState("")
-const [tipo,setTipo]=useState("ALFA")
 const [rol,setRol]=useState("")
-const [editandoId,setEditandoId]=useState<string | null>(null)
-const [editKm,setEditKm]=useState("")
-const [editKmMtto,setEditKmMtto]=useState("")
+const [nombre,setNombre]=useState("")
+const [ambulancias,setAmbulancias]=useState<any[]>([])
+
+/* leer sesión */
 
 useEffect(()=>{
 
-const rolLocal=localStorage.getItem("rol")
+const r=localStorage.getItem("rol")
+const n=localStorage.getItem("nombre")
 
-if(!rolLocal){
+if(!r){
 
-window.location.href="/"
+router.push("/")
 return
 
 }
 
-setRol(rolLocal)
+setRol(r)
+setNombre(n || "")
 
 cargarAmbulancias()
 
 },[])
+
+/* cargar ambulancias */
 
 async function cargarAmbulancias(){
 
@@ -48,33 +46,29 @@ if(data) setAmbulancias(data)
 
 }
 
-async function crearAmbulancia(){
+/* cerrar sesión */
+
+function cerrarSesion(){
+
+localStorage.clear()
+router.push("/")
+
+}
+
+/* registrar km */
+
+async function registrarKm(id:string,km:number){
 
 await supabase
 .from("ambulancias")
-.insert([{
-
-codigo_operativo:codigo,
-placa,
-marca,
-ano,
-base_operativa:base,
-tipo,
-estado:"operativa",
-kilometraje_actual:0,
-kilometraje_mtto:0
-
-}])
-
-setCodigo("")
-setPlaca("")
-setMarca("")
-setAno("")
-setBase("")
+.update({kilometraje_actual:km})
+.eq("id",id)
 
 cargarAmbulancias()
 
 }
+
+/* cambiar estado */
 
 async function cambiarEstado(id:string,estado:string){
 
@@ -82,26 +76,6 @@ await supabase
 .from("ambulancias")
 .update({estado})
 .eq("id",id)
-
-cargarAmbulancias()
-
-}
-
-async function actualizarKilometraje(id:string){
-
-const update:any={}
-
-if(editKm) update.kilometraje_actual=parseInt(editKm)
-if(editKmMtto) update.kilometraje_mtto=parseInt(editKmMtto)
-
-await supabase
-.from("ambulancias")
-.update(update)
-.eq("id",id)
-
-setEditandoId(null)
-setEditKm("")
-setEditKmMtto("")
 
 cargarAmbulancias()
 
@@ -115,113 +89,29 @@ return "red"
 
 }
 
-function cerrarSesion(){
-
-localStorage.removeItem("rol")
-localStorage.removeItem("nombre")
-
-window.location.href="/"
-
-}
-
-const operativas=ambulancias.filter(a=>a.estado==="operativa").length
-const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
-const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
-
 return(
 
 <div style={{padding:40,fontFamily:"Arial"}}>
 
 <h1>Sistema de Control de Ambulancias</h1>
 
+<div style={{marginBottom:20}}>
+
+Usuario: {nombre} | Rol: {rol}
+
 <button
 onClick={cerrarSesion}
 style={{
+marginLeft:20,
 background:"red",
 color:"white",
-padding:"8px 14px",
 border:"none",
-borderRadius:"6px",
-cursor:"pointer",
-marginBottom:"20px"
+padding:"6px 12px"
 }}
 >
 
 Cerrar sesión
 
-</button>
-
-<hr/>
-
-<h2>Panel de Control de Flota</h2>
-
-<div style={{display:"flex",gap:"20px",marginBottom:"20px"}}>
-
-<div style={{border:"2px solid black",padding:"20px",borderRadius:"6px"}}>
-🚑 Operativas
-<h2>{operativas}</h2>
-</div>
-
-<div style={{border:"2px solid black",padding:"20px",borderRadius:"6px"}}>
-🔧 Mantenimiento
-<h2>{mantenimiento}</h2>
-</div>
-
-<div style={{border:"2px solid black",padding:"20px",borderRadius:"6px"}}>
-⛔ Fuera de servicio
-<h2>{fuera}</h2>
-</div>
-
-</div>
-
-<hr/>
-
-<h2>Registrar nueva ambulancia</h2>
-
-<div style={{display:"flex",flexDirection:"column",width:"300px",gap:"8px"}}>
-
-<input
-placeholder="Código"
-value={codigo}
-onChange={(e)=>setCodigo(e.target.value)}
-/>
-
-<input
-placeholder="Placa"
-value={placa}
-onChange={(e)=>setPlaca(e.target.value)}
-/>
-
-<input
-placeholder="Marca"
-value={marca}
-onChange={(e)=>setMarca(e.target.value)}
-/>
-
-<input
-placeholder="Año"
-value={ano}
-onChange={(e)=>setAno(e.target.value)}
-/>
-
-<input
-placeholder="Base"
-value={base}
-onChange={(e)=>setBase(e.target.value)}
-/>
-
-<select
-value={tipo}
-onChange={(e)=>setTipo(e.target.value)}
->
-
-<option value="ALFA">ALFA</option>
-<option value="BRAVO">BRAVO</option>
-
-</select>
-
-<button onClick={crearAmbulancia}>
-Crear Ambulancia
 </button>
 
 </div>
@@ -230,7 +120,7 @@ Crear Ambulancia
 
 <h2>Flota registrada</h2>
 
-<table border={1} cellPadding={8} style={{borderCollapse:"collapse"}}>
+<table border={1} cellPadding={8}>
 
 <thead>
 
@@ -241,8 +131,7 @@ Crear Ambulancia
 <th>Placa</th>
 <th>Marca</th>
 <th>Tipo</th>
-<th>KM Actual</th>
-<th>KM Mtto</th>
+<th>KM</th>
 <th>Acciones</th>
 
 </tr>
@@ -262,100 +151,84 @@ Crear Ambulancia
 </td>
 
 <td>{a.codigo_operativo}</td>
-
 <td>{a.placa}</td>
-
 <td>{a.marca}</td>
-
 <td>{a.tipo}</td>
+<td>{a.kilometraje_actual}</td>
 
 <td>
 
-{editandoId===a.id ?
+{/* ADMIN */}
 
-<input
-type="number"
-value={editKm}
-onChange={(e)=>setEditKm(e.target.value)}
-/>
-
-:
-
-a.kilometraje_actual
-
-}
-
-</td>
-
-<td>
-
-{editandoId===a.id ?
-
-<input
-type="number"
-value={editKmMtto}
-onChange={(e)=>setEditKmMtto(e.target.value)}
-/>
-
-:
-
-a.kilometraje_mtto
-
-}
-
-</td>
-
-<td>
-
-<button
-onClick={()=>router.push(`/ambulancia/${a.id}`)}
->
-Ficha
-</button>
-
-{editandoId===a.id ?
+{rol==="admin" && (
 
 <>
 
-<button onClick={()=>actualizarKilometraje(a.id)}>
-Guardar
+<button onClick={()=>cambiarEstado(a.id,"operativa")}>
+
+Operativa
+
 </button>
 
-<button onClick={()=>{
-setEditandoId(null)
-setEditKm("")
-setEditKmMtto("")
-}}>
-Cancelar
+<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
+
+Mtto
+
+</button>
+
+<button onClick={()=>cambiarEstado(a.id,"no operativa")}>
+
+Fuera
+
 </button>
 
 </>
 
-:
+)}
+
+{/* SUPERVISOR */}
+
+{rol==="supervisor" && (
 
 <button
 onClick={()=>{
-setEditandoId(a.id)
-setEditKm(a.kilometraje_actual?.toString() || "")
-setEditKmMtto(a.kilometraje_mtto?.toString() || "")
+
+const km=prompt("Ingrese kilometraje")
+
+if(!km) return
+
+registrarKm(a.id,parseInt(km))
+
 }}
 >
-Editar KM
+
+Registrar KM
+
 </button>
 
-}
+)}
 
-<button onClick={()=>cambiarEstado(a.id,"operativa")}>
-Operativa
+{/* CONDUCTOR */}
+
+{rol==="conductor" && (
+
+<button
+onClick={()=>{
+
+const km=prompt("Ingrese kilometraje")
+
+if(!km) return
+
+registrarKm(a.id,parseInt(km))
+
+}}
+>
+
+Reportar KM
+
 </button>
 
-<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
-Mtto
-</button>
-
-<button onClick={()=>cambiarEstado(a.id,"no operativa")}>
-Fuera
-</button>
+)}
 
 </td>
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState,useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -13,15 +13,29 @@ const [password,setPassword] = useState("")
 const [error,setError] = useState("")
 const [loading,setLoading] = useState(false)
 
+/* evitar cache de sesión vieja */
+
+useEffect(()=>{
+
+localStorage.removeItem("usuario_id")
+localStorage.removeItem("rol")
+localStorage.removeItem("nombre")
+
+},[])
+
 async function login(){
 
 setError("")
 setLoading(true)
 
+/* normalizar email */
+
+const correo = email.trim().toLowerCase()
+
 const {data,error:dbError} = await supabase
 .from("usuarios")
 .select("*")
-.eq("email",email)
+.eq("email",correo)
 .single()
 
 if(dbError || !data){
@@ -46,7 +60,9 @@ localStorage.setItem("usuario_id",data.id)
 localStorage.setItem("rol",data.rol)
 localStorage.setItem("nombre",data.nombre)
 
-router.push("/dashboard")
+/* redireccionar */
+
+router.replace("/dashboard")
 
 }
 
