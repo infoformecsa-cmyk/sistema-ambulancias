@@ -12,18 +12,14 @@ const [rol,setRol]=useState("")
 const [nombre,setNombre]=useState("")
 const [ambulancias,setAmbulancias]=useState<any[]>([])
 
-/* leer sesión */
-
 useEffect(()=>{
 
 const r=localStorage.getItem("rol")
 const n=localStorage.getItem("nombre")
 
 if(!r){
-
 router.push("/")
 return
-
 }
 
 setRol(r)
@@ -55,13 +51,17 @@ router.push("/")
 
 }
 
-/* registrar km */
+/* registrar kilometraje */
 
-async function registrarKm(id:string,km:number){
+async function registrarKm(id:string){
+
+const km=prompt("Ingrese kilometraje")
+
+if(!km) return
 
 await supabase
 .from("ambulancias")
-.update({kilometraje_actual:km})
+.update({kilometraje_actual:parseInt(km)})
 .eq("id",id)
 
 cargarAmbulancias()
@@ -80,6 +80,54 @@ await supabase
 cargarAmbulancias()
 
 }
+
+/* registrar falla */
+
+async function registrarFalla(id:string){
+
+const descripcion=prompt("Describa la falla")
+
+if(!descripcion) return
+
+const imagen=prompt("URL de imagen (opcional)")
+
+await supabase
+.from("reportes_fallas")
+.insert([{
+
+ambulancia_id:id,
+descripcion:descripcion,
+imagen_url:imagen || null,
+usuario:nombre
+
+}])
+
+alert("Reporte registrado")
+
+}
+
+/* editar datos ambulancia */
+
+async function editarAmbulancia(a:any){
+
+const placa=prompt("Nueva placa",a.placa)
+const marca=prompt("Nueva marca",a.marca)
+const tipo=prompt("Tipo (ALFA o BRAVO)",a.tipo)
+
+await supabase
+.from("ambulancias")
+.update({
+placa:placa,
+marca:marca,
+tipo:tipo
+})
+.eq("id",a.id)
+
+cargarAmbulancias()
+
+}
+
+/* color estado */
 
 function colorEstado(e:string){
 
@@ -154,7 +202,7 @@ Cerrar sesión
 <td>{a.placa}</td>
 <td>{a.marca}</td>
 <td>{a.tipo}</td>
-<td>{a.kilometraje_actual}</td>
+<td>{a.kilometraje_actual || 0}</td>
 
 <td>
 
@@ -164,22 +212,28 @@ Cerrar sesión
 
 <>
 
+<button onClick={()=>registrarKm(a.id)}>
+KM
+</button>
+
 <button onClick={()=>cambiarEstado(a.id,"operativa")}>
-
 Operativa
-
 </button>
 
 <button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
-
 Mtto
-
 </button>
 
 <button onClick={()=>cambiarEstado(a.id,"no operativa")}>
-
 Fuera
+</button>
 
+<button onClick={()=>registrarFalla(a.id)}>
+Reporte
+</button>
+
+<button onClick={()=>editarAmbulancia(a)}>
+Editar
 </button>
 
 </>
@@ -190,21 +244,29 @@ Fuera
 
 {rol==="supervisor" && (
 
-<button
-onClick={()=>{
+<>
 
-const km=prompt("Ingrese kilometraje")
-
-if(!km) return
-
-registrarKm(a.id,parseInt(km))
-
-}}
->
-
+<button onClick={()=>registrarKm(a.id)}>
 Registrar KM
-
 </button>
+
+<button onClick={()=>cambiarEstado(a.id,"operativa")}>
+Operativa
+</button>
+
+<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
+Mtto
+</button>
+
+<button onClick={()=>cambiarEstado(a.id,"no operativa")}>
+Fuera
+</button>
+
+<button onClick={()=>registrarFalla(a.id)}>
+Reporte
+</button>
+
+</>
 
 )}
 
@@ -212,21 +274,17 @@ Registrar KM
 
 {rol==="conductor" && (
 
-<button
-onClick={()=>{
+<>
 
-const km=prompt("Ingrese kilometraje")
-
-if(!km) return
-
-registrarKm(a.id,parseInt(km))
-
-}}
->
-
-Reportar KM
-
+<button onClick={()=>registrarKm(a.id)}>
+Registrar KM
 </button>
+
+<button onClick={()=>registrarFalla(a.id)}>
+Reportar falla
+</button>
+
+</>
 
 )}
 
