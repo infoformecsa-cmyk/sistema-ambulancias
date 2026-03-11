@@ -42,8 +42,6 @@ if(data) setAmbulancias(data)
 
 }
 
-/* cerrar sesión */
-
 function cerrarSesion(){
 
 localStorage.clear()
@@ -89,14 +87,14 @@ const descripcion=prompt("Describa la falla")
 
 if(!descripcion) return
 
-const imagen=prompt("URL de imagen (opcional)")
+const imagen=prompt("URL imagen (opcional)")
 
 await supabase
 .from("reportes_fallas")
 .insert([{
 
 ambulancia_id:id,
-descripcion:descripcion,
+descripcion,
 imagen_url:imagen || null,
 usuario:nombre
 
@@ -127,7 +125,7 @@ cargarAmbulancias()
 
 }
 
-/* abrir ficha */
+/* abrir ficha mecanica */
 
 async function abrirFicha(a:any){
 
@@ -143,25 +141,26 @@ if(data) setFallas(data)
 
 }
 
-/* descargar PDF */
+/* generar informe */
 
 function descargarPDF(){
 
-let contenido = `
+let texto=`
+
 INFORME TECNICO DE AMBULANCIA
 
 Codigo: ${ficha.codigo_operativo}
 Placa: ${ficha.placa}
 Marca: ${ficha.marca}
 Tipo: ${ficha.tipo}
-KM: ${ficha.kilometraje_actual}
+Kilometraje: ${ficha.kilometraje_actual}
 
 HISTORIAL DE FALLAS
 `
 
 fallas.forEach(f=>{
 
-contenido += `
+texto+=`
 Fecha: ${f.created_at}
 Usuario: ${f.usuario}
 Descripcion: ${f.descripcion}
@@ -170,7 +169,7 @@ Descripcion: ${f.descripcion}
 
 })
 
-const blob=new Blob([contenido],{type:"text/plain"})
+const blob=new Blob([texto],{type:"text/plain"})
 const url=URL.createObjectURL(blob)
 
 const a=document.createElement("a")
@@ -185,6 +184,37 @@ a.click()
 const esAdmin = rol==="admin"
 const esSupervisor = rol==="supervisor"
 const esConductor = rol==="conductor"
+
+/* ===== CALCULOS DE FLOTA ===== */
+
+const total = ambulancias.length
+
+const operativas = ambulancias.filter(a=>a.estado==="operativa").length
+const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
+const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
+
+const porcentajeOperatividad = total ? Math.round((operativas/total)*100) : 0
+
+/* separar ALFA / BRAVO */
+
+const alfas = ambulancias.filter(a=>a.tipo==="ALFA")
+const bravos = ambulancias.filter(a=>a.tipo==="BRAVO")
+
+const alfaOperativas = alfas.filter(a=>a.estado==="operativa").length
+const bravoOperativas = bravos.filter(a=>a.estado==="operativa").length
+
+/* mantenimiento predictivo */
+
+function alertaMtto(km:number){
+
+const limite=10000
+const alerta=limite-km
+
+if(alerta<=500) return "⚠ cerca de mantenimiento"
+
+return ""
+
+}
 
 function colorEstado(e:string){
 
@@ -223,6 +253,52 @@ Cerrar sesión
 
 <hr/>
 
+{/* PANEL ADMIN */}
+
+{esAdmin && (
+
+<div>
+
+<h2>Panel de Control de Flota</h2>
+
+<div style={{display:"flex",gap:20}}>
+
+<div style={{border:"1px solid black",padding:20}}>
+🚑 Operativas
+<h2>{operativas}</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+🔧 Mantenimiento
+<h2>{mantenimiento}</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+⛔ Fuera servicio
+<h2>{fuera}</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+📊 Operatividad
+<h2>{porcentajeOperatividad}%</h2>
+</div>
+
+</div>
+
+<br/>
+
+<h3>Estado por tipo</h3>
+
+<p>ALFA operativas: {alfaOperativas}/{alfas.length}</p>
+
+<p>BRAVO operativas: {bravoOperativas}/{bravos.length}</p>
+
+<hr/>
+
+</div>
+
+)}
+
 <h2>Flota registrada</h2>
 
 <table border={1} cellPadding={8}>
@@ -231,7 +307,7 @@ Cerrar sesión
 
 <tr>
 <th>Estado</th>
-<th>Código</th>
+<th>Codigo</th>
 <th>Placa</th>
 <th>Marca</th>
 <th>Tipo</th>
@@ -257,62 +333,58 @@ Cerrar sesión
 <td>{a.placa}</td>
 <td>{a.marca}</td>
 <td>{a.tipo}</td>
-<td>{a.kilometraje_actual || 0}</td>
 
 <td>
 
-{/* ADMIN */}
+{a.kilometraje_actual || 0}
+
+<br/>
+
+<span style={{color:"red"}}>
+
+{alertaMtto(a.kilometraje_actual)}
+
+</span>
+
+</td>
+
+<td>
 
 {esAdmin && (
 
 <>
 
 <button onClick={()=>registrarKm(a.id)}>KM</button>
-
 <button onClick={()=>cambiarEstado(a.id,"operativa")}>Operativa</button>
-
 <button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>Mtto</button>
-
 <button onClick={()=>cambiarEstado(a.id,"no operativa")}>Fuera</button>
-
 <button onClick={()=>registrarFalla(a.id)}>Reporte</button>
-
 <button onClick={()=>editarAmbulancia(a)}>Editar</button>
-
 <button onClick={()=>abrirFicha(a)}>Ficha</button>
 
 </>
 
 )}
 
-{/* SUPERVISOR */}
-
 {esSupervisor && (
 
 <>
 
 <button onClick={()=>registrarKm(a.id)}>KM</button>
-
 <button onClick={()=>cambiarEstado(a.id,"operativa")}>Operativa</button>
-
 <button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>Mtto</button>
-
 <button onClick={()=>cambiarEstado(a.id,"no operativa")}>Fuera</button>
-
 <button onClick={()=>registrarFalla(a.id)}>Reporte</button>
 
 </>
 
 )}
 
-{/* CONDUCTOR */}
-
 {esConductor && (
 
 <>
 
 <button onClick={()=>registrarKm(a.id)}>KM</button>
-
 <button onClick={()=>registrarFalla(a.id)}>Falla</button>
 
 </>
@@ -347,9 +419,10 @@ Cerrar sesión
 
 {fallas.map(f=>(
 
-<div key={f.id} style={{marginBottom:10}}>
+<div key={f.id}>
 
 <b>{f.created_at}</b>
+
 <p>{f.descripcion}</p>
 
 </div>
