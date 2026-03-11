@@ -11,8 +11,11 @@ const router=useRouter()
 const [rol,setRol]=useState("")
 const [nombre,setNombre]=useState("")
 const [ambulancias,setAmbulancias]=useState<any[]>([])
-const [ficha,setFicha]=useState<any>(null)
-const [fallas,setFallas]=useState<any[]>([])
+
+const [editandoId,setEditandoId]=useState<string | null>(null)
+const [editKm,setEditKm]=useState("")
+const [editKmMtto,setEditKmMtto]=useState("")
+const [editMotivo,setEditMotivo]=useState("")
 
 useEffect(()=>{
 
@@ -49,18 +52,20 @@ router.push("/")
 
 }
 
-/* ===== FUNCIONES ===== */
-
-async function registrarKm(id:string){
-
-const km=prompt("Ingrese kilometraje")
-
-if(!km) return
+async function guardarCambios(id:string){
 
 await supabase
 .from("ambulancias")
-.update({kilometraje_actual:parseInt(km)})
+.update({
+
+kilometraje_actual: parseInt(editKm),
+kilometraje_mtto: parseInt(editKmMtto),
+motivo_no_operativa: editMotivo
+
+})
 .eq("id",id)
+
+setEditandoId(null)
 
 cargarAmbulancias()
 
@@ -68,20 +73,9 @@ cargarAmbulancias()
 
 async function cambiarEstado(id:string,estado:string){
 
-let motivo=null
-
-if(estado==="no operativa"){
-
-motivo=prompt("Motivo por el que la ambulancia queda NO OPERATIVA")
-
-}
-
 await supabase
 .from("ambulancias")
-.update({
-estado,
-motivo_no_operativa:motivo
-})
+.update({estado})
 .eq("id",id)
 
 cargarAmbulancias()
@@ -94,15 +88,12 @@ const descripcion=prompt("Describa la falla")
 
 if(!descripcion) return
 
-const imagen=prompt("URL imagen (opcional)")
-
 await supabase
 .from("reportes_fallas")
 .insert([{
 
 ambulancia_id:id,
 descripcion,
-imagen_url:imagen || null,
 usuario:nombre
 
 }])
@@ -111,105 +102,17 @@ alert("Reporte registrado")
 
 }
 
-async function editarAmbulancia(a:any){
+/* PERMISOS */
 
-const placa=prompt("Placa",a.placa)
-const marca=prompt("Marca",a.marca)
-const tipo=prompt("Tipo (ALFA o BRAVO)",a.tipo)
+const esAdmin=rol==="admin"
+const esSupervisor=rol==="supervisor"
+const esConductor=rol==="conductor"
 
-await supabase
-.from("ambulancias")
-.update({
-placa,
-marca,
-tipo
-})
-.eq("id",a.id)
-
-cargarAmbulancias()
-
-}
-
-async function abrirFicha(a:any){
-
-setFicha(a)
-
-const {data}=await supabase
-.from("reportes_fallas")
-.select("*")
-.eq("ambulancia_id",a.id)
-.order("created_at",{ascending:false})
-
-if(data) setFallas(data)
-
-}
-
-function descargarPDF(){
-
-let texto=`
-
-INFORME TECNICO DE AMBULANCIA
-
-Codigo: ${ficha.codigo_operativo}
-Placa: ${ficha.placa}
-Marca: ${ficha.marca}
-Tipo: ${ficha.tipo}
-Kilometraje: ${ficha.kilometraje_actual}
-
-HISTORIAL DE FALLAS
-`
-
-fallas.forEach(f=>{
-
-texto+=`
-Fecha: ${f.created_at}
-Usuario: ${f.usuario}
-Descripcion: ${f.descripcion}
-
-`
-
-})
-
-const blob=new Blob([texto],{type:"text/plain"})
-const url=URL.createObjectURL(blob)
-
-const a=document.createElement("a")
-a.href=url
-a.download="informe_ambulancia.txt"
-a.click()
-
-}
-
-/* ===== PERMISOS ===== */
-
-const esAdmin = rol==="admin"
-const esSupervisor = rol==="supervisor"
-const esConductor = rol==="conductor"
-
-/* ===== ESTADISTICAS ===== */
-
-const total=ambulancias.length
+/* ESTADISTICAS */
 
 const operativas=ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
-
-const porcentajeOperatividad = total ? Math.round((operativas/total)*100) : 0
-
-/* ===== ALFA / BRAVO ===== */
-
-const alfas=ambulancias.filter(a=>a.tipo==="ALFA")
-const bravos=ambulancias.filter(a=>a.tipo==="BRAVO")
-
-const alfaOperativas=alfas.filter(a=>a.estado==="operativa").length
-const bravoOperativas=bravos.filter(a=>a.estado==="operativa").length
-
-const porcentajeAlfa = alfas.length ? Math.round((alfaOperativas/alfas.length)*100) : 0
-const porcentajeBravo = bravos.length ? Math.round((bravoOperativas/bravos.length)*100) : 0
-
-/* ===== CRITICAS ===== */
-
-const criticas=ambulancias.filter(a=>a.estado==="no operativa")
 
 function colorEstado(e:string){
 
@@ -225,36 +128,25 @@ return(
 
 <h1>Sistema de Control de Ambulancias</h1>
 
-<div style={{marginBottom:20}}>
-
+<p>
 Usuario: {nombre} | Rol: {rol}
+</p>
 
 <button
 onClick={cerrarSesion}
 style={{
-marginLeft:20,
 background:"red",
 color:"white",
 border:"none",
 padding:"6px 12px"
 }}
 >
-
 Cerrar sesión
-
 </button>
-
-</div>
 
 <hr/>
 
-{/* PANEL ADMIN */}
-
-{esAdmin && (
-
-<div>
-
-<h2>Centro de Control de Flota</h2>
+<h2>Panel de Flota</h2>
 
 <div style={{display:"flex",gap:20}}>
 
@@ -269,48 +161,13 @@ Cerrar sesión
 </div>
 
 <div style={{border:"1px solid black",padding:20}}>
-⛔ Fuera servicio
+⛔ No operativas
 <h2>{fuera}</h2>
 </div>
 
-<div style={{border:"1px solid black",padding:20}}>
-📊 Operatividad total
-<h2>{porcentajeOperatividad}%</h2>
 </div>
-
-</div>
-
-<br/>
-
-<h3>Estado por tipo</h3>
-
-<p>
-🚑 ALFA operativas: {alfaOperativas}/{alfas.length} ({porcentajeAlfa}%)
-</p>
-
-<p>
-🚑 BRAVO operativas: {bravoOperativas}/{bravos.length} ({porcentajeBravo}%)
-</p>
-
-<br/>
-
-<h3>⚠ Ambulancias críticas</h3>
-
-{criticas.map(c=>(
-<div key={c.id} style={{marginBottom:10}}>
-
-<strong>{c.codigo_operativo}</strong>
-
-<p>Motivo: {c.motivo_no_operativa || "No registrado"}</p>
-
-</div>
-))}
 
 <hr/>
-
-</div>
-
-)}
 
 <h2>Flota registrada</h2>
 
@@ -322,9 +179,10 @@ Cerrar sesión
 <th>Estado</th>
 <th>Codigo</th>
 <th>Placa</th>
-<th>Marca</th>
 <th>Tipo</th>
-<th>KM</th>
+<th>KM Actual</th>
+<th>KM Mtto</th>
+<th>Motivo No Operativa</th>
 <th>Acciones</th>
 </tr>
 
@@ -343,56 +201,112 @@ Cerrar sesión
 </td>
 
 <td>{a.codigo_operativo}</td>
+
 <td>{a.placa}</td>
-<td>{a.marca}</td>
+
 <td>{a.tipo}</td>
 
 <td>
 
-{a.kilometraje_actual || 0}
+{editandoId===a.id ?
+
+<input
+type="number"
+value={editKm}
+onChange={(e)=>setEditKm(e.target.value)}
+style={{width:80}}
+/>
+
+:
+
+a.kilometraje_actual
+
+}
 
 </td>
 
 <td>
 
-{esAdmin && (
+{editandoId===a.id ?
+
+<input
+type="number"
+value={editKmMtto}
+onChange={(e)=>setEditKmMtto(e.target.value)}
+style={{width:80}}
+/>
+
+:
+
+a.kilometraje_mtto
+
+}
+
+</td>
+
+<td>
+
+{editandoId===a.id ?
+
+<input
+value={editMotivo}
+onChange={(e)=>setEditMotivo(e.target.value)}
+/>
+
+:
+
+a.motivo_no_operativa
+
+}
+
+</td>
+
+<td>
+
+{esAdmin && editandoId!==a.id && (
 
 <>
 
-<button onClick={()=>registrarKm(a.id)}>KM</button>
-<button onClick={()=>cambiarEstado(a.id,"operativa")}>Operativa</button>
-<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>Mtto</button>
-<button onClick={()=>cambiarEstado(a.id,"no operativa")}>Fuera</button>
-<button onClick={()=>registrarFalla(a.id)}>Reporte</button>
-<button onClick={()=>editarAmbulancia(a)}>Editar</button>
-<button onClick={()=>abrirFicha(a)}>Ficha</button>
+<button onClick={()=>{
+
+setEditandoId(a.id)
+setEditKm(a.kilometraje_actual || "")
+setEditKmMtto(a.kilometraje_mtto || "")
+setEditMotivo(a.motivo_no_operativa || "")
+
+}}>
+Editar
+</button>
+
+<button onClick={()=>cambiarEstado(a.id,"operativa")}>
+Operativa
+</button>
+
+<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
+Mtto
+</button>
+
+<button onClick={()=>cambiarEstado(a.id,"no operativa")}>
+No Operativa
+</button>
 
 </>
 
 )}
 
-{esSupervisor && (
+{editandoId===a.id && (
 
-<>
-
-<button onClick={()=>registrarKm(a.id)}>KM</button>
-<button onClick={()=>cambiarEstado(a.id,"operativa")}>Operativa</button>
-<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>Mtto</button>
-<button onClick={()=>cambiarEstado(a.id,"no operativa")}>Fuera</button>
-<button onClick={()=>registrarFalla(a.id)}>Reporte</button>
-
-</>
+<button onClick={()=>guardarCambios(a.id)}>
+Guardar
+</button>
 
 )}
 
-{esConductor && (
+{(esSupervisor || esConductor) && (
 
-<>
-
-<button onClick={()=>registrarKm(a.id)}>KM</button>
-<button onClick={()=>registrarFalla(a.id)}>Falla</button>
-
-</>
+<button onClick={()=>registrarFalla(a.id)}>
+Reportar
+</button>
 
 )}
 
