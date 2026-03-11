@@ -11,8 +11,8 @@ const router=useRouter()
 const [rol,setRol]=useState("")
 const [nombre,setNombre]=useState("")
 const [ambulancias,setAmbulancias]=useState<any[]>([])
-
 const [editandoId,setEditandoId]=useState<string | null>(null)
+
 const [editKm,setEditKm]=useState("")
 const [editKmMtto,setEditKmMtto]=useState("")
 const [editMotivo,setEditMotivo]=useState("")
@@ -58,8 +58,8 @@ await supabase
 .from("ambulancias")
 .update({
 
-kilometraje_actual: parseInt(editKm),
-kilometraje_mtto: parseInt(editKmMtto),
+kilometraje_actual: parseInt(editKm) || 0,
+kilometraje_mtto: parseInt(editKmMtto) || 0,
 motivo_no_operativa: editMotivo
 
 })
@@ -82,37 +82,50 @@ cargarAmbulancias()
 
 }
 
-async function registrarFalla(id:string){
-
-const descripcion=prompt("Describa la falla")
-
-if(!descripcion) return
-
-await supabase
-.from("reportes_fallas")
-.insert([{
-
-ambulancia_id:id,
-descripcion,
-usuario:nombre
-
-}])
-
-alert("Reporte registrado")
-
-}
-
 /* PERMISOS */
 
 const esAdmin=rol==="admin"
 const esSupervisor=rol==="supervisor"
 const esConductor=rol==="conductor"
 
-/* ESTADISTICAS */
+/* ===== ESTADISTICAS GENERALES ===== */
 
 const operativas=ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
+
+/* ===== SEPARAR TIPOS ===== */
+
+const alfas=ambulancias.filter(a=>a.tipo==="ALFA")
+const bravos=ambulancias.filter(a=>a.tipo==="BRAVO")
+
+/* ===== CALCULO ALFA ===== */
+
+const alfaOperativas=alfas.filter(a=>a.estado==="operativa").length
+
+const alfaNoOperativas=alfas.filter(
+a=>a.estado==="mantenimiento" || a.estado==="no operativa"
+).length
+
+const porcentajeAlfaOperativas=
+alfas.length ? Math.round((alfaOperativas/alfas.length)*100) : 0
+
+const porcentajeAlfaNoOperativas=
+alfas.length ? Math.round((alfaNoOperativas/alfas.length)*100) : 0
+
+/* ===== CALCULO BRAVO ===== */
+
+const bravoOperativas=bravos.filter(a=>a.estado==="operativa").length
+
+const bravoNoOperativas=bravos.filter(
+a=>a.estado==="mantenimiento" || a.estado==="no operativa"
+).length
+
+const porcentajeBravoOperativas=
+bravos.length ? Math.round((bravoOperativas/bravos.length)*100) : 0
+
+const porcentajeBravoNoOperativas=
+bravos.length ? Math.round((bravoNoOperativas/bravos.length)*100) : 0
 
 function colorEstado(e:string){
 
@@ -166,6 +179,30 @@ Cerrar sesión
 </div>
 
 </div>
+
+<hr/>
+
+<h2>Estado por tipo</h2>
+
+<h3>ALFA</h3>
+
+<p>
+Operativas: {alfaOperativas}/{alfas.length} ({porcentajeAlfaOperativas}%)
+</p>
+
+<p>
+No operativas (incluye mantenimiento): {alfaNoOperativas}/{alfas.length} ({porcentajeAlfaNoOperativas}%)
+</p>
+
+<h3>BRAVO</h3>
+
+<p>
+Operativas: {bravoOperativas}/{bravos.length} ({porcentajeBravoOperativas}%)
+</p>
+
+<p>
+No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({porcentajeBravoNoOperativas}%)
+</p>
 
 <hr/>
 
@@ -298,14 +335,6 @@ No Operativa
 
 <button onClick={()=>guardarCambios(a.id)}>
 Guardar
-</button>
-
-)}
-
-{(esSupervisor || esConductor) && (
-
-<button onClick={()=>registrarFalla(a.id)}>
-Reportar
 </button>
 
 )}
