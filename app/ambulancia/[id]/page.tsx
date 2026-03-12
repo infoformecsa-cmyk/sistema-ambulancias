@@ -19,6 +19,8 @@ const [kmMtto,setKmMtto] = useState("")
 const [descripcion,setDescripcion] = useState("")
 const [archivo,setArchivo] = useState<File | null>(null)
 
+const [criticidad,setCriticidad] = useState("media")
+
 useEffect(()=>{
 
 cargarAmbulancia()
@@ -89,7 +91,12 @@ cargarAmbulancia()
 
 async function registrarFalla(){
 
-if(!descripcion) return
+if(!descripcion){
+
+alert("Ingrese la descripción de la falla")
+return
+
+}
 
 let url = null
 
@@ -116,12 +123,15 @@ const {error} = await supabase
 ambulancia_id:id,
 descripcion:descripcion,
 imagen_url:url,
-usuario:localStorage.getItem("nombre")
+usuario:localStorage.getItem("nombre"),
+criticidad:criticidad,
+estado:"abierta"
 
 })
 
 if(error){
 
+console.log(error)
 alert("Error registrando falla")
 return
 
@@ -131,6 +141,7 @@ alert("Falla registrada")
 
 setDescripcion("")
 setArchivo(null)
+setCriticidad("media")
 
 }
 
@@ -211,10 +222,16 @@ style={{width:"100%",height:100}}
 
 <br/>
 
-<select>
-<option>Media</option>
-<option>Alta</option>
-<option>Crítica</option>
+<select
+value={criticidad}
+onChange={(e)=>setCriticidad(e.target.value)}
+>
+
+<option value="baja">Baja</option>
+<option value="media">Media</option>
+<option value="alta">Alta</option>
+<option value="critica">Crítica</option>
+
 </select>
 
 <br/><br/>
