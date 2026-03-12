@@ -18,6 +18,10 @@ const [editKm,setEditKm] = useState("")
 const [editMotivo,setEditMotivo] = useState("")
 const [editMtto,setEditMtto] = useState("")
 
+/* ==============================
+   CARGAR AMBULANCIAS
+============================== */
+
 async function cargarAmbulancias(){
 
 const {data,error} = await supabase
@@ -33,6 +37,10 @@ return
 if(data) setAmbulancias(data)
 
 }
+
+/* ==============================
+   SESION
+============================== */
 
 useEffect(()=>{
 
@@ -58,6 +66,10 @@ router.push("/")
 
 }
 
+/* ==============================
+   COLORES ESTADO
+============================== */
+
 function colorEstado(e:string){
 
 if(e==="operativa") return "green"
@@ -65,6 +77,10 @@ if(e==="mantenimiento") return "orange"
 return "red"
 
 }
+
+/* ==============================
+   CAMBIAR ESTADO
+============================== */
 
 async function cambiarEstado(id:string,estado:string){
 
@@ -76,6 +92,10 @@ await supabase
 cargarAmbulancias()
 
 }
+
+/* ==============================
+   GUARDAR CAMBIOS
+============================== */
 
 async function guardarCambios(id:string){
 
@@ -115,7 +135,83 @@ cargarAmbulancias()
 
 }
 
-/* estadísticas */
+/* ==============================
+   PDF GENERAL
+============================== */
+
+function imprimirGeneral(){
+
+let html = `
+<h1>Informe General de Ambulancias</h1>
+<table border="1" style="border-collapse:collapse;width:100%">
+<tr>
+<th>Codigo</th>
+<th>Placa</th>
+<th>Tipo</th>
+<th>Estado</th>
+<th>KM</th>
+<th>Motivo</th>
+</tr>
+`
+
+ambulancias.forEach(a=>{
+
+html+=`
+<tr>
+<td>${a.codigo_operativo}</td>
+<td>${a.placa || ""}</td>
+<td>${a.tipo}</td>
+<td>${a.estado}</td>
+<td>${a.kilometraje_actual || 0}</td>
+<td>${a.motivo_no_operativo || ""}</td>
+</tr>
+`
+
+})
+
+html+=`</table>`
+
+const ventana = window.open("")
+
+ventana?.document.write(html)
+
+ventana?.print()
+
+}
+
+/* ==============================
+   PDF POR AMBULANCIA
+============================== */
+
+function imprimirFicha(a:any){
+
+let html = `
+<h1>Informe Técnico de Ambulancia</h1>
+
+<p><b>Codigo:</b> ${a.codigo_operativo}</p>
+<p><b>Placa:</b> ${a.placa || ""}</p>
+<p><b>Tipo:</b> ${a.tipo}</p>
+<p><b>Estado:</b> ${a.estado}</p>
+<p><b>Kilometraje Actual:</b> ${a.kilometraje_actual || 0}</p>
+<p><b>Proximo Mantenimiento:</b> ${a.observaciones?.replace("MTTO:","") || "-"}</p>
+<p><b>Motivo No Operativa:</b> ${a.motivo_no_operativo || "-"}</p>
+
+<br>
+
+<p>Fecha reporte: ${new Date().toLocaleDateString()}</p>
+`
+
+const ventana = window.open("")
+
+ventana?.document.write(html)
+
+ventana?.print()
+
+}
+
+/* ==============================
+   ESTADISTICAS
+============================== */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
@@ -142,12 +238,7 @@ return(
 Usuario: {nombre} | Rol: {rol}
 </p>
 
-<button
-onClick={cerrarSesion}
-style={{background:"red",color:"white",border:"none",padding:"8px"}}
->
-Cerrar sesión
-</button>
+<button onClick={cerrarSesion}>Cerrar sesión</button>
 
 <hr/>
 
@@ -176,16 +267,22 @@ Cerrar sesión
 </div>
 
 <div style={{border:"1px solid black",padding:20}}>
-🚑 ALFA operativas
+ALFA Operativas
 <h2>{alfaPorcentaje}%</h2>
 </div>
 
 <div style={{border:"1px solid black",padding:20}}>
-🚑 BRAVO operativas
+BRAVO Operativas
 <h2>{bravoPorcentaje}%</h2>
 </div>
 
 </div>
+
+<br/>
+
+<button onClick={imprimirGeneral}>
+📄 PDF GENERAL DE FLOTA
+</button>
 
 <hr/>
 
@@ -200,9 +297,9 @@ Cerrar sesión
 <th>Codigo</th>
 <th>Placa</th>
 <th>Tipo</th>
-<th>KM Actual</th>
-<th>KM Próx Mtto</th>
-<th>Motivo No Operativa</th>
+<th>KM</th>
+<th>Prox Mtto</th>
+<th>Motivo</th>
 <th>Acciones</th>
 </tr>
 
@@ -279,8 +376,8 @@ a.motivo_no_operativo || "-"
 
 <td>
 
-<button onClick={()=>router.push("/ambulancia/"+a.id)}>
-Ficha
+<button onClick={()=>imprimirFicha(a)}>
+📄 PDF
 </button>
 
 {editandoId!==a.id && (
