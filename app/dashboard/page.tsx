@@ -36,11 +36,6 @@ const {data,error} = await supabase
 .select("*")
 .order("codigo_operativo")
 
-if(error){
-console.log(error)
-return
-}
-
 if(data) setAmbulancias(data)
 
 }
@@ -60,22 +55,14 @@ return "red"
 
 }
 
-/* ESTADISTICAS */
+/* estadisticas */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
 const total = ambulancias.length
-const porcentajeOperativas = total>0 ? Math.round((operativas/total)*100) : 0
-
-const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
-const alfaOperativas = alfa.filter(a=>a.estado==="operativa").length
-const alfaPorcentaje = alfa.length>0 ? Math.round((alfaOperativas/alfa.length)*100) : 0
-
-const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
-const bravoOperativas = bravo.filter(a=>a.estado==="operativa").length
-const bravoPorcentaje = bravo.length>0 ? Math.round((bravoOperativas/bravo.length)*100) : 0
+const operatividad = total>0 ? Math.round((operativas/total)*100) : 0
 
 return(
 
@@ -95,7 +82,7 @@ Cerrar sesión
 
 <h2>Panel de Flota</h2>
 
-<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+<div style={{display:"flex",gap:20}}>
 
 <div style={{border:"1px solid black",padding:20}}>
 🚑 Operativas
@@ -114,17 +101,7 @@ Cerrar sesión
 
 <div style={{border:"1px solid black",padding:20}}>
 📊 Operatividad
-<h2>{porcentajeOperativas}%</h2>
-</div>
-
-<div style={{border:"1px solid black",padding:20}}>
-ALFA Operativas
-<h2>{alfaPorcentaje}%</h2>
-</div>
-
-<div style={{border:"1px solid black",padding:20}}>
-BRAVO Operativas
-<h2>{bravoPorcentaje}%</h2>
+<h2>{operatividad}%</h2>
 </div>
 
 </div>
@@ -133,7 +110,7 @@ BRAVO Operativas
 
 <h2>Flota registrada</h2>
 
-<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
+<table border={1} cellPadding={8} style={{width:"100%"}}>
 
 <thead>
 
@@ -142,7 +119,7 @@ BRAVO Operativas
 <th>Codigo</th>
 <th>Placa</th>
 <th>Tipo</th>
-<th>KM Actual</th>
+<th>KM</th>
 <th>Próx Mtto</th>
 <th>Motivo</th>
 <th>Acciones</th>
@@ -166,27 +143,19 @@ BRAVO Operativas
 
 <td>{a.tipo}</td>
 
-<td>
-{a.kilometraje_actual || 0}
-</td>
+<td>{a.kilometraje_actual || 0}</td>
 
 <td>
 
 {a.kilometraje_mtto ?
 
-<span>
-
+<>
 {a.kilometraje_mtto}
-
 <br/>
-
 <span style={{fontSize:12,color:"gray"}}>
-
 faltan {a.kilometraje_mtto - (a.kilometraje_actual || 0)} km
-
 </span>
-
-</span>
+</>
 
 :
 
@@ -196,19 +165,47 @@ faltan {a.kilometraje_mtto - (a.kilometraje_actual || 0)} km
 
 </td>
 
-<td>
-
-{a.motivo_no_operativo || "-"}
-
-</td>
+<td>{a.motivo_no_operativo || "-"}</td>
 
 <td>
 
-<button
-onClick={()=>router.push("/ambulancia/"+a.id)}
->
+{/* ADMINISTRADOR */}
+
+{rol==="admin" && (
+
+<>
+
+<button onClick={()=>router.push("/ambulancia/"+a.id)}>
 Ficha
 </button>
+
+<button onClick={()=>router.push("/ambulancia/"+a.id)}>
+Editar
+</button>
+
+</>
+
+)}
+
+{/* SUPERVISOR */}
+
+{rol==="supervisor" && (
+
+<button onClick={()=>router.push("/ambulancia/"+a.id)}>
+Ficha
+</button>
+
+)}
+
+{/* CONDUCTOR */}
+
+{rol==="conductor" && (
+
+<button onClick={()=>router.push("/ambulancia/"+a.id)}>
+Registrar KM
+</button>
+
+)}
 
 </td>
 
