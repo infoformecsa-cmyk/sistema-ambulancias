@@ -79,8 +79,6 @@ cargarAmbulancias()
 
 async function guardarCambios(id:string){
 
-const usuario = localStorage.getItem("nombre") || "sistema"
-
 const updateData:any = {}
 
 if(editKm !== "" && !isNaN(parseInt(editKm))){
@@ -91,14 +89,9 @@ if(editMotivo !== ""){
 updateData.motivo_no_operativo = editMotivo
 }
 
-/* guardamos el km de mantenimiento dentro de observaciones */
-
 if(editMtto !== ""){
 updateData.observaciones = "MTTO:"+editMtto
 }
-
-updateData.actualizado_por = usuario
-updateData.fecha_actualizacion = new Date().toISOString()
 
 const {error} = await supabase
 .from("ambulancias")
@@ -122,7 +115,7 @@ cargarAmbulancias()
 
 }
 
-/* estadisticas */
+/* estadísticas */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
