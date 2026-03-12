@@ -6,21 +6,20 @@ import { useRouter } from "next/navigation"
 
 export default function Dashboard(){
 
-const router=useRouter()
+const router = useRouter()
 
-const [rol,setRol]=useState("")
-const [nombre,setNombre]=useState("")
-const [ambulancias,setAmbulancias]=useState<any[]>([])
-const [editandoId,setEditandoId]=useState<string | null>(null)
+const [rol,setRol] = useState("")
+const [nombre,setNombre] = useState("")
+const [ambulancias,setAmbulancias] = useState<any[]>([])
 
-const [editKm,setEditKm]=useState("")
-const [editKmMtto,setEditKmMtto]=useState("")
-const [editMotivo,setEditMotivo]=useState("")
+const [editandoId,setEditandoId] = useState<string | null>(null)
+const [editKm,setEditKm] = useState("")
+const [editMotivo,setEditMotivo] = useState("")
 
 useEffect(()=>{
 
-const r=localStorage.getItem("rol")
-const n=localStorage.getItem("nombre")
+const r = localStorage.getItem("rol")
+const n = localStorage.getItem("nombre")
 
 if(!r){
 router.push("/")
@@ -34,71 +33,37 @@ cargarAmbulancias()
 
 },[])
 
-async function guardarCambios(id:string){
+async function cargarAmbulancias(){
 
-const updateData:any = {}
-
-const usuario = localStorage.getItem("nombre") || "sistema"
-
-/* kilometraje actual */
-
-if(editKm !== "" && !isNaN(parseInt(editKm))){
-updateData.kilometraje_actual = parseInt(editKm)
-}
-
-/* proximo mantenimiento */
-
-if(editKmMtto !== "" && !isNaN(parseInt(editKmMtto))){
-updateData.observaciones = "Próximo mantenimiento en " + editKmMtto + " km"
-}
-
-/* motivo no operativa */
-
-if(editMotivo !== ""){
-updateData.motivo_no_operativo = editMotivo
-updateData.motivo_fuera_servicio = editMotivo
-}
-
-/* auditoria */
-
-updateData.actualizado_por = usuario
-updateData.fecha_actualizacion = new Date()
-
-try{
-
-const {error} = await supabase
+const {data,error} = await supabase
 .from("ambulancias")
-.update(updateData)
-.eq("id",id)
+.select("*")
+.order("codigo_operativo")
 
 if(error){
-
-console.log("Error Supabase:",error)
-
-alert("Error al guardar cambios")
-
+console.log(error)
 return
+}
+
+if(data) setAmbulancias(data)
 
 }
 
-alert("Cambios guardados correctamente")
+function cerrarSesion(){
 
-setEditandoId(null)
-setEditKm("")
-setEditKmMtto("")
-setEditMotivo("")
-
-await cargarAmbulancias()
-
-}catch(e){
-
-console.log("Error:",e)
-
-alert("Error inesperado")
+localStorage.clear()
+router.push("/")
 
 }
 
+function colorEstado(e:string){
+
+if(e==="operativa") return "green"
+if(e==="mantenimiento") return "orange"
+return "red"
+
 }
+
 async function cambiarEstado(id:string,estado:string){
 
 await supabase
@@ -110,58 +75,49 @@ cargarAmbulancias()
 
 }
 
-/* PERMISOS */
+async function guardarCambios(id:string){
 
-const esAdmin=rol==="admin"
-const esSupervisor=rol==="supervisor"
-const esConductor=rol==="conductor"
+const usuario = localStorage.getItem("nombre") || "sistema"
 
-/* ===== ESTADISTICAS GENERALES ===== */
+const updateData:any = {}
 
-const operativas=ambulancias.filter(a=>a.estado==="operativa").length
-const mantenimiento=ambulancias.filter(a=>a.estado==="mantenimiento").length
-const fuera=ambulancias.filter(a=>a.estado==="no operativa").length
+if(editKm !== "" && !isNaN(parseInt(editKm))){
+updateData.kilometraje_actual = parseInt(editKm)
+}
 
-/* ===== SEPARAR TIPOS ===== */
+if(editMotivo !== ""){
+updateData.motivo_no_operativo = editMotivo
+}
 
-const alfas=ambulancias.filter(a=>a.tipo==="ALFA")
-const bravos=ambulancias.filter(a=>a.tipo==="BRAVO")
+updateData.actualizado_por = usuario
+updateData.fecha_actualizacion = new Date().toISOString()
 
-/* ===== CALCULO ALFA ===== */
+const {error} = await supabase
+.from("ambulancias")
+.update(updateData)
+.eq("id",id)
 
-const alfaOperativas=alfas.filter(a=>a.estado==="operativa").length
+if(error){
+console.log(error)
+alert("Error al guardar cambios")
+return
+}
 
-const alfaNoOperativas=alfas.filter(
-a=>a.estado==="mantenimiento" || a.estado==="no operativa"
-).length
+alert("Cambios guardados")
 
-const porcentajeAlfaOperativas=
-alfas.length ? Math.round((alfaOperativas/alfas.length)*100) : 0
+setEditandoId(null)
+setEditKm("")
+setEditMotivo("")
 
-const porcentajeAlfaNoOperativas=
-alfas.length ? Math.round((alfaNoOperativas/alfas.length)*100) : 0
-
-/* ===== CALCULO BRAVO ===== */
-
-const bravoOperativas=bravos.filter(a=>a.estado==="operativa").length
-
-const bravoNoOperativas=bravos.filter(
-a=>a.estado==="mantenimiento" || a.estado==="no operativa"
-).length
-
-const porcentajeBravoOperativas=
-bravos.length ? Math.round((bravoOperativas/bravos.length)*100) : 0
-
-const porcentajeBravoNoOperativas=
-bravos.length ? Math.round((bravoNoOperativas/bravos.length)*100) : 0
-
-function colorEstado(e:string){
-
-if(e==="operativa") return "green"
-if(e==="mantenimiento") return "orange"
-return "red"
+cargarAmbulancias()
 
 }
+
+/* estadisticas */
+
+const operativas = ambulancias.filter(a=>a.estado==="operativa").length
+const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
+const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
 return(
 
@@ -175,12 +131,7 @@ Usuario: {nombre} | Rol: {rol}
 
 <button
 onClick={cerrarSesion}
-style={{
-background:"red",
-color:"white",
-border:"none",
-padding:"6px 12px"
-}}
+style={{background:"red",color:"white",border:"none",padding:"8px"}}
 >
 Cerrar sesión
 </button>
@@ -210,30 +161,6 @@ Cerrar sesión
 
 <hr/>
 
-<h2>Estado por tipo</h2>
-
-<h3>ALFA</h3>
-
-<p>
-Operativas: {alfaOperativas}/{alfas.length} ({porcentajeAlfaOperativas}%)
-</p>
-
-<p>
-No operativas (incluye mantenimiento): {alfaNoOperativas}/{alfas.length} ({porcentajeAlfaNoOperativas}%)
-</p>
-
-<h3>BRAVO</h3>
-
-<p>
-Operativas: {bravoOperativas}/{bravos.length} ({porcentajeBravoOperativas}%)
-</p>
-
-<p>
-No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({porcentajeBravoNoOperativas}%)
-</p>
-
-<hr/>
-
 <h2>Flota registrada</h2>
 
 <table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
@@ -246,8 +173,6 @@ No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({por
 <th>Placa</th>
 <th>Tipo</th>
 <th>KM Actual</th>
-<th>KM Próx Mtto</th>
-<th>KM Restantes</th>
 <th>Motivo No Operativa</th>
 <th>Acciones</th>
 </tr>
@@ -256,24 +181,7 @@ No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({por
 
 <tbody>
 
-{ambulancias.map(a=>{
-
-const kmActual = a.kilometraje_actual || 0
-const kmMtto = a.kilometraje_mtto || 0
-
-const kmRestantes = kmMtto>0 ? kmMtto - kmActual : null
-
-let colorAlerta="black"
-
-if(kmRestantes!==null){
-
-if(kmRestantes<=0) colorAlerta="red"
-else if(kmRestantes<=500) colorAlerta="orange"
-else colorAlerta="green"
-
-}
-
-return(
+{ambulancias.map(a=>(
 
 <tr key={a.id}>
 
@@ -300,34 +208,9 @@ style={{width:80}}
 
 :
 
-kmActual
+a.kilometraje_actual || 0
 
 }
-
-</td>
-
-<td>
-
-{editandoId===a.id ?
-
-<input
-type="number"
-value={editKmMtto}
-onChange={(e)=>setEditKmMtto(e.target.value)}
-style={{width:80}}
-/>
-
-:
-
-kmMtto
-
-}
-
-</td>
-
-<td style={{fontWeight:"bold",color:colorAlerta}}>
-
-{kmRestantes!==null ? `${kmRestantes} km` : "-"}
 
 </td>
 
@@ -342,7 +225,7 @@ onChange={(e)=>setEditMotivo(e.target.value)}
 
 :
 
-a.motivo_no_operativa
+a.motivo_no_operativo
 
 }
 
@@ -350,7 +233,11 @@ a.motivo_no_operativa
 
 <td>
 
-{esAdmin && editandoId!==a.id && (
+<button onClick={()=>router.push("/ambulancia/"+a.id)}>
+Ficha
+</button>
+
+{editandoId!==a.id && (
 
 <>
 
@@ -358,8 +245,7 @@ a.motivo_no_operativa
 
 setEditandoId(a.id)
 setEditKm(a.kilometraje_actual || "")
-setEditKmMtto(a.kilometraje_mtto || "")
-setEditMotivo(a.motivo_no_operativa || "")
+setEditMotivo(a.motivo_no_operativo || "")
 
 }}>
 Editar
@@ -393,9 +279,7 @@ Guardar
 
 </tr>
 
-)
-
-})}
+))}
 
 </tbody>
 
