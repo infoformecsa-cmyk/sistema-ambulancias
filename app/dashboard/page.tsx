@@ -54,23 +54,42 @@ router.push("/")
 
 async function guardarCambios(id:string){
 
-await supabase
+const kmActualNumero = editKm ? parseInt(editKm) : null
+const kmMttoNumero = editKmMtto ? parseInt(editKmMtto) : null
+
+const updateData:any = {}
+
+if(kmActualNumero !== null){
+updateData.kilometraje_actual = kmActualNumero
+}
+
+if(kmMttoNumero !== null){
+updateData.kilometraje_mtto = kmMttoNumero
+}
+
+if(editMotivo !== ""){
+updateData.motivo_no_operativa = editMotivo
+}
+
+const {error} = await supabase
 .from("ambulancias")
-.update({
-
-kilometraje_actual: parseInt(editKm) || 0,
-kilometraje_mtto: parseInt(editKmMtto) || 0,
-motivo_no_operativa: editMotivo
-
-})
+.update(updateData)
 .eq("id",id)
 
+if(error){
+alert("Error al guardar cambios")
+console.log(error)
+return
+}
+
 setEditandoId(null)
+setEditKm("")
+setEditKmMtto("")
+setEditMotivo("")
 
 cargarAmbulancias()
 
 }
-
 async function cambiarEstado(id:string,estado:string){
 
 await supabase
