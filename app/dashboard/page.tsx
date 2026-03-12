@@ -34,61 +34,52 @@ cargarAmbulancias()
 
 },[])
 
-async function cargarAmbulancias(){
-
-const {data}=await supabase
-.from("ambulancias")
-.select("*")
-.order("codigo_operativo")
-
-if(data) setAmbulancias(data)
-
-}
-
-function cerrarSesion(){
-
-localStorage.clear()
-router.push("/")
-
-}
-
 async function guardarCambios(id:string){
-
-const kmActualNumero = editKm ? parseInt(editKm) : null
-const kmMttoNumero = editKmMtto ? parseInt(editKmMtto) : null
 
 const updateData:any = {}
 
-if(kmActualNumero !== null){
-updateData.kilometraje_actual = kmActualNumero
+if(editKm !== "" && !isNaN(parseInt(editKm))){
+updateData.kilometraje_actual = parseInt(editKm)
 }
 
-if(kmMttoNumero !== null){
-updateData.kilometraje_mtto = kmMttoNumero
+if(editKmMtto !== "" && !isNaN(parseInt(editKmMtto))){
+updateData.kilometraje_mtto = parseInt(editKmMtto)
 }
 
 if(editMotivo !== ""){
 updateData.motivo_no_operativa = editMotivo
 }
 
-const {error} = await supabase
+try{
+
+const { error } = await supabase
 .from("ambulancias")
 .update(updateData)
-.eq("id",id)
+.eq("id", id)
 
 if(error){
+console.error("Supabase error:", error)
 alert("Error al guardar cambios")
-console.log(error)
 return
 }
+
+alert("Cambios guardados")
 
 setEditandoId(null)
 setEditKm("")
 setEditKmMtto("")
 setEditMotivo("")
 
-cargarAmbulancias()
+await cargarAmbulancias()
 
+}catch(e){
+
+console.error("Error:",e)
+alert("Error inesperado al guardar")
+
+}
+
+}
 }
 async function cambiarEstado(id:string,estado:string){
 
