@@ -38,32 +38,50 @@ async function guardarCambios(id:string){
 
 const updateData:any = {}
 
+const usuario = localStorage.getItem("nombre") || "sistema"
+
+/* kilometraje actual */
+
 if(editKm !== "" && !isNaN(parseInt(editKm))){
 updateData.kilometraje_actual = parseInt(editKm)
 }
 
+/* proximo mantenimiento */
+
 if(editKmMtto !== "" && !isNaN(parseInt(editKmMtto))){
-updateData.kilometraje_mtto = parseInt(editKmMtto)
+updateData.observaciones = "Próximo mantenimiento en " + editKmMtto + " km"
 }
 
+/* motivo no operativa */
+
 if(editMotivo !== ""){
-updateData.motivo_no_operativa = editMotivo
+updateData.motivo_no_operativo = editMotivo
+updateData.motivo_fuera_servicio = editMotivo
 }
+
+/* auditoria */
+
+updateData.actualizado_por = usuario
+updateData.fecha_actualizacion = new Date()
 
 try{
 
-const { error } = await supabase
+const {error} = await supabase
 .from("ambulancias")
 .update(updateData)
-.eq("id", id)
+.eq("id",id)
 
 if(error){
-console.error("Supabase error:", error)
+
+console.log("Error Supabase:",error)
+
 alert("Error al guardar cambios")
+
 return
+
 }
 
-alert("Cambios guardados")
+alert("Cambios guardados correctamente")
 
 setEditandoId(null)
 setEditKm("")
@@ -74,12 +92,12 @@ await cargarAmbulancias()
 
 }catch(e){
 
-console.error("Error:",e)
-alert("Error inesperado al guardar")
+console.log("Error:",e)
+
+alert("Error inesperado")
 
 }
 
-}
 }
 async function cambiarEstado(id:string,estado:string){
 
