@@ -142,7 +142,8 @@ BRAVO Operativas
 <th>Codigo</th>
 <th>Placa</th>
 <th>Tipo</th>
-<th>KM</th>
+<th>KM Actual</th>
+<th>Próx Mtto</th>
 <th>Motivo</th>
 <th>Acciones</th>
 </tr>
@@ -155,7 +156,9 @@ BRAVO Operativas
 
 <tr key={a.id}>
 
-<td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
+<td style={{color:colorEstado(a.estado)}}>
+{a.estado}
+</td>
 
 <td>{a.codigo_operativo}</td>
 
@@ -163,9 +166,41 @@ BRAVO Operativas
 
 <td>{a.tipo}</td>
 
-<td>{a.kilometraje_actual || 0}</td>
+<td>
+{a.kilometraje_actual || 0}
+</td>
 
-<td>{a.motivo_no_operativo || "-"}</td>
+<td>
+
+{a.kilometraje_mtto ?
+
+<span>
+
+{a.kilometraje_mtto}
+
+<br/>
+
+<span style={{fontSize:12,color:"gray"}}>
+
+faltan {a.kilometraje_mtto - (a.kilometraje_actual || 0)} km
+
+</span>
+
+</span>
+
+:
+
+"-"
+
+}
+
+</td>
+
+<td>
+
+{a.motivo_no_operativo || "-"}
+
+</td>
 
 <td>
 
