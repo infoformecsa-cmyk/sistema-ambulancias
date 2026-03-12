@@ -208,7 +208,7 @@ No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({por
 
 <h2>Flota registrada</h2>
 
-<table border={1} cellPadding={8}>
+<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
 
@@ -218,7 +218,8 @@ No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({por
 <th>Placa</th>
 <th>Tipo</th>
 <th>KM Actual</th>
-<th>KM Mtto</th>
+<th>KM Próx Mtto</th>
+<th>KM Restantes</th>
 <th>Motivo No Operativa</th>
 <th>Acciones</th>
 </tr>
@@ -227,14 +228,29 @@ No operativas (incluye mantenimiento): {bravoNoOperativas}/{bravos.length} ({por
 
 <tbody>
 
-{ambulancias.map(a=>(
+{ambulancias.map(a=>{
+
+const kmActual = a.kilometraje_actual || 0
+const kmMtto = a.kilometraje_mtto || 0
+
+const kmRestantes = kmMtto>0 ? kmMtto - kmActual : null
+
+let colorAlerta="black"
+
+if(kmRestantes!==null){
+
+if(kmRestantes<=0) colorAlerta="red"
+else if(kmRestantes<=500) colorAlerta="orange"
+else colorAlerta="green"
+
+}
+
+return(
 
 <tr key={a.id}>
 
 <td style={{color:colorEstado(a.estado)}}>
-
 {a.estado}
-
 </td>
 
 <td>{a.codigo_operativo}</td>
@@ -256,7 +272,7 @@ style={{width:80}}
 
 :
 
-a.kilometraje_actual
+kmActual
 
 }
 
@@ -275,9 +291,15 @@ style={{width:80}}
 
 :
 
-a.kilometraje_mtto
+kmMtto
 
 }
+
+</td>
+
+<td style={{fontWeight:"bold",color:colorAlerta}}>
+
+{kmRestantes!==null ? `${kmRestantes} km` : "-"}
 
 </td>
 
@@ -343,7 +365,9 @@ Guardar
 
 </tr>
 
-))}
+)
+
+})}
 
 </tbody>
 
