@@ -13,10 +13,10 @@ const [nombre,setNombre] = useState("")
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 
 const [editandoId,setEditandoId] = useState<string | null>(null)
+
 const [editKm,setEditKm] = useState("")
 const [editMotivo,setEditMotivo] = useState("")
-
-/* cargar datos */
+const [editMtto,setEditMtto] = useState("")
 
 async function cargarAmbulancias(){
 
@@ -30,13 +30,9 @@ console.log(error)
 return
 }
 
-if(data){
-setAmbulancias(data)
-}
+if(data) setAmbulancias(data)
 
 }
-
-/* verificar sesión */
 
 useEffect(()=>{
 
@@ -55,16 +51,12 @@ cargarAmbulancias()
 
 },[])
 
-/* cerrar sesión */
-
 function cerrarSesion(){
 
 localStorage.clear()
 router.push("/")
 
 }
-
-/* colores de estado */
 
 function colorEstado(e:string){
 
@@ -73,8 +65,6 @@ if(e==="mantenimiento") return "orange"
 return "red"
 
 }
-
-/* cambiar estado */
 
 async function cambiarEstado(id:string,estado:string){
 
@@ -86,8 +76,6 @@ await supabase
 cargarAmbulancias()
 
 }
-
-/* guardar edición */
 
 async function guardarCambios(id:string){
 
@@ -101,6 +89,12 @@ updateData.kilometraje_actual = parseInt(editKm)
 
 if(editMotivo !== ""){
 updateData.motivo_no_operativo = editMotivo
+}
+
+/* guardamos el km de mantenimiento dentro de observaciones */
+
+if(editMtto !== ""){
+updateData.observaciones = "MTTO:"+editMtto
 }
 
 updateData.actualizado_por = usuario
@@ -122,37 +116,28 @@ alert("Cambios guardados")
 setEditandoId(null)
 setEditKm("")
 setEditMotivo("")
+setEditMtto("")
 
 cargarAmbulancias()
 
 }
 
-/* =====================
-   ESTADÍSTICAS
-===================== */
+/* estadisticas */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
 const total = ambulancias.length
-
-const porcentajeOperativas =
-total > 0 ? Math.round((operativas / total) * 100) : 0
-
-/* ALFA */
+const porcentajeOperativas = total>0 ? Math.round((operativas/total)*100) : 0
 
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
 const alfaOperativas = alfa.filter(a=>a.estado==="operativa").length
-const alfaPorcentaje =
-alfa.length > 0 ? Math.round((alfaOperativas / alfa.length)*100) : 0
-
-/* BRAVO */
+const alfaPorcentaje = alfa.length>0 ? Math.round((alfaOperativas/alfa.length)*100) : 0
 
 const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
 const bravoOperativas = bravo.filter(a=>a.estado==="operativa").length
-const bravoPorcentaje =
-bravo.length > 0 ? Math.round((bravoOperativas / bravo.length)*100) : 0
+const bravoPorcentaje = bravo.length>0 ? Math.round((bravoOperativas/bravo.length)*100) : 0
 
 return(
 
@@ -223,6 +208,7 @@ Cerrar sesión
 <th>Placa</th>
 <th>Tipo</th>
 <th>KM Actual</th>
+<th>KM Próx Mtto</th>
 <th>Motivo No Operativa</th>
 <th>Acciones</th>
 </tr>
@@ -231,13 +217,11 @@ Cerrar sesión
 
 <tbody>
 
-{ambulancias.map((a:any)=>(
+{ambulancias.map(a=>(
 
 <tr key={a.id}>
 
-<td style={{color:colorEstado(a.estado)}}>
-{a.estado}
-</td>
+<td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
 
 <td>{a.codigo_operativo}</td>
 
@@ -259,6 +243,25 @@ style={{width:80}}
 :
 
 a.kilometraje_actual || 0
+
+}
+
+</td>
+
+<td>
+
+{editandoId===a.id ?
+
+<input
+type="number"
+value={editMtto}
+onChange={(e)=>setEditMtto(e.target.value)}
+style={{width:90}}
+/>
+
+:
+
+a.observaciones?.replace("MTTO:","") || "-"
 
 }
 
@@ -294,24 +297,17 @@ Ficha
 <button onClick={()=>{
 
 setEditandoId(a.id)
-setEditKm(a.kilometraje_actual ? String(a.kilometraje_actual) : "")
+setEditKm(a.kilometraje_actual?.toString() || "")
 setEditMotivo(a.motivo_no_operativo || "")
+setEditMtto(a.observaciones?.replace("MTTO:","") || "")
 
 }}>
 Editar
 </button>
 
-<button onClick={()=>cambiarEstado(a.id,"operativa")}>
-Operativa
-</button>
-
-<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>
-Mtto
-</button>
-
-<button onClick={()=>cambiarEstado(a.id,"no operativa")}>
-No Operativa
-</button>
+<button onClick={()=>cambiarEstado(a.id,"operativa")}>Operativa</button>
+<button onClick={()=>cambiarEstado(a.id,"mantenimiento")}>Mtto</button>
+<button onClick={()=>cambiarEstado(a.id,"no operativa")}>No Operativa</button>
 
 </>
 
