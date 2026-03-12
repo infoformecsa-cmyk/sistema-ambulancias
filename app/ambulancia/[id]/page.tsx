@@ -2,135 +2,94 @@
 
 import { useEffect,useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useRouter,useParams } from "next/navigation"
 
-type Falla={
-id:number
-descripcion:string
-criticidad:string
-fecha:string
-foto:string
-}
+export default function FichaAmbulancia(){
 
-export default function AmbulanciaPage({params}:{params:{id:string}}){
+const router = useRouter()
+const params = useParams()
 
-const [fallas,setFallas]=useState<Falla[]>([])
-const [descripcion,setDescripcion]=useState("")
-const [criticidad,setCriticidad]=useState("Media")
-const [foto,setFoto]=useState<File|null>(null)
+const id = params?.id
 
-const [kilometraje,setKilometraje]=useState("")
-const [ambulancia,setAmbulancia]=useState<any>(null)
+const [ambulancia,setAmbulancia] = useState<any>(null)
 
-const [alerta,setAlerta]=useState("")
+const [kilometraje,setKilometraje] = useState("")
+const [descripcion,setDescripcion] = useState("")
+const [criticidad,setCriticidad] = useState("media")
+
+const [archivo,setArchivo] = useState<File | null>(null)
+
+const [fallas,setFallas] = useState<any[]>([])
+
+/* =======================
+CARGAR DATOS
+======================= */
 
 useEffect(()=>{
+
+if(id){
 
 cargarAmbulancia()
 cargarFallas()
 
-},[])
+}
+
+},[id])
 
 async function cargarAmbulancia(){
 
-const {data}=await supabase
+const {data} = await supabase
 .from("ambulancias")
 .select("*")
-.eq("id",params.id)
+.eq("id",id)
 .single()
 
-if(data){
-
 setAmbulancia(data)
-
-const proximo=data.kilometraje_mtto+5000
-const restante=proximo-data.kilometraje_actual
-
-if(restante<=400){
-
-setAlerta(`⚠ mantenimiento en ${restante} km`)
-
-}
-
-}
 
 }
 
 async function cargarFallas(){
 
-const {data,error}=await supabase
-.from("fallas")
+const {data} = await supabase
+.from("reportes_fallas")
 .select("*")
-.eq("ambulancia_id",params.id)
-.order("fecha",{ascending:false})
+.eq("ambulancia_id",id)
+.order("created_at",{ascending:false})
 
-if(data){
-setFallas(data)
-}
+if(data) setFallas(data)
 
 }
 
-async function subirFoto(){
+/* =======================
+ACTUALIZAR KM
+======================= */
 
-if(!foto) return ""
+async function actualizarKm(){
 
-const nombre=Date.now()+"_"+foto.name
+const km = parseInt(kilometraje)
 
-const {data,error}=await supabase.storage
-.from("Fallas")
-.upload(nombre,foto)
+if(isNaN(km)){
 
-if(error) return ""
-
-const url=supabase
-.storage
-.from("fallas")
-.getPublicUrl(nombre)
-
-return url.data.publicUrl
-
-}
-
-async function registrarFalla(){
-
-const url=await subirFoto()
-
-const {error}=await supabase
-.from("fallas")
-.insert([{
-
-ambulancia_id:params.id,
-descripcion,
-criticidad,
-foto:url
-
-}])
-
-if(error){
-
-alert("Error registrando falla")
+alert("Kilometraje inválido")
 return
 
 }
 
-setDescripcion("")
-setFoto(null)
+if(km < ambulancia.kilometraje_actual){
 
-cargarFallas()
+alert("El kilometraje no puede ser menor al actual")
+return
 
 }
-
-async function registrarKilometraje(){
-
-const km=parseInt(kilometraje)
 
 await supabase
 .from("ambulancias")
 .update({
-
-kilometraje_actual:km
-
+kilometraje_actual: km
 })
-.eq("id",params.id)
+.eq("id",id)
+
+alert("Kilometraje actualizado")
 
 setKilometraje("")
 
@@ -138,16 +97,93 @@ cargarAmbulancia()
 
 }
 
-async function registrarMantenimiento(){
+/* =======================
+REGISTRAR FALLA
+======================= */
+
+async function registrarFalla(){
+
+if(!descripcion){
+
+alert("Debe escribir la falla")
+
+return
+
+}
+
+let url = ""
+
+if(archivo){
+
+const nombre = Date.now()+"_"+archivo.name
+
+const {error:uploadError} = await supabase.storage
+.from("fallas")
+.upload(nombre,archivo)
+
+if(uploadError){
+
+console.log(uploadError)
+
+alert("Error subiendo imagen")
+
+return
+
+}
+
+url = nombre
+
+}
+
+/* insert correcto según tu tabla */
+
+const {error} = await supabase
+.from("reportes_fallas")
+.insert({
+
+ambulancia_id: id,
+
+descripcion: descripcion + " | criticidad: "+criticidad,
+
+imagen_url: url,
+
+usuario: localStorage.getItem("nombre") || "usuario"
+
+})
+
+if(error){
+
+console.log(error)
+
+alert("Error registrando falla")
+
+return
+
+}
+
+alert("Falla registrada")
+
+setDescripcion("")
+setArchivo(null)
+
+cargarFallas()
+
+}
+
+/* =======================
+MARCAR MTTO
+======================= */
+
+async function marcarMtto(){
 
 await supabase
 .from("ambulancias")
 .update({
 
-kilometraje_mtto:ambulancia.kilometraje_actual
+estado:"mantenimiento"
 
 })
-.eq("id",params.id)
+.eq("id",id)
 
 alert("Mantenimiento registrado")
 
@@ -155,33 +191,33 @@ cargarAmbulancia()
 
 }
 
+/* =======================
+UI
+======================= */
+
+if(!ambulancia){
+
+return <div style={{padding:40}}>Cargando...</div>
+
+}
+
 return(
 
-<div style={{padding:40}}>
+<div style={{padding:40,fontFamily:"Arial"}}>
 
-<h1>Ficha Ambulancia {ambulancia?.codigo_operativo}</h1>
+<h1>Ficha Mecánica Ambulancia</h1>
+
+<button onClick={()=>router.push("/dashboard")}>
+← Volver
+</button>
 
 <hr/>
 
 <h2>Estado</h2>
 
-<p>Kilometraje actual: {ambulancia?.kilometraje_actual}</p>
+<p>Kilometraje actual: {ambulancia.kilometraje_actual}</p>
 
-<p>Último mantenimiento: {ambulancia?.kilometraje_mtto}</p>
-
-{alerta && (
-
-<div style={{
-background:"orange",
-padding:10,
-marginTop:10
-}}>
-
-{alerta}
-
-</div>
-
-)}
+<p>Estado: {ambulancia.estado}</p>
 
 <hr/>
 
@@ -193,7 +229,7 @@ value={kilometraje}
 onChange={(e)=>setKilometraje(e.target.value)}
 />
 
-<button onClick={registrarKilometraje}>
+<button onClick={actualizarKm}>
 Actualizar
 </button>
 
@@ -201,7 +237,7 @@ Actualizar
 
 <h2>Registrar mantenimiento</h2>
 
-<button onClick={registrarMantenimiento}>
+<button onClick={marcarMtto}>
 Marcar mantenimiento realizado
 </button>
 
@@ -210,22 +246,22 @@ Marcar mantenimiento realizado
 <h2>Reportar falla</h2>
 
 <textarea
-placeholder="Descripción de la falla"
+rows={4}
+style={{width:"100%"}}
 value={descripcion}
 onChange={(e)=>setDescripcion(e.target.value)}
-style={{width:"100%",height:100}}
 />
 
-<br/><br/>
+<br/>
 
 <select
 value={criticidad}
 onChange={(e)=>setCriticidad(e.target.value)}
 >
 
-<option>Alta</option>
-<option>Media</option>
-<option>Baja</option>
+<option value="baja">Baja</option>
+<option value="media">Media</option>
+<option value="alta">Alta</option>
 
 </select>
 
@@ -236,7 +272,9 @@ type="file"
 onChange={(e)=>{
 
 if(e.target.files){
-setFoto(e.target.files[0])
+
+setArchivo(e.target.files[0])
+
 }
 
 }}
@@ -252,7 +290,7 @@ Registrar falla
 
 <h2>Historial de fallas</h2>
 
-<table border={1} cellPadding={10}>
+<table border={1} cellPadding={8}>
 
 <thead>
 
@@ -260,7 +298,6 @@ Registrar falla
 
 <th>Fecha</th>
 <th>Descripción</th>
-<th>Criticidad</th>
 <th>Foto</th>
 
 </tr>
@@ -269,23 +306,36 @@ Registrar falla
 
 <tbody>
 
-{fallas.map((f)=>(
+{fallas.map(f=>(
 
 <tr key={f.id}>
 
-<td>{f.fecha}</td>
-<td>{f.descripcion}</td>
-<td>{f.criticidad}</td>
+<td>
+{new Date(f.created_at).toLocaleDateString()}
+</td>
+
+<td>
+{f.descripcion}
+</td>
 
 <td>
 
-{f.foto && (
+{f.imagen_url ?
 
-<a href={f.foto} target="_blank">
+<a
+href={`https://YOUR_PROJECT.supabase.co/storage/v1/object/public/fallas/${f.imagen_url}`}
+target="_blank"
+>
+
 Ver foto
+
 </a>
 
-)}
+:
+
+"-"
+
+}
 
 </td>
 
