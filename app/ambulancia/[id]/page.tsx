@@ -12,18 +12,15 @@ const params = useParams()
 const id = params?.id
 
 const [ambulancia,setAmbulancia] = useState<any>(null)
-
 const [kilometraje,setKilometraje] = useState("")
 const [descripcion,setDescripcion] = useState("")
 const [criticidad,setCriticidad] = useState("media")
-
 const [archivo,setArchivo] = useState<File | null>(null)
-
 const [fallas,setFallas] = useState<any[]>([])
 
-/* =======================
+/* ===========================
 CARGAR DATOS
-======================= */
+=========================== */
 
 useEffect(()=>{
 
@@ -60,9 +57,9 @@ if(data) setFallas(data)
 
 }
 
-/* =======================
-ACTUALIZAR KM
-======================= */
+/* ===========================
+ACTUALIZAR KILOMETRAJE
+=========================== */
 
 async function actualizarKm(){
 
@@ -97,21 +94,20 @@ cargarAmbulancia()
 
 }
 
-/* =======================
+/* ===========================
 REGISTRAR FALLA
-======================= */
+=========================== */
 
 async function registrarFalla(){
 
 if(!descripcion){
 
 alert("Debe escribir la falla")
-
 return
 
 }
 
-let url = ""
+let imagen_url = ""
 
 if(archivo){
 
@@ -124,28 +120,24 @@ const {error:uploadError} = await supabase.storage
 if(uploadError){
 
 console.log(uploadError)
-
 alert("Error subiendo imagen")
-
 return
 
 }
 
-url = nombre
+imagen_url = nombre
 
 }
-
-/* insert correcto según tu tabla */
 
 const {error} = await supabase
 .from("reportes_fallas")
 .insert({
 
-ambulancia_id: id,
+ambulancia_id:id,
 
 descripcion: descripcion + " | criticidad: "+criticidad,
 
-imagen_url: url,
+imagen_url: imagen_url,
 
 usuario: localStorage.getItem("nombre") || "usuario"
 
@@ -170,9 +162,9 @@ cargarFallas()
 
 }
 
-/* =======================
-MARCAR MTTO
-======================= */
+/* ===========================
+REGISTRAR MANTENIMIENTO
+=========================== */
 
 async function marcarMtto(){
 
@@ -191,9 +183,60 @@ cargarAmbulancia()
 
 }
 
-/* =======================
+/* ===========================
+GENERAR PDF INFORME
+=========================== */
+
+function generarPDF(){
+
+if(!ambulancia) return
+
+let html = `
+
+<h1>Informe Técnico de Ambulancia</h1>
+
+<p><b>Código:</b> ${ambulancia.codigo_operativo}</p>
+<p><b>Placa:</b> ${ambulancia.placa}</p>
+<p><b>Tipo:</b> ${ambulancia.tipo}</p>
+<p><b>Estado:</b> ${ambulancia.estado}</p>
+<p><b>Kilometraje:</b> ${ambulancia.kilometraje_actual}</p>
+
+<h2>Historial de fallas</h2>
+
+<table border="1" style="border-collapse:collapse;width:100%">
+
+<tr>
+<th>Fecha</th>
+<th>Descripción</th>
+</tr>
+`
+
+fallas.forEach(f=>{
+
+html += `
+
+<tr>
+<td>${new Date(f.created_at).toLocaleDateString()}</td>
+<td>${f.descripcion}</td>
+</tr>
+
+`
+
+})
+
+html += `</table>`
+
+const ventana = window.open("")
+
+ventana?.document.write(html)
+
+ventana?.print()
+
+}
+
+/* ===========================
 UI
-======================= */
+=========================== */
 
 if(!ambulancia){
 
@@ -209,6 +252,10 @@ return(
 
 <button onClick={()=>router.push("/dashboard")}>
 ← Volver
+</button>
+
+<button onClick={generarPDF} style={{marginLeft:10}}>
+📄 Imprimir Informe
 </button>
 
 <hr/>
@@ -298,7 +345,6 @@ Registrar falla
 
 <th>Fecha</th>
 <th>Descripción</th>
-<th>Foto</th>
 
 </tr>
 
@@ -316,27 +362,6 @@ Registrar falla
 
 <td>
 {f.descripcion}
-</td>
-
-<td>
-
-{f.imagen_url ?
-
-<a
-href={`https://YOUR_PROJECT.supabase.co/storage/v1/object/public/fallas/${f.imagen_url}`}
-target="_blank"
->
-
-Ver foto
-
-</a>
-
-:
-
-"-"
-
-}
-
 </td>
 
 </tr>
