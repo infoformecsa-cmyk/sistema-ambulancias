@@ -23,6 +23,13 @@ router.push("/")
 return
 }
 
+/* SI ES CONDUCTOR NO DEBE VER DASHBOARD */
+
+if(r==="conductor"){
+router.push("/conductor")
+return
+}
+
 setRol(r)
 setNombre(n || "")
 
@@ -40,21 +47,31 @@ return ()=>clearInterval(intervalo)
 
 async function cargarAmbulancias(){
 
+try{
+
 const {data,error} = await supabase
 .from("ambulancias")
 .select("*")
 .order("codigo_operativo")
 
 if(error){
-console.log(error)
+console.log("Error ambulancias:",error)
 return
 }
 
 if(data) setAmbulancias(data)
 
+}catch(e){
+
+console.log("Error carga ambulancias",e)
+
+}
+
 }
 
 async function cargarAlertas(){
+
+try{
 
 const {data,error}=await supabase
 .from("reportes_fallas")
@@ -62,7 +79,18 @@ const {data,error}=await supabase
 .eq("estado","abierta")
 .eq("criticidad","critica")
 
+if(error){
+console.log("Error alertas:",error)
+return
+}
+
 if(data) setAlertas(data)
+
+}catch(e){
+
+console.log("Error alertas",e)
+
+}
 
 }
 
@@ -285,14 +313,6 @@ Editar
 
 <button onClick={()=>router.push("/ambulancia/"+a.id)}>
 Ficha
-</button>
-
-)}
-
-{rol==="conductor" && (
-
-<button onClick={()=>router.push("/conductor")}>
-Registrar KM
 </button>
 
 )}
