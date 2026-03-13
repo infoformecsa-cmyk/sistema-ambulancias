@@ -2,20 +2,37 @@
 
 import { useEffect,useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
-export default function PanelConductor(){
+export default function Conductor(){
 
+const router = useRouter()
+
+const [nombre,setNombre] = useState("")
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulanciaId,setAmbulanciaId] = useState("")
-const [ambulancia,setAmbulancia] = useState<any>(null)
 
-const [nuevoKm,setNuevoKm] = useState("")
-const [kmMtto,setKmMtto] = useState("")
+const [km,setKm] = useState("")
+const [mtto,setMtto] = useState("")
 const [descripcion,setDescripcion] = useState("")
 const [criticidad,setCriticidad] = useState("media")
-const [archivo,setArchivo] = useState<File | null>(null)
 
 useEffect(()=>{
+
+const r = localStorage.getItem("rol")
+const n = localStorage.getItem("nombre")
+
+if(!r){
+router.push("/")
+return
+}
+
+if(r!=="conductor"){
+router.push("/dashboard")
+return
+}
+
+setNombre(n || "")
 
 cargarAmbulancias()
 
@@ -23,119 +40,103 @@ cargarAmbulancias()
 
 async function cargarAmbulancias(){
 
-const {data} = await supabase
+const {data,error} = await supabase
 .from("ambulancias")
-.select("*")
+.select("id,codigo_operativo")
 .order("codigo_operativo")
+
+if(error){
+console.log(error)
+return
+}
 
 if(data) setAmbulancias(data)
 
 }
 
-async function seleccionarAmbulancia(id:string){
+function cerrarSesion(){
 
-setAmbulanciaId(id)
-
-const {data} = await supabase
-.from("ambulancias")
-.select("*")
-.eq("id",id)
-.single()
-
-if(data) setAmbulancia(data)
+localStorage.clear()
+router.push("/")
 
 }
 
-async function actualizarKilometraje(){
+async function registrarKM(){
 
-if(!nuevoKm || !ambulanciaId) return
+if(!ambulanciaId || !km){
+alert("Seleccione ambulancia y kilometraje")
+return
+}
 
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_actual:parseInt(nuevoKm)
+kilometraje_actual: parseInt(km)
 })
 .eq("id",ambulanciaId)
 
 if(error){
-
 alert("Error registrando kilometraje")
 return
-
 }
 
 alert("Kilometraje registrado")
 
-setNuevoKm("")
+setKm("")
 
 }
 
-async function guardarMttoPreventivo(){
+async function guardarMtto(){
 
-if(!kmMtto || !ambulanciaId) return
+if(!ambulanciaId || !mtto){
+alert("Ingrese kilometraje de mantenimiento")
+return
+}
 
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_mtto:parseInt(kmMtto)
+kilometraje_mtto: parseInt(mtto)
 })
 .eq("id",ambulanciaId)
 
 if(error){
-
 alert("Error guardando mantenimiento")
 return
-
 }
 
-alert("Mantenimiento preventivo actualizado")
+alert("Mantenimiento guardado")
 
-setKmMtto("")
+setMtto("")
 
 }
 
 async function registrarFalla(){
 
-if(!descripcion || !ambulanciaId) return
-
-let url=null
-
-if(archivo){
-
-const nombre=Date.now()+"_"+archivo.name
-
-const {data,error}=await supabase.storage
-.from("fallas")
-.upload(nombre,archivo)
-
-if(!error) url=data?.path
-
+if(!ambulanciaId || !descripcion){
+alert("Ingrese descripción de la falla")
+return
 }
 
-const {error}=await supabase
+const {error} = await supabase
 .from("reportes_fallas")
 .insert({
-
 ambulancia_id:ambulanciaId,
 descripcion:descripcion,
-imagen_url:url,
-usuario:"conductor",
 criticidad:criticidad,
+usuario:nombre,
 estado:"abierta"
-
 })
 
 if(error){
-
 alert("Error registrando falla")
 return
-
 }
 
 alert("Falla registrada")
 
 setDescripcion("")
-setArchivo(null)
+setCriticidad("media")
 
 }
 
@@ -145,21 +146,31 @@ return(
 
 <h1>Registro de Ambulancias</h1>
 
+<p>
+Usuario: {nombre}
+</p>
+
+<button onClick={cerrarSesion}>
+Cerrar sesión
+</button>
+
 <hr/>
 
 <h2>Seleccionar Ambulancia</h2>
 
 <select
 value={ambulanciaId}
-onChange={(e)=>seleccionarAmbulancia(e.target.value)}
+onChange={(e)=>setAmbulanciaId(e.target.value)}
 >
 
-<option value="">Seleccione ambulancia</option>
+<option value="">
+Seleccione ambulancia
+</option>
 
 {ambulancias.map(a=>(
 
 <option key={a.id} value={a.id}>
-{a.codigo_operativo} - {a.placa}
+{a.codigo_operativo}
 </option>
 
 ))}
@@ -168,53 +179,46 @@ onChange={(e)=>seleccionarAmbulancia(e.target.value)}
 
 <hr/>
 
-{ambulancia && (
-
-<>
-
 <h2>Registrar Kilometraje</h2>
 
 <input
 type="number"
-placeholder="Nuevo kilometraje"
-value={nuevoKm}
-onChange={(e)=>setNuevoKm(e.target.value)}
+placeholder="Kilometraje actual"
+value={km}
+onChange={(e)=>setKm(e.target.value)}
 />
 
-<button onClick={actualizarKilometraje}>
-Registrar KM
+<button onClick={registrarKM}>
+Registrar
 </button>
 
 <hr/>
 
-<h2>Mantenimiento Preventivo</h2>
-
-<p>
-Próximo mantenimiento actual: {ambulancia.kilometraje_mtto || "-"}
-</p>
+<h2>Próximo mantenimiento preventivo</h2>
 
 <input
 type="number"
-placeholder="Nuevo kilometraje mantenimiento"
-value={kmMtto}
-onChange={(e)=>setKmMtto(e.target.value)}
+placeholder="Kilometraje mantenimiento"
+value={mtto}
+onChange={(e)=>setMtto(e.target.value)}
 />
 
-<button onClick={guardarMttoPreventivo}>
-Guardar mantenimiento
+<button onClick={guardarMtto}>
+Guardar
 </button>
 
 <hr/>
 
-<h2>Reportar Falla</h2>
+<h2>Reportar falla</h2>
 
 <textarea
+placeholder="Descripción de la falla"
 value={descripcion}
 onChange={(e)=>setDescripcion(e.target.value)}
-style={{width:"100%",height:100}}
+style={{width:"100%",height:120}}
 />
 
-<br/>
+<br/><br/>
 
 <select
 value={criticidad}
@@ -230,20 +234,9 @@ onChange={(e)=>setCriticidad(e.target.value)}
 
 <br/><br/>
 
-<input
-type="file"
-onChange={(e)=>setArchivo(e.target.files?.[0] || null)}
-/>
-
-<br/><br/>
-
 <button onClick={registrarFalla}>
 Registrar falla
 </button>
-
-</>
-
-)}
 
 </div>
 
