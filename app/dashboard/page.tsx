@@ -11,6 +11,7 @@ const router = useRouter()
 const [rol,setRol] = useState("")
 const [nombre,setNombre] = useState("")
 const [ambulancias,setAmbulancias] = useState<any[]>([])
+const [alertas,setAlertas] = useState<any[]>([])
 
 useEffect(()=>{
 
@@ -26,6 +27,14 @@ setRol(r)
 setNombre(n || "")
 
 cargarAmbulancias()
+cargarAlertas()
+
+const intervalo=setInterval(()=>{
+cargarAmbulancias()
+cargarAlertas()
+},30000)
+
+return ()=>clearInterval(intervalo)
 
 },[])
 
@@ -42,6 +51,18 @@ return
 }
 
 if(data) setAmbulancias(data)
+
+}
+
+async function cargarAlertas(){
+
+const {data,error}=await supabase
+.from("reportes_fallas")
+.select("*")
+.eq("estado","abierta")
+.eq("criticidad","critica")
+
+if(data) setAlertas(data)
 
 }
 
@@ -99,6 +120,31 @@ Usuario: {nombre} | Rol: {rol}
 <button onClick={cerrarSesion}>
 Cerrar sesión
 </button>
+
+<hr/>
+
+{/* ALERTAS CRÍTICAS */}
+
+{alertas.length>0 && (
+
+<div style={{background:"#ffdddd",padding:20,border:"1px solid red"}}>
+
+<h2>🚨 ALERTAS MECÁNICAS CRÍTICAS</h2>
+
+{alertas.map(a=>(
+
+<div key={a.id}>
+
+Ambulancia ID: {a.ambulancia_id}  
+Problema: {a.descripcion}
+
+</div>
+
+))}
+
+</div>
+
+)}
 
 <hr/>
 
@@ -219,8 +265,6 @@ faltan {Math.max(a.kilometraje_mtto - (a.kilometraje_actual || 0),0)} km
 
 <td>
 
-{/* ADMINISTRADOR */}
-
 {rol==="admin" && (
 
 <>
@@ -237,8 +281,6 @@ Editar
 
 )}
 
-{/* SUPERVISOR */}
-
 {rol==="supervisor" && (
 
 <button onClick={()=>router.push("/ambulancia/"+a.id)}>
@@ -247,11 +289,9 @@ Ficha
 
 )}
 
-{/* CONDUCTOR */}
-
 {rol==="conductor" && (
 
-<button onClick={()=>router.push("/ambulancia/"+a.id)}>
+<button onClick={()=>router.push("/conductor")}>
 Registrar KM
 </button>
 
