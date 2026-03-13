@@ -155,16 +155,17 @@ Cerrar sesión
 
 {alertas.length>0 && (
 
-<div style={{background:"#ffdddd",padding:20,border:"1px solid red"}}>
+<div style={{background:"#ffdddd",padding:20,border:"2px solid red",borderRadius:6}}>
 
 <h2>🚨 ALERTAS MECÁNICAS CRÍTICAS</h2>
 
 {alertas.map(a=>(
 
-<div key={a.id}>
+<div key={a.id} style={{marginBottom:8}}>
 
-Ambulancia ID: {a.ambulancia_id}  
-Problema: {a.descripcion}
+<b>Ambulancia:</b> {a.ambulancia_id}  
+<br/>
+<b>Problema:</b> {a.descripcion}
 
 </div>
 
@@ -234,6 +235,27 @@ Problema: {a.descripcion}
 
 <h2>Flota registrada</h2>
 
+{/* BOTON CREAR AMBULANCIA */}
+
+{rol==="admin" && (
+
+<button
+onClick={()=>router.push("/ambulancia/nueva")}
+style={{
+marginBottom:20,
+padding:"10px 16px",
+background:"#0070f3",
+color:"white",
+border:"none",
+borderRadius:6,
+cursor:"pointer"
+}}
+>
+➕ Nueva ambulancia
+</button>
+
+)}
+
 <table border={1} cellPadding={8} style={{width:"100%",borderCollapse:"collapse"}}>
 
 <thead>
@@ -301,7 +323,7 @@ faltan {Math.max(a.kilometraje_mtto - (a.kilometraje_actual || 0),0)} km
 Ficha
 </button>
 
-<button onClick={()=>router.push("/ambulancia/"+a.id)}>
+<button onClick={()=>router.push("/ambulancia/editar/"+a.id)}>
 Editar
 </button>
 
