@@ -21,9 +21,12 @@ const [archivo,setArchivo] = useState<File | null>(null)
 
 const [criticidad,setCriticidad] = useState("media")
 
+const [fallas,setFallas] = useState<any[]>([])
+
 useEffect(()=>{
 
 cargarAmbulancia()
+cargarFallas()
 
 },[])
 
@@ -36,6 +39,18 @@ const {data,error} = await supabase
 .single()
 
 if(data) setAmbulancia(data)
+
+}
+
+async function cargarFallas(){
+
+const {data,error} = await supabase
+.from("reportes_fallas")
+.select("*")
+.eq("ambulancia_id",id)
+.order("created_at",{ascending:false})
+
+if(data) setFallas(data)
 
 }
 
@@ -143,6 +158,32 @@ setDescripcion("")
 setArchivo(null)
 setCriticidad("media")
 
+cargarFallas()
+
+}
+
+async function eliminarFalla(fallaId:string){
+
+const confirmar = confirm("¿Eliminar este reporte?")
+
+if(!confirmar) return
+
+const {error} = await supabase
+.from("reportes_fallas")
+.delete()
+.eq("id",fallaId)
+
+if(error){
+
+alert("Error eliminando reporte")
+return
+
+}
+
+alert("Reporte eliminado")
+
+cargarFallas()
+
 }
 
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
@@ -246,6 +287,57 @@ onChange={(e)=>setArchivo(e.target.files?.[0] || null)}
 <button onClick={registrarFalla}>
 Registrar falla
 </button>
+
+<hr/>
+
+<h2>Historial de fallas</h2>
+
+<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
+
+<thead>
+
+<tr>
+<th>Fecha</th>
+<th>Descripción</th>
+<th>Criticidad</th>
+<th>Estado</th>
+<th>Acciones</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{fallas.map(f=>(
+
+<tr key={f.id}>
+
+<td>{new Date(f.created_at).toLocaleDateString()}</td>
+
+<td>{f.descripcion}</td>
+
+<td>{f.criticidad}</td>
+
+<td>{f.estado}</td>
+
+<td>
+
+<button
+onClick={()=>eliminarFalla(f.id)}
+style={{background:"red",color:"white"}}
+>
+Eliminar
+</button>
+
+</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
 
 </div>
 
