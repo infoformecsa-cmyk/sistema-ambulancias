@@ -17,6 +17,9 @@ const [mtto,setMtto] = useState("")
 const [descripcion,setDescripcion] = useState("")
 const [criticidad,setCriticidad] = useState("media")
 
+const [mensaje,setMensaje] = useState("")
+const [tipoMensaje,setTipoMensaje] = useState("ok")
+
 useEffect(()=>{
 
 const r = localStorage.getItem("rol")
@@ -54,6 +57,17 @@ if(data) setAmbulancias(data)
 
 }
 
+function mostrarMensaje(texto:string,tipo="ok"){
+
+setMensaje(texto)
+setTipoMensaje(tipo)
+
+setTimeout(()=>{
+setMensaje("")
+},3000)
+
+}
+
 function cerrarSesion(){
 
 localStorage.clear()
@@ -64,23 +78,30 @@ router.push("/")
 async function registrarKM(){
 
 if(!ambulanciaId || !km){
-alert("Seleccione ambulancia y kilometraje")
+mostrarMensaje("Seleccione ambulancia y kilometraje","error")
+return
+}
+
+const valor = parseInt(km)
+
+if(valor<=0){
+mostrarMensaje("Kilometraje inválido","error")
 return
 }
 
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_actual: parseInt(km)
+kilometraje_actual: valor
 })
 .eq("id",ambulanciaId)
 
 if(error){
-alert("Error registrando kilometraje")
+mostrarMensaje("Error registrando kilometraje","error")
 return
 }
 
-alert("Kilometraje registrado")
+mostrarMensaje("Kilometraje registrado correctamente")
 
 setKm("")
 
@@ -89,23 +110,25 @@ setKm("")
 async function guardarMtto(){
 
 if(!ambulanciaId || !mtto){
-alert("Ingrese kilometraje de mantenimiento")
+mostrarMensaje("Ingrese kilometraje de mantenimiento","error")
 return
 }
+
+const valor = parseInt(mtto)
 
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_mtto: parseInt(mtto)
+kilometraje_mtto: valor
 })
 .eq("id",ambulanciaId)
 
 if(error){
-alert("Error guardando mantenimiento")
+mostrarMensaje("Error guardando mantenimiento","error")
 return
 }
 
-alert("Mantenimiento guardado")
+mostrarMensaje("Mantenimiento preventivo registrado")
 
 setMtto("")
 
@@ -114,7 +137,7 @@ setMtto("")
 async function registrarFalla(){
 
 if(!ambulanciaId || !descripcion){
-alert("Ingrese descripción de la falla")
+mostrarMensaje("Ingrese descripción de la falla","error")
 return
 }
 
@@ -129,11 +152,11 @@ estado:"abierta"
 })
 
 if(error){
-alert("Error registrando falla")
+mostrarMensaje("Error registrando falla","error")
 return
 }
 
-alert("Falla registrada")
+mostrarMensaje("Falla registrada correctamente")
 
 setDescripcion("")
 setCriticidad("media")
@@ -153,6 +176,21 @@ Usuario: {nombre}
 <button onClick={cerrarSesion}>
 Cerrar sesión
 </button>
+
+{mensaje && (
+
+<div style={{
+marginTop:15,
+padding:12,
+border:"1px solid",
+background: tipoMensaje==="error" ? "#f8d7da" : "#d4edda",
+borderColor: tipoMensaje==="error" ? "#dc3545" : "#28a745",
+color: tipoMensaje==="error" ? "#721c24" : "#155724"
+}}>
+{mensaje}
+</div>
+
+)}
 
 <hr/>
 
