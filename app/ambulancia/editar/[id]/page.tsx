@@ -14,25 +14,41 @@ const [codigo,setCodigo] = useState("")
 const [placa,setPlaca] = useState("")
 const [tipo,setTipo] = useState("ALFA")
 const [estado,setEstado] = useState("operativa")
+const [motivo,setMotivo] = useState("")
 
 useEffect(()=>{
-cargar()
-},[])
+if(id) cargar()
+},[id])
 
 async function cargar(){
 
-const {data} = await supabase
+try{
+
+const {data,error} = await supabase
 .from("ambulancias")
 .select("*")
 .eq("id",id)
 .single()
 
+if(error){
+console.log(error)
+alert("Error cargando ambulancia")
+return
+}
+
 if(data){
 
-setCodigo(data.codigo_operativo)
-setPlaca(data.placa)
-setTipo(data.tipo)
-setEstado(data.estado)
+setCodigo(data.codigo_operativo || "")
+setPlaca(data.placa || "")
+setTipo(data.tipo || "ALFA")
+setEstado(data.estado || "operativa")
+setMotivo(data.motivo_no_operativo || "")
+
+}
+
+}catch(e){
+
+console.log("Error:",e)
 
 }
 
@@ -40,24 +56,44 @@ setEstado(data.estado)
 
 async function guardar(){
 
+if(!codigo){
+alert("Debe ingresar el código operativo")
+return
+}
+
+if(!placa){
+alert("Debe ingresar la placa")
+return
+}
+
+let motivoFinal = motivo
+
+/* SI LA AMBULANCIA ES OPERATIVA EL MOTIVO SE BORRA */
+
+if(estado==="operativa"){
+motivoFinal=""
+}
+
 const {error} = await supabase
 .from("ambulancias")
 .update({
 codigo_operativo:codigo,
 placa:placa,
 tipo:tipo,
-estado:estado
+estado:estado,
+motivo_no_operativo:motivoFinal
 })
 .eq("id",id)
 
 if(error){
 
+console.log(error)
 alert("Error actualizando ambulancia")
 return
 
 }
 
-alert("Ambulancia actualizada")
+alert("Ambulancia actualizada correctamente")
 
 router.push("/dashboard")
 
@@ -65,29 +101,34 @@ router.push("/dashboard")
 
 return(
 
-<div style={{padding:40,fontFamily:"Arial"}}>
+<div style={{padding:40,fontFamily:"Arial",maxWidth:500}}>
 
 <h1>Editar Ambulancia</h1>
 
-<p>Código operativo</p>
+<hr/>
+
+<p><b>Código operativo</b></p>
 
 <input
 value={codigo}
 onChange={(e)=>setCodigo(e.target.value)}
+style={{width:"100%",padding:6}}
 />
 
-<p>Placa</p>
+<p><b>Placa</b></p>
 
 <input
 value={placa}
 onChange={(e)=>setPlaca(e.target.value)}
+style={{width:"100%",padding:6}}
 />
 
-<p>Tipo</p>
+<p><b>Tipo</b></p>
 
 <select
 value={tipo}
 onChange={(e)=>setTipo(e.target.value)}
+style={{width:"100%",padding:6}}
 >
 
 <option value="ALFA">ALFA</option>
@@ -95,11 +136,12 @@ onChange={(e)=>setTipo(e.target.value)}
 
 </select>
 
-<p>Estado</p>
+<p><b>Estado</b></p>
 
 <select
 value={estado}
 onChange={(e)=>setEstado(e.target.value)}
+style={{width:"100%",padding:6}}
 >
 
 <option value="operativa">Operativa</option>
@@ -108,15 +150,34 @@ onChange={(e)=>setEstado(e.target.value)}
 
 </select>
 
+<p><b>Motivo</b></p>
+
+<textarea
+value={motivo}
+onChange={(e)=>setMotivo(e.target.value)}
+placeholder="Motivo si la ambulancia no está operativa"
+style={{width:"100%",height:80,padding:6}}
+/>
+
 <br/><br/>
 
-<button onClick={guardar}>
+<button
+onClick={guardar}
+style={{
+padding:"10px 16px",
+background:"#0070f3",
+color:"white",
+border:"none",
+borderRadius:6,
+cursor:"pointer"
+}}
+>
 Guardar cambios
 </button>
 
 <button
 onClick={()=>router.push("/dashboard")}
-style={{marginLeft:10}}
+style={{marginLeft:10,padding:"10px 16px"}}
 >
 Cancelar
 </button>
