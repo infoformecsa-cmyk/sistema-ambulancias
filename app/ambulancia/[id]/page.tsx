@@ -8,7 +8,6 @@ export default function FichaAmbulancia(){
 
 const router = useRouter()
 const params = useParams()
-
 const id = params?.id
 
 const [ambulancia,setAmbulancia] = useState<any>(null)
@@ -18,16 +17,13 @@ const [kmMtto,setKmMtto] = useState("")
 
 const [descripcion,setDescripcion] = useState("")
 const [archivo,setArchivo] = useState<File | null>(null)
-
 const [criticidad,setCriticidad] = useState("media")
 
 const [fallas,setFallas] = useState<any[]>([])
 
 useEffect(()=>{
-
 cargarAmbulancia()
 cargarFallas()
-
 },[])
 
 async function cargarAmbulancia(){
@@ -66,10 +62,8 @@ kilometraje_actual: parseInt(nuevoKm)
 .eq("id",id)
 
 if(error){
-
 alert("Error actualizando kilometraje")
 return
-
 }
 
 alert("Kilometraje actualizado")
@@ -91,10 +85,8 @@ kilometraje_mtto: parseInt(kmMtto)
 .eq("id",id)
 
 if(error){
-
 alert("Error guardando mantenimiento")
 return
-
 }
 
 alert("Mantenimiento preventivo registrado")
@@ -107,27 +99,27 @@ cargarAmbulancia()
 async function registrarFalla(){
 
 if(!descripcion){
-
 alert("Ingrese la descripción de la falla")
 return
-
 }
 
-let url = null
+let urlImagen = null
 
 if(archivo){
 
-const nombre = Date.now()+"_"+archivo.name
+const nombreArchivo = `reportes/${Date.now()}_${archivo.name}`
 
-const {data,error} = await supabase.storage
-.from("fallas")
-.upload(nombre,archivo)
+const {data,error:uploadError} = await supabase.storage
+.from("Fallas")
+.upload(nombreArchivo,archivo)
 
-if(!error){
-
-url = data?.path
-
+if(uploadError){
+console.log(uploadError)
+alert("Error subiendo imagen")
+return
 }
+
+urlImagen = data?.path
 
 }
 
@@ -137,7 +129,7 @@ const {error} = await supabase
 
 ambulancia_id:id,
 descripcion:descripcion,
-imagen_url:url,
+imagen_url:urlImagen,
 usuario:localStorage.getItem("nombre"),
 criticidad:criticidad,
 estado:"abierta"
@@ -145,14 +137,12 @@ estado:"abierta"
 })
 
 if(error){
-
 console.log(error)
 alert("Error registrando falla")
 return
-
 }
 
-alert("Falla registrada")
+alert("Falla registrada correctamente")
 
 setDescripcion("")
 setArchivo(null)
@@ -174,15 +164,24 @@ const {error} = await supabase
 .eq("id",fallaId)
 
 if(error){
-
 alert("Error eliminando reporte")
 return
-
 }
 
 alert("Reporte eliminado")
 
 cargarFallas()
+
+}
+
+function obtenerImagen(url:string){
+
+const {data} = supabase
+.storage
+.from("Fallas")
+.getPublicUrl(url)
+
+return data.publicUrl
 
 }
 
@@ -279,6 +278,7 @@ onChange={(e)=>setCriticidad(e.target.value)}
 
 <input
 type="file"
+accept="image/*"
 onChange={(e)=>setArchivo(e.target.files?.[0] || null)}
 />
 
@@ -301,6 +301,7 @@ Registrar falla
 <th>Descripción</th>
 <th>Criticidad</th>
 <th>Estado</th>
+<th>Foto</th>
 <th>Acciones</th>
 </tr>
 
@@ -308,7 +309,15 @@ Registrar falla
 
 <tbody>
 
-{fallas.map(f=>(
+{fallas.map(f=>{
+
+let imagen = null
+
+if(f.imagen_url){
+imagen = obtenerImagen(f.imagen_url)
+}
+
+return(
 
 <tr key={f.id}>
 
@@ -319,6 +328,26 @@ Registrar falla
 <td>{f.criticidad}</td>
 
 <td>{f.estado}</td>
+
+<td>
+
+{imagen && (
+
+<a href={imagen} target="_blank">
+
+<img
+src={imagen}
+style={{
+width:80,
+borderRadius:6
+}}
+/>
+
+</a>
+
+)}
+
+</td>
 
 <td>
 
@@ -333,7 +362,9 @@ Eliminar
 
 </tr>
 
-))}
+)
+
+})}
 
 </tbody>
 
