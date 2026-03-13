@@ -8,7 +8,8 @@ export default function FichaAmbulancia(){
 
 const router = useRouter()
 const params = useParams()
-const id = params?.id
+
+const id = params?.id as string
 
 const [ambulancia,setAmbulancia] = useState<any>(null)
 
@@ -17,14 +18,21 @@ const [kmMtto,setKmMtto] = useState("")
 
 const [descripcion,setDescripcion] = useState("")
 const [archivo,setArchivo] = useState<File | null>(null)
+const [preview,setPreview] = useState<string | null>(null)
+
 const [criticidad,setCriticidad] = useState("media")
 
 const [fallas,setFallas] = useState<any[]>([])
 
 useEffect(()=>{
+
+if(!id) return
+
 cargarAmbulancia()
 cargarFallas()
-},[])
+
+},[id])
+
 
 async function cargarAmbulancia(){
 
@@ -34,9 +42,15 @@ const {data,error} = await supabase
 .eq("id",id)
 .single()
 
-if(data) setAmbulancia(data)
+if(error){
+console.log(error)
+return
+}
+
+setAmbulancia(data)
 
 }
+
 
 async function cargarFallas(){
 
@@ -46,9 +60,15 @@ const {data,error} = await supabase
 .eq("ambulancia_id",id)
 .order("created_at",{ascending:false})
 
-if(data) setFallas(data)
+if(error){
+console.log(error)
+return
+}
+
+setFallas(data || [])
 
 }
+
 
 async function actualizarKilometraje(){
 
@@ -73,6 +93,7 @@ cargarAmbulancia()
 
 }
 
+
 async function guardarMttoPreventivo(){
 
 if(!kmMtto) return
@@ -96,6 +117,7 @@ cargarAmbulancia()
 
 }
 
+
 async function registrarFalla(){
 
 if(!descripcion){
@@ -103,23 +125,23 @@ alert("Ingrese la descripción de la falla")
 return
 }
 
-let urlImagen = null
+let rutaImagen = null
 
 if(archivo){
 
 const nombreArchivo = `reportes/${Date.now()}_${archivo.name}`
 
-const {data,error:uploadError} = await supabase.storage
+const {data,error} = await supabase.storage
 .from("Fallas")
 .upload(nombreArchivo,archivo)
 
-if(uploadError){
-console.log(uploadError)
+if(error){
+console.log(error)
 alert("Error subiendo imagen")
 return
 }
 
-urlImagen = data?.path
+rutaImagen = data.path
 
 }
 
@@ -129,7 +151,7 @@ const {error} = await supabase
 
 ambulancia_id:id,
 descripcion:descripcion,
-imagen_url:urlImagen,
+imagen_url:rutaImagen,
 usuario:localStorage.getItem("nombre"),
 criticidad:criticidad,
 estado:"abierta"
@@ -146,11 +168,13 @@ alert("Falla registrada correctamente")
 
 setDescripcion("")
 setArchivo(null)
+setPreview(null)
 setCriticidad("media")
 
 cargarFallas()
 
 }
+
 
 async function eliminarFalla(fallaId:string){
 
@@ -174,18 +198,35 @@ cargarFallas()
 
 }
 
-function obtenerImagen(url:string){
+
+function obtenerImagen(path:string){
+
+if(!path) return null
 
 const {data} = supabase
 .storage
 .from("Fallas")
-.getPublicUrl(url)
+.getPublicUrl(path)
 
 return data.publicUrl
 
 }
 
+
+function manejarArchivo(e:any){
+
+const file = e.target.files?.[0]
+
+if(!file) return
+
+setArchivo(file)
+setPreview(URL.createObjectURL(file))
+
+}
+
+
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
+
 
 return(
 
@@ -208,13 +249,8 @@ Imprimir Informe
 
 <h2>Estado</h2>
 
-<p>
-Kilometraje actual: {ambulancia.kilometraje_actual || 0}
-</p>
-
-<p>
-Estado: {ambulancia.estado}
-</p>
+<p>Kilometraje actual: {ambulancia.kilometraje_actual || 0}</p>
+<p>Estado: {ambulancia.estado}</p>
 
 <hr/>
 
@@ -235,9 +271,7 @@ Actualizar
 
 <h2>Mantenimiento Preventivo</h2>
 
-<p>
-Próximo mantenimiento actual: {ambulancia.kilometraje_mtto || "-"}
-</p>
+<p>Próximo mantenimiento actual: {ambulancia.kilometraje_mtto || "-"}</p>
 
 <input
 type="number"
@@ -279,10 +313,27 @@ onChange={(e)=>setCriticidad(e.target.value)}
 <input
 type="file"
 accept="image/*"
-onChange={(e)=>setArchivo(e.target.files?.[0] || null)}
+onChange={manejarArchivo}
 />
 
-<br/><br/>
+<br/>
+
+{preview && (
+
+<div style={{marginTop:10}}>
+
+<p>Vista previa:</p>
+
+<img
+src={preview}
+style={{width:200,borderRadius:8}}
+/>
+
+</div>
+
+)}
+
+<br/>
 
 <button onClick={registrarFalla}>
 Registrar falla
@@ -311,22 +362,15 @@ Registrar falla
 
 {fallas.map(f=>{
 
-let imagen = null
-
-if(f.imagen_url){
-imagen = obtenerImagen(f.imagen_url)
-}
+const imagen = obtenerImagen(f.imagen_url)
 
 return(
 
 <tr key={f.id}>
 
 <td>{new Date(f.created_at).toLocaleDateString()}</td>
-
 <td>{f.descripcion}</td>
-
 <td>{f.criticidad}</td>
-
 <td>{f.estado}</td>
 
 <td>
@@ -338,7 +382,7 @@ return(
 <img
 src={imagen}
 style={{
-width:80,
+width:120,
 borderRadius:6
 }}
 />
