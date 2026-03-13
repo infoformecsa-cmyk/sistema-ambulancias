@@ -17,8 +17,7 @@ const [mtto,setMtto] = useState("")
 const [descripcion,setDescripcion] = useState("")
 const [criticidad,setCriticidad] = useState("media")
 
-const [mensaje,setMensaje] = useState("")
-const [tipoMensaje,setTipoMensaje] = useState("ok")
+const [archivo,setArchivo] = useState<File | null>(null)
 
 useEffect(()=>{
 
@@ -57,17 +56,6 @@ if(data) setAmbulancias(data)
 
 }
 
-function mostrarMensaje(texto:string,tipo="ok"){
-
-setMensaje(texto)
-setTipoMensaje(tipo)
-
-setTimeout(()=>{
-setMensaje("")
-},3000)
-
-}
-
 function cerrarSesion(){
 
 localStorage.clear()
@@ -78,30 +66,23 @@ router.push("/")
 async function registrarKM(){
 
 if(!ambulanciaId || !km){
-mostrarMensaje("Seleccione ambulancia y kilometraje","error")
-return
-}
-
-const valor = parseInt(km)
-
-if(valor<=0){
-mostrarMensaje("Kilometraje inválido","error")
+alert("Seleccione ambulancia y kilometraje")
 return
 }
 
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_actual: valor
+kilometraje_actual: parseInt(km)
 })
 .eq("id",ambulanciaId)
 
 if(error){
-mostrarMensaje("Error registrando kilometraje","error")
+alert("Error registrando kilometraje")
 return
 }
 
-mostrarMensaje("Kilometraje registrado correctamente")
+alert("Kilometraje registrado correctamente")
 
 setKm("")
 
@@ -110,25 +91,23 @@ setKm("")
 async function guardarMtto(){
 
 if(!ambulanciaId || !mtto){
-mostrarMensaje("Ingrese kilometraje de mantenimiento","error")
+alert("Ingrese kilometraje de mantenimiento")
 return
 }
-
-const valor = parseInt(mtto)
 
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_mtto: valor
+kilometraje_mtto: parseInt(mtto)
 })
 .eq("id",ambulanciaId)
 
 if(error){
-mostrarMensaje("Error guardando mantenimiento","error")
+alert("Error guardando mantenimiento")
 return
 }
 
-mostrarMensaje("Mantenimiento preventivo registrado")
+alert("Mantenimiento guardado correctamente")
 
 setMtto("")
 
@@ -137,9 +116,32 @@ setMtto("")
 async function registrarFalla(){
 
 if(!ambulanciaId || !descripcion){
-mostrarMensaje("Ingrese descripción de la falla","error")
+alert("Ingrese descripción de la falla")
 return
 }
+
+let urlImagen = null
+
+/* SUBIR FOTO */
+
+if(archivo){
+
+const nombreArchivo = Date.now()+"_"+archivo.name
+
+const {data,error:uploadError} = await supabase.storage
+.from("Fallas")
+.upload(nombreArchivo,archivo)
+
+if(uploadError){
+alert("Error subiendo imagen")
+return
+}
+
+urlImagen = data?.path
+
+}
+
+/* GUARDAR REPORTE */
 
 const {error} = await supabase
 .from("reportes_fallas")
@@ -148,18 +150,20 @@ ambulancia_id:ambulanciaId,
 descripcion:descripcion,
 criticidad:criticidad,
 usuario:nombre,
+imagen_url:urlImagen,
 estado:"abierta"
 })
 
 if(error){
-mostrarMensaje("Error registrando falla","error")
+alert("Error registrando falla")
 return
 }
 
-mostrarMensaje("Falla registrada correctamente")
+alert("Falla registrada correctamente")
 
 setDescripcion("")
 setCriticidad("media")
+setArchivo(null)
 
 }
 
@@ -176,21 +180,6 @@ Usuario: {nombre}
 <button onClick={cerrarSesion}>
 Cerrar sesión
 </button>
-
-{mensaje && (
-
-<div style={{
-marginTop:15,
-padding:12,
-border:"1px solid",
-background: tipoMensaje==="error" ? "#f8d7da" : "#d4edda",
-borderColor: tipoMensaje==="error" ? "#dc3545" : "#28a745",
-color: tipoMensaje==="error" ? "#721c24" : "#155724"
-}}>
-{mensaje}
-</div>
-
-)}
 
 <hr/>
 
@@ -269,6 +258,14 @@ onChange={(e)=>setCriticidad(e.target.value)}
 <option value="critica">Crítica</option>
 
 </select>
+
+<br/><br/>
+
+<input
+type="file"
+accept="image/*"
+onChange={(e)=>setArchivo(e.target.files?.[0] || null)}
+/>
 
 <br/><br/>
 
