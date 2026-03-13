@@ -36,6 +36,11 @@ const {data,error} = await supabase
 .select("*")
 .order("codigo_operativo")
 
+if(error){
+console.log(error)
+return
+}
+
 if(data) setAmbulancias(data)
 
 }
@@ -55,7 +60,7 @@ return "red"
 
 }
 
-/* estadisticas */
+/* estadisticas generales */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
@@ -63,6 +68,23 @@ const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
 const total = ambulancias.length
 const operatividad = total>0 ? Math.round((operativas/total)*100) : 0
+
+/* estadisticas ALFA y BRAVO */
+
+const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
+const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
+
+const alfaOperativas = alfa.filter(a=>a.estado==="operativa").length
+const alfaNoOperativas = alfa.length - alfaOperativas
+
+const bravoOperativas = bravo.filter(a=>a.estado==="operativa").length
+const bravoNoOperativas = bravo.length - bravoOperativas
+
+const alfaPorcentajeOperativas = alfa.length ? Math.round((alfaOperativas/alfa.length)*100) : 0
+const alfaPorcentajeNoOperativas = alfa.length ? Math.round((alfaNoOperativas/alfa.length)*100) : 0
+
+const bravoPorcentajeOperativas = bravo.length ? Math.round((bravoOperativas/bravo.length)*100) : 0
+const bravoPorcentajeNoOperativas = bravo.length ? Math.round((bravoNoOperativas/bravo.length)*100) : 0
 
 return(
 
@@ -82,7 +104,7 @@ Cerrar sesión
 
 <h2>Panel de Flota</h2>
 
-<div style={{display:"flex",gap:20}}>
+<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
 
 <div style={{border:"1px solid black",padding:20}}>
 🚑 Operativas
@@ -106,11 +128,39 @@ Cerrar sesión
 
 </div>
 
+<br/>
+
+<h2>Disponibilidad por Tipo</h2>
+
+<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+
+<div style={{border:"1px solid black",padding:20}}>
+🚑 ALFA Operativas
+<h2>{alfaOperativas} - {alfaPorcentajeOperativas}%</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+⛔ ALFA No Operativas
+<h2>{alfaNoOperativas} - {alfaPorcentajeNoOperativas}%</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+🚑 BRAVO Operativas
+<h2>{bravoOperativas} - {bravoPorcentajeOperativas}%</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+⛔ BRAVO No Operativas
+<h2>{bravoNoOperativas} - {bravoPorcentajeNoOperativas}%</h2>
+</div>
+
+</div>
+
 <hr/>
 
 <h2>Flota registrada</h2>
 
-<table border={1} cellPadding={8} style={{width:"100%"}}>
+<table border={1} cellPadding={8} style={{width:"100%",borderCollapse:"collapse"}}>
 
 <thead>
 
@@ -153,7 +203,7 @@ Cerrar sesión
 {a.kilometraje_mtto}
 <br/>
 <span style={{fontSize:12,color:"gray"}}>
-faltan {a.kilometraje_mtto - (a.kilometraje_actual || 0)} km
+faltan {Math.max(a.kilometraje_mtto - (a.kilometraje_actual || 0),0)} km
 </span>
 </>
 
