@@ -126,13 +126,14 @@ let urlImagen = null
 
 if(archivo){
 
-const nombreArchivo = Date.now()+"_"+archivo.name
+const nombreArchivo = `reportes/${Date.now()}_${archivo.name}`
 
 const {data,error:uploadError} = await supabase.storage
 .from("Fallas")
 .upload(nombreArchivo,archivo)
 
 if(uploadError){
+console.log(uploadError)
 alert("Error subiendo imagen")
 return
 }
@@ -155,6 +156,7 @@ estado:"abierta"
 })
 
 if(error){
+console.log(error)
 alert("Error registrando falla")
 return
 }
