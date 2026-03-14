@@ -35,7 +35,6 @@ cargarHistorial()
 
 },[id])
 
-
 async function cargarAmbulancia(){
 
 const {data,error} = await supabase
@@ -52,7 +51,6 @@ return
 setAmbulancia(data)
 
 }
-
 
 async function cargarFallas(){
 
@@ -71,7 +69,6 @@ setFallas(data || [])
 
 }
 
-
 async function cargarHistorial(){
 
 const {data,error} = await supabase
@@ -89,7 +86,6 @@ setHistorial(data || [])
 
 }
 
-
 async function actualizarKilometraje(){
 
 if(!nuevoKm) return
@@ -97,7 +93,7 @@ if(!nuevoKm) return
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_actual: parseInt(nuevoKm)
+kilometraje_actual: Number(nuevoKm)
 })
 .eq("id",id)
 
@@ -113,7 +109,6 @@ cargarAmbulancia()
 
 }
 
-
 async function guardarMttoPreventivo(){
 
 if(!kmMtto) return
@@ -121,7 +116,7 @@ if(!kmMtto) return
 const {error} = await supabase
 .from("ambulancias")
 .update({
-kilometraje_mtto: parseInt(kmMtto)
+kilometraje_mtto: Number(kmMtto)
 })
 .eq("id",id)
 
@@ -136,7 +131,6 @@ setKmMtto("")
 cargarAmbulancia()
 
 }
-
 
 async function registrarFalla(){
 
@@ -168,14 +162,12 @@ rutaImagen = data.path
 const {error} = await supabase
 .from("reportes_fallas")
 .insert({
-
 ambulancia_id:id,
 descripcion:descripcion,
 imagen_url:rutaImagen,
 usuario:localStorage.getItem("nombre"),
 criticidad:criticidad,
 estado:"abierta"
-
 })
 
 if(error){
@@ -195,7 +187,6 @@ cargarFallas()
 
 }
 
-
 function manejarArchivo(e:any){
 
 const file = e.target.files?.[0]
@@ -207,9 +198,7 @@ setPreview(URL.createObjectURL(file))
 
 }
 
-
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
-
 
 return(
 
@@ -221,10 +210,7 @@ return(
 ← Volver
 </button>
 
-<button
-onClick={()=>window.print()}
-style={{marginLeft:10}}
->
+<button onClick={()=>window.print()} style={{marginLeft:10}}>
 Imprimir Informe
 </button>
 

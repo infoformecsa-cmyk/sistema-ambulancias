@@ -1,14 +1,15 @@
 "use client"
 
-import {useEffect,useState} from "react"
-import {supabase} from "@/lib/supabaseClient"
-import {useRouter,useParams} from "next/navigation"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
+import { useRouter, useParams } from "next/navigation"
 
 export default function EditarAmbulancia(){
 
 const router = useRouter()
 const params = useParams()
-const id = params?.id
+
+const id = params?.id as string
 
 const [codigo,setCodigo] = useState("")
 const [placa,setPlaca] = useState("")
@@ -16,7 +17,7 @@ const [tipo,setTipo] = useState("ALFA")
 const [estado,setEstado] = useState("operativa")
 const [motivo,setMotivo] = useState("")
 
-/* guardará el estado anterior /
+/* guardará el estado anterior */
 const [estadoAnterior,setEstadoAnterior] = useState("operativa")
 
 useEffect(()=>{
@@ -29,7 +30,7 @@ try{
 
 const {data,error} = await supabase
 .from("ambulancias")
-.select("")
+.select("*")
 .eq("id",id)
 .single()
 
@@ -70,7 +71,7 @@ alert("Debe ingresar la placa")
 return
 }
 
-/* si queda operativa se limpia motivo /
+/* si queda operativa se limpia motivo */
 
 let motivoFinal = motivo
 
@@ -78,7 +79,7 @@ if(estado==="operativa"){
 motivoFinal=""
 }
 
-/ actualizar ambulancia /
+/* actualizar ambulancia */
 
 const {error} = await supabase
 .from("ambulancias")
@@ -92,18 +93,16 @@ motivo_no_operativo:motivoFinal
 .eq("id",id)
 
 if(error){
-
 console.log(error)
 alert("Error actualizando ambulancia")
 return
-
 }
 
-/ ------------------------------------------------ /
-/ REGISTRO DE HISTORIAL OPERATIVO /
-/ ------------------------------------------------ /
+/* ------------------------------------------------ */
+/* REGISTRO DE HISTORIAL OPERATIVO */
+/* ------------------------------------------------ */
 
-/ si pasa de operativa a mantenimiento o no operativa /
+/* si pasa de operativa a mantenimiento o no operativa */
 
 if(
 (estado==="mantenimiento" || estado==="no operativa") &&
@@ -113,18 +112,16 @@ estadoAnterior==="operativa"
 await supabase
 .from("historial_operativo")
 .insert({
-
 ambulancia_id:id,
 estado:estado,
 motivo:motivo,
-fecha_inicio:new Date(),
+fecha_inicio:new Date().toISOString(),
 usuario:localStorage.getItem("nombre")
-
 })
 
 }
 
-/ si vuelve a operativa */
+/* si vuelve a operativa */
 
 if(
 estado==="operativa" &&
@@ -134,7 +131,7 @@ estado==="operativa" &&
 await supabase
 .from("historial_operativo")
 .update({
-fecha_fin:new Date()
+fecha_fin:new Date().toISOString()
 })
 .eq("ambulancia_id",id)
 .is("fecha_fin",null)
