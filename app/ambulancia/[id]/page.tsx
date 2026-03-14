@@ -8,7 +8,6 @@ export default function FichaAmbulancia(){
 
 const router = useRouter()
 const params = useParams()
-
 const id = params?.id as string
 
 const [ambulancia,setAmbulancia] = useState<any>(null)
@@ -211,11 +210,42 @@ return data.publicUrl
 
 }
 
+function calcularTiempo(inicio:string, fin:string | null){
+
+const fechaInicio = new Date(inicio)
+const fechaFin = fin ? new Date(fin) : new Date()
+
+const diff = fechaFin.getTime() - fechaInicio.getTime()
+
+const horas = Math.floor(diff / (1000*60*60))
+const minutos = Math.floor((diff % (1000*60*60)) / (1000*60))
+
+return `${horas} h ${minutos} min`
+
+}
+
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
 
 <div style={{padding:40,fontFamily:"Arial"}}>
+
+<style jsx global>{`
+
+@media print {
+
+button{ display:none }
+input{ display:none }
+textarea{ display:none }
+select{ display:none }
+input[type=file]{ display:none }
+
+#bloqueKilometraje{ display:none }
+#bloqueReportarFalla{ display:none }
+
+}
+
+`}</style>
 
 <h1>Ficha Mecánica Ambulancia</h1>
 
@@ -231,10 +261,12 @@ Imprimir Informe
 
 <h2>Estado</h2>
 
-<p>Kilometraje actual: {ambulancia.kilometraje_actual || 0}</p>
-<p>Estado: {ambulancia.estado}</p>
+<p><b>Kilometraje actual:</b> {ambulancia.kilometraje_actual || 0}</p>
+<p><b>Estado:</b> {ambulancia.estado}</p>
 
 <hr/>
+
+<div id="bloqueKilometraje">
 
 <h2>Registrar Kilometraje</h2>
 
@@ -249,11 +281,15 @@ onChange={(e)=>setNuevoKm(e.target.value)}
 Actualizar
 </button>
 
+</div>
+
 <hr/>
 
 <h2>Mantenimiento Preventivo</h2>
 
-<p>Próximo mantenimiento actual: {ambulancia.kilometraje_mtto || "-"}</p>
+<p><b>Próximo mantenimiento:</b> {ambulancia.kilometraje_mtto || "-"}</p>
+
+<div id="bloqueKilometraje">
 
 <input
 type="number"
@@ -266,7 +302,11 @@ onChange={(e)=>setKmMtto(e.target.value)}
 Guardar mantenimiento preventivo
 </button>
 
+</div>
+
 <hr/>
+
+<div id="bloqueReportarFalla">
 
 <h2>Reportar falla</h2>
 
@@ -313,6 +353,8 @@ style={{width:200,marginTop:10,borderRadius:8}}
 Registrar falla
 </button>
 
+</div>
+
 <hr/>
 
 <h2>Historial de fallas</h2>
@@ -320,7 +362,6 @@ Registrar falla
 <table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Fecha</th>
 <th>Descripción</th>
@@ -328,7 +369,6 @@ Registrar falla
 <th>Estado</th>
 <th>Foto</th>
 </tr>
-
 </thead>
 
 <tbody>
@@ -342,22 +382,17 @@ return(
 <tr key={f.id}>
 
 <td>{new Date(f.created_at).toLocaleDateString()}</td>
-
 <td>{f.descripcion}</td>
-
 <td>{f.criticidad}</td>
-
 <td>{f.estado}</td>
 
 <td>
 
 {imagen && (
-
 <img
 src={imagen}
 style={{width:120,borderRadius:6}}
 />
-
 )}
 
 </td>
@@ -385,6 +420,7 @@ style={{width:120,borderRadius:6}}
 <th>Fin</th>
 <th>Estado</th>
 <th>Motivo</th>
+<th>Tiempo fuera de servicio</th>
 <th>Usuario</th>
 </tr>
 
@@ -405,8 +441,9 @@ style={{width:120,borderRadius:6}}
 </td>
 
 <td>{h.estado}</td>
-
 <td>{h.motivo}</td>
+
+<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
 
 <td>{h.usuario}</td>
 
