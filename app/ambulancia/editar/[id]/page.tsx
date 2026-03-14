@@ -17,11 +17,13 @@ const [tipo,setTipo] = useState("ALFA")
 const [estado,setEstado] = useState("operativa")
 const [motivo,setMotivo] = useState("")
 
-/* guardará el estado anterior */
+/* estado anterior para controlar historial */
 const [estadoAnterior,setEstadoAnterior] = useState("operativa")
 
 useEffect(()=>{
-if(id) cargar()
+if(id){
+cargar()
+}
 },[id])
 
 async function cargar(){
@@ -71,15 +73,13 @@ alert("Debe ingresar la placa")
 return
 }
 
-/* si queda operativa se limpia motivo */
+/* limpiar motivo si queda operativa */
 
 let motivoFinal = motivo
 
 if(estado==="operativa"){
 motivoFinal=""
 }
-
-/* actualizar ambulancia */
 
 const {error} = await supabase
 .from("ambulancias")
@@ -98,11 +98,11 @@ alert("Error actualizando ambulancia")
 return
 }
 
-/* ------------------------------------------------ */
-/* REGISTRO DE HISTORIAL OPERATIVO */
-/* ------------------------------------------------ */
+/* REGISTRAR HISTORIAL OPERATIVO */
 
-/* si pasa de operativa a mantenimiento o no operativa */
+try{
+
+/* pasa de operativa a mantenimiento o no operativa */
 
 if(
 (estado==="mantenimiento" || estado==="no operativa") &&
@@ -121,7 +121,7 @@ usuario:localStorage.getItem("nombre")
 
 }
 
-/* si vuelve a operativa */
+/* vuelve a operativa */
 
 if(
 estado==="operativa" &&
@@ -135,6 +135,12 @@ fecha_fin:new Date().toISOString()
 })
 .eq("ambulancia_id",id)
 .is("fecha_fin",null)
+
+}
+
+}catch(e){
+
+console.log("Error historial:",e)
 
 }
 

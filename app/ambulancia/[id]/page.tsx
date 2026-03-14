@@ -198,6 +198,19 @@ setPreview(URL.createObjectURL(file))
 
 }
 
+function obtenerImagen(path:string){
+
+if(!path) return null
+
+const {data} = supabase
+.storage
+.from("Fallas")
+.getPublicUrl(path)
+
+return data.publicUrl
+
+}
+
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
@@ -299,6 +312,111 @@ style={{width:200,marginTop:10,borderRadius:8}}
 <button onClick={registrarFalla}>
 Registrar falla
 </button>
+
+<hr/>
+
+<h2>Historial de fallas</h2>
+
+<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
+
+<thead>
+
+<tr>
+<th>Fecha</th>
+<th>Descripción</th>
+<th>Criticidad</th>
+<th>Estado</th>
+<th>Foto</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{fallas.map(f=>{
+
+const imagen = obtenerImagen(f.imagen_url)
+
+return(
+
+<tr key={f.id}>
+
+<td>{new Date(f.created_at).toLocaleDateString()}</td>
+
+<td>{f.descripcion}</td>
+
+<td>{f.criticidad}</td>
+
+<td>{f.estado}</td>
+
+<td>
+
+{imagen && (
+
+<img
+src={imagen}
+style={{width:120,borderRadius:6}}
+/>
+
+)}
+
+</td>
+
+</tr>
+
+)
+
+})}
+
+</tbody>
+
+</table>
+
+<hr/>
+
+<h2>Historial Operativo</h2>
+
+<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
+
+<thead>
+
+<tr>
+<th>Inicio</th>
+<th>Fin</th>
+<th>Estado</th>
+<th>Motivo</th>
+<th>Usuario</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{historial.map(h=>(
+
+<tr key={h.id}>
+
+<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
+
+<td>
+{h.fecha_fin
+? new Date(h.fecha_fin).toLocaleString()
+: "En curso"}
+</td>
+
+<td>{h.estado}</td>
+
+<td>{h.motivo}</td>
+
+<td>{h.usuario}</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
 
 </div>
 
