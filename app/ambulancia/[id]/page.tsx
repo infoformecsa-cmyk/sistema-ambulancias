@@ -1,8 +1,8 @@
 “use client”
 
-import { useEffect,useState } from “react”
+import { useEffect, useState } from “react”
 import { supabase } from “@/lib/supabaseClient”
-import { useRouter,useParams } from “next/navigation”
+import { useRouter, useParams } from “next/navigation”
 
 export default function FichaAmbulancia(){
 
@@ -238,13 +238,8 @@ setPreview(URL.createObjectURL(file))
 if(!ambulancia) return Cargando…
 
 return(
-
 <div style={{padding:40,fontFamily:"Arial"}}>
-
-
 <h1>Ficha Mecánica Ambulancia</h1>
-
-
 <button onClick={()=>router.push(”/dashboard”)}>
 ← Volver
 
@@ -256,63 +251,35 @@ style={{marginLeft:10}}
 
 
 Imprimir Informe
-
-
 <hr/>
-
-
 <h2>Estado</h2>
-
-
 <p>Kilometraje actual: {ambulancia.kilometraje_actual || 0}</p>
 <p>Estado: {ambulancia.estado}</p>
-
-
 <hr/>
-
-
 <h2>Registrar Kilometraje</h2>
-
-
 <input
 type=“number”
 placeholder=“Nuevo kilometraje”
 value={nuevoKm}
 onChange={(e)=>setNuevoKm(e.target.value)}
 />
-
 <button onClick={actualizarKilometraje}>
 Actualizar
 </button>
-
-
 <hr/>
-
-
 <h2>Mantenimiento Preventivo</h2>
-
-
 <p>Próximo mantenimiento actual: {ambulancia.kilometraje_mtto || "-"}</p>
-
-
 <input
 type=“number”
 placeholder=“Kilometraje próximo mantenimiento”
 value={kmMtto}
 onChange={(e)=>setKmMtto(e.target.value)}
 />
-
 <button onClick={guardarMttoPreventivo}>
 Guardar mantenimiento preventivo
 </button>
-
-
 <hr/>
-
-
 <h2>Reportar falla</h2>
-
-
 <textarea
 value={descripcion}
 onChange={(e)=>setDescripcion(e.target.value)}
@@ -341,149 +308,20 @@ accept="image/*"
 onChange={manejarArchivo}
 />
 
-<br/>
-
 {preview && (
-
-<div style={{marginTop:10}}>
-
-<p>Vista previa:</p>
 
 <img
 src={preview}
-style={{width:200,borderRadius:8}}
+style={{width:200,marginTop:10,borderRadius:8}}
 />
-
-</div>
 
 )}
 
-<br/>
+<br/><br/>
 
 <button onClick={registrarFalla}>
 Registrar falla
 </button>
-
-<hr/>
-
-<h2>Historial de fallas</h2>
-
-<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
-
-<thead>
-
-<tr>
-<th>Fecha</th>
-<th>Descripción</th>
-<th>Criticidad</th>
-<th>Estado</th>
-<th>Foto</th>
-<th>Acciones</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-{fallas.map(f=>{
-
-const imagen = obtenerImagen(f.imagen_url)
-
-return(
-
-<tr key={f.id}>
-
-<td>{new Date(f.created_at).toLocaleDateString()}</td>
-<td>{f.descripcion}</td>
-<td>{f.criticidad}</td>
-<td>{f.estado}</td>
-
-<td>
-
-{imagen && (
-
-<a href={imagen} target="_blank">
-
-<img
-src={imagen}
-style={{
-width:120,
-borderRadius:6
-}}
-/>
-
-</a>
-
-)}
-
-</td>
-
-<td>
-
-<button
-onClick={()=>eliminarFalla(f.id)}
-style={{background:"red",color:"white"}}
->
-Eliminar
-</button>
-
-</td>
-
-</tr>
-
-)
-
-})}
-
-</tbody>
-
-</table>
-
-<hr/>
-
-<h2>Historial Operativo</h2>
-
-<table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
-
-<thead>
-
-<tr>
-<th>Inicio</th>
-<th>Fin</th>
-<th>Estado</th>
-<th>Motivo</th>
-<th>Usuario</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-{historial.map(h=>(
-
-<tr key={h.id}>
-
-<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
-
-<td>
-{h.fecha_fin
-? new Date(h.fecha_fin).toLocaleString()
-: "En curso"}
-</td>
-
-<td>{h.estado}</td>
-
-<td>{h.motivo}</td>
-
-<td>{h.usuario}</td>
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
 
 </div>
 
