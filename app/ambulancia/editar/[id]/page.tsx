@@ -16,6 +16,9 @@ const [tipo,setTipo] = useState("ALFA")
 const [estado,setEstado] = useState("operativa")
 const [motivo,setMotivo] = useState("")
 
+/* guardará el estado anterior /
+const [estadoAnterior,setEstadoAnterior] = useState("operativa")
+
 useEffect(()=>{
 if(id) cargar()
 },[id])
@@ -26,7 +29,7 @@ try{
 
 const {data,error} = await supabase
 .from("ambulancias")
-.select("*")
+.select("")
 .eq("id",id)
 .single()
 
@@ -42,6 +45,7 @@ setCodigo(data.codigo_operativo || "")
 setPlaca(data.placa || "")
 setTipo(data.tipo || "ALFA")
 setEstado(data.estado || "operativa")
+setEstadoAnterior(data.estado || "operativa")
 setMotivo(data.motivo_no_operativo || "")
 
 }
@@ -66,13 +70,15 @@ alert("Debe ingresar la placa")
 return
 }
 
-let motivoFinal = motivo
+/* si queda operativa se limpia motivo /
 
-/* SI LA AMBULANCIA ES OPERATIVA EL MOTIVO SE BORRA */
+let motivoFinal = motivo
 
 if(estado==="operativa"){
 motivoFinal=""
 }
+
+/ actualizar ambulancia /
 
 const {error} = await supabase
 .from("ambulancias")
@@ -90,6 +96,48 @@ if(error){
 console.log(error)
 alert("Error actualizando ambulancia")
 return
+
+}
+
+/ ------------------------------------------------ /
+/ REGISTRO DE HISTORIAL OPERATIVO /
+/ ------------------------------------------------ /
+
+/ si pasa de operativa a mantenimiento o no operativa /
+
+if(
+(estado==="mantenimiento" || estado==="no operativa") &&
+estadoAnterior==="operativa"
+){
+
+await supabase
+.from("historial_operativo")
+.insert({
+
+ambulancia_id:id,
+estado:estado,
+motivo:motivo,
+fecha_inicio:new Date(),
+usuario:localStorage.getItem("nombre")
+
+})
+
+}
+
+/ si vuelve a operativa */
+
+if(
+estado==="operativa" &&
+(estadoAnterior==="mantenimiento" || estadoAnterior==="no operativa")
+){
+
+await supabase
+.from("historial_operativo")
+.update({
+fecha_fin:new Date()
+})
+.eq("ambulancia_id",id)
+.is("fecha_fin",null)
 
 }
 
@@ -155,7 +203,7 @@ style={{width:"100%",padding:6}}
 <textarea
 value={motivo}
 onChange={(e)=>setMotivo(e.target.value)}
-placeholder="Motivo si la ambulancia no está operativa"
+placeholder="Motivo si la ambulancia no está operativa o está en mantenimiento"
 style={{width:"100%",height:80,padding:6}}
 />
 
