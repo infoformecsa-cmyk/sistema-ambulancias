@@ -23,8 +23,6 @@ router.push("/")
 return
 }
 
-/* SI ES CONDUCTOR NO DEBE VER DASHBOARD */
-
 if(r==="conductor"){
 router.push("/conductor")
 return
@@ -116,9 +114,29 @@ const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
 const total = ambulancias.length
-const operatividad = total>0 ? Math.round((operativas/total)*100) : 0
 
-/* estadisticas ALFA y BRAVO */
+const operatividad =
+total>0 ? Math.round((operativas/total)*100) : 0
+
+/* disponibilidad real */
+
+const disponibilidadReal =
+total>0 ? ((operativas/total)*100).toFixed(1) : 0
+
+/* mantenimiento próximo */
+
+const mantenimientoPreventivo =
+ambulancias.filter(a=>{
+
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+
+return faltan <= 1000 && faltan > 0
+
+}).length
+
+/* estadisticas por tipo */
 
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
 const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
@@ -129,11 +147,17 @@ const alfaNoOperativas = alfa.length - alfaOperativas
 const bravoOperativas = bravo.filter(a=>a.estado==="operativa").length
 const bravoNoOperativas = bravo.length - bravoOperativas
 
-const alfaPorcentajeOperativas = alfa.length ? Math.round((alfaOperativas/alfa.length)*100) : 0
-const alfaPorcentajeNoOperativas = alfa.length ? Math.round((alfaNoOperativas/alfa.length)*100) : 0
+const alfaPorcentajeOperativas =
+alfa.length ? Math.round((alfaOperativas/alfa.length)*100) : 0
 
-const bravoPorcentajeOperativas = bravo.length ? Math.round((bravoOperativas/bravo.length)*100) : 0
-const bravoPorcentajeNoOperativas = bravo.length ? Math.round((bravoNoOperativas/bravo.length)*100) : 0
+const alfaPorcentajeNoOperativas =
+alfa.length ? Math.round((alfaNoOperativas/alfa.length)*100) : 0
+
+const bravoPorcentajeOperativas =
+bravo.length ? Math.round((bravoOperativas/bravo.length)*100) : 0
+
+const bravoPorcentajeNoOperativas =
+bravo.length ? Math.round((bravoNoOperativas/bravo.length)*100) : 0
 
 return(
 
@@ -163,8 +187,10 @@ Cerrar sesión
 
 <div key={a.id} style={{marginBottom:8}}>
 
-<b>Ambulancia:</b> {a.ambulancia_id}  
+<b>Ambulancia ID:</b> {a.ambulancia_id}
+
 <br/>
+
 <b>Problema:</b> {a.descripcion}
 
 </div>
@@ -201,6 +227,16 @@ Cerrar sesión
 <h2>{operatividad}%</h2>
 </div>
 
+<div style={{border:"1px solid black",padding:20}}>
+📈 Disponibilidad real
+<h2>{disponibilidadReal}%</h2>
+</div>
+
+<div style={{border:"1px solid black",padding:20}}>
+⚠️ Mtto próximo
+<h2>{mantenimientoPreventivo}</h2>
+</div>
+
 </div>
 
 <br/>
@@ -235,14 +271,28 @@ Cerrar sesión
 
 <h2>Flota registrada</h2>
 
-{/* BOTON CREAR AMBULANCIA */}
-
 {rol==="admin" && (
+
+<div style={{marginBottom:20}}>
+
+<button
+onClick={()=>router.push("/dashboard/informe-flota")}
+style={{
+marginRight:10,
+padding:"10px 16px",
+background:"#2563eb",
+color:"white",
+border:"none",
+borderRadius:6,
+cursor:"pointer"
+}}
+>
+📄 Informe General Flota
+</button>
 
 <button
 onClick={()=>router.push("/ambulancia/nueva")}
 style={{
-marginBottom:20,
 padding:"10px 16px",
 background:"#0070f3",
 color:"white",
@@ -253,6 +303,8 @@ cursor:"pointer"
 >
 ➕ Nueva ambulancia
 </button>
+
+</div>
 
 )}
 
