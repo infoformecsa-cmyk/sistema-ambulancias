@@ -30,6 +30,7 @@ const {data:f} = await supabase
 const {data:h} = await supabase
 .from("historial_operativo")
 .select("*")
+.order("fecha_inicio",{ascending:true})
 
 setAmbulancias(amb || [])
 setFallas(f || [])
@@ -37,7 +38,7 @@ setHistorial(h || [])
 
 }
 
-/* calcular dias */
+/* calcular días entre fechas */
 
 function calcularDias(inicio:string, fin:string | null){
 
@@ -95,14 +96,11 @@ Imprimir Informe
 const fallasAmb = fallas.filter(f=>f.ambulancia_id===a.id)
 
 const historialAmb =
-historial.filter(h=>h.ambulancia_id===a.id)
+historial
+.filter(h=>h.ambulancia_id===a.id)
+.sort((a,b)=>new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime())
 
-/* registro activo */
-
-const activo =
-historialAmb.find(h=>h.fecha_fin===null)
-
-/* dias fuera servicio */
+/* calcular días fuera */
 
 let diasFuera = 0
 
@@ -110,25 +108,30 @@ historialAmb.forEach(h=>{
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 })
 
-/* indicadores */
+/* calcular días totales desde primer registro */
 
+let diasTotales = 0
+
+if(historialAmb.length>0){
+
+const inicio = new Date(historialAmb[0].fecha_inicio)
 const hoy = new Date()
 
-const primerRegistro =
-historialAmb.length>0
-? new Date(historialAmb[0].fecha_inicio)
-: hoy
+diasTotales = Math.floor((hoy.getTime()-inicio.getTime())/(1000*60*60*24))
 
-const diasTotales =
-Math.floor((hoy.getTime()-primerRegistro.getTime())/(1000*60*60*24))
+}
+
+/* días operativos */
 
 const diasOperativos =
-diasTotales - diasFuera
+diasTotales>diasFuera
+? diasTotales - diasFuera
+: 0
 
 const disponibilidadUnidad =
 diasTotales>0
 ? Math.round((diasOperativos/diasTotales)*100)
-: 0
+: 100
 
 return(
 
