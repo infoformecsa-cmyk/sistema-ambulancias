@@ -107,7 +107,7 @@ return "red"
 
 }
 
-/* estadisticas generales */
+/* ESTADISTICAS GENERALES */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
@@ -118,15 +118,12 @@ const total = ambulancias.length
 const operatividad =
 total>0 ? Math.round((operativas/total)*100) : 0
 
-/* disponibilidad real */
-
 const disponibilidadReal =
 total>0 ? ((operativas/total)*100).toFixed(1) : 0
 
-/* mantenimiento próximo */
+/* ALERTAS DE MANTENIMIENTO */
 
-const mantenimientoPreventivo =
-ambulancias.filter(a=>{
+const mantenimientoProximo = ambulancias.filter(a=>{
 
 if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
 
@@ -134,9 +131,17 @@ const faltan = a.kilometraje_mtto - a.kilometraje_actual
 
 return faltan <= 1000 && faltan > 0
 
-}).length
+})
 
-/* estadisticas por tipo */
+const mantenimientoVencido = ambulancias.filter(a=>{
+
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+
+return a.kilometraje_actual >= a.kilometraje_mtto
+
+})
+
+/* ESTADISTICAS POR TIPO */
 
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
 const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
@@ -175,7 +180,7 @@ Cerrar sesión
 
 <hr/>
 
-{/* ALERTAS CRÍTICAS */}
+{/* ALERTAS MECANICAS CRITICAS */}
 
 {alertas.length>0 && (
 
@@ -196,6 +201,54 @@ Cerrar sesión
 </div>
 
 ))}
+
+</div>
+
+)}
+
+{/* ALERTAS MANTENIMIENTO */}
+
+{mantenimientoVencido.length>0 && (
+
+<div style={{background:"#ffe0e0",padding:20,border:"2px solid red",borderRadius:6,marginTop:20}}>
+
+<h2>🚨 MANTENIMIENTO VENCIDO</h2>
+
+{mantenimientoVencido.map(a=>(
+
+<div key={a.id}>
+
+<b>{a.codigo_operativo}</b> – Km actual: {a.kilometraje_actual} / Mtto: {a.kilometraje_mtto}
+
+</div>
+
+))}
+
+</div>
+
+)}
+
+{mantenimientoProximo.length>0 && (
+
+<div style={{background:"#fff3cd",padding:20,border:"2px solid orange",borderRadius:6,marginTop:20}}>
+
+<h2>⚠️ MANTENIMIENTO PRÓXIMO</h2>
+
+{mantenimientoProximo.map(a=>{
+
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+
+return(
+
+<div key={a.id}>
+
+<b>{a.codigo_operativo}</b> – faltan {faltan} km para mantenimiento
+
+</div>
+
+)
+
+})}
 
 </div>
 
@@ -234,7 +287,7 @@ Cerrar sesión
 
 <div style={{border:"1px solid black",padding:20}}>
 ⚠️ Mtto próximo
-<h2>{mantenimientoPreventivo}</h2>
+<h2>{mantenimientoProximo.length}</h2>
 </div>
 
 </div>
@@ -283,8 +336,7 @@ padding:"10px 16px",
 background:"#2563eb",
 color:"white",
 border:"none",
-borderRadius:6,
-cursor:"pointer"
+borderRadius:6
 }}
 >
 📄 Informe General Flota
@@ -297,8 +349,7 @@ padding:"10px 16px",
 background:"#0070f3",
 color:"white",
 border:"none",
-borderRadius:6,
-cursor:"pointer"
+borderRadius:6
 }}
 >
 ➕ Nueva ambulancia
@@ -336,11 +387,8 @@ cursor:"pointer"
 </td>
 
 <td>{a.codigo_operativo}</td>
-
 <td>{a.placa}</td>
-
 <td>{a.tipo}</td>
-
 <td>{a.kilometraje_actual || 0}</td>
 
 <td>
