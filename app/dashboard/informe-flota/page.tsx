@@ -37,22 +37,20 @@ setHistorial(h || [])
 
 }
 
-/* CALCULO TIEMPO FUERA SERVICIO */
+/* calcular dias */
 
-function calcularTiempo(inicio:string, fin:string | null){
+function calcularDias(inicio:string, fin:string | null){
 
 const fechaInicio = new Date(inicio)
 const fechaFin = fin ? new Date(fin) : new Date()
 
 const diff = fechaFin.getTime() - fechaInicio.getTime()
 
-const dias = Math.floor(diff/(1000*60*60*24))
-
-return dias
+return Math.floor(diff/(1000*60*60*24))
 
 }
 
-/* RESUMEN GENERAL */
+/* resumen flota */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
@@ -99,26 +97,33 @@ const fallasAmb = fallas.filter(f=>f.ambulancia_id===a.id)
 const historialAmb =
 historial.filter(h=>h.ambulancia_id===a.id)
 
-/* TIEMPO FUERA DE SERVICIO */
+/* registro activo */
 
-let diasFueraServicio = 0
+const activo =
+historialAmb.find(h=>h.fecha_fin===null)
+
+/* dias fuera servicio */
+
+let diasFuera = 0
 
 historialAmb.forEach(h=>{
-diasFueraServicio += calcularTiempo(h.fecha_inicio,h.fecha_fin)
+diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 })
 
-/* TIEMPO TOTAL REGISTRADO */
+/* indicadores */
 
 const hoy = new Date()
-const primerRegistro = historialAmb.length>0
-? new Date(historialAmb[historialAmb.length-1].fecha_inicio)
+
+const primerRegistro =
+historialAmb.length>0
+? new Date(historialAmb[0].fecha_inicio)
 : hoy
 
 const diasTotales =
 Math.floor((hoy.getTime()-primerRegistro.getTime())/(1000*60*60*24))
 
 const diasOperativos =
-diasTotales - diasFueraServicio
+diasTotales - diasFuera
 
 const disponibilidadUnidad =
 diasTotales>0
@@ -140,7 +145,6 @@ return(
 <th>Tipo</th>
 <th>KM</th>
 <th>Próx Mtto</th>
-<th>Motivo</th>
 </tr>
 
 </thead>
@@ -153,7 +157,6 @@ return(
 <td>{a.tipo}</td>
 <td>{a.kilometraje_actual || "-"}</td>
 <td>{a.kilometraje_mtto || "-"}</td>
-<td>{a.motivo_no_operativo || "-"}</td>
 
 </tr>
 
@@ -184,7 +187,7 @@ return(
 
 <td>{disponibilidadUnidad}%</td>
 <td>{diasOperativos}</td>
-<td>{diasFueraServicio}</td>
+<td>{diasFuera}</td>
 <td>{fallasAmb.length}</td>
 
 </tr>
@@ -247,7 +250,6 @@ return(
 <th>Estado</th>
 <th>Motivo</th>
 <th>Días fuera de servicio</th>
-<th>Usuario</th>
 </tr>
 
 </thead>
@@ -255,27 +257,26 @@ return(
 <tbody>
 
 {historialAmb.length===0 && (
-<tr><td colSpan={6}>Sin registros</td></tr>
+<tr><td colSpan={5}>Sin registros</td></tr>
 )}
 
 {historialAmb.map(h=>(
 
 <tr key={h.id}>
 
-<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
+<td>{new Date(h.fecha_inicio).toLocaleDateString()}</td>
 
 <td>
 {h.fecha_fin
-? new Date(h.fecha_fin).toLocaleString()
+? new Date(h.fecha_fin).toLocaleDateString()
 : "En curso"}
 </td>
 
 <td>{h.estado}</td>
+
 <td>{h.motivo}</td>
 
-<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
-
-<td>{h.usuario}</td>
+<td>{calcularDias(h.fecha_inicio,h.fecha_fin)}</td>
 
 </tr>
 
