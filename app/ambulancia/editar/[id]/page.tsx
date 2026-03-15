@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect,useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter,useParams } from "next/navigation"
 
 export default function EditarAmbulancia(){
 
@@ -17,7 +17,10 @@ const [tipo,setTipo] = useState("ALFA")
 const [estado,setEstado] = useState("operativa")
 const [motivo,setMotivo] = useState("")
 
-/* estado anterior para controlar historial */
+/* NUEVO CAMPO */
+const [tipoFalla,setTipoFalla] = useState("")
+
+/* estado anterior */
 const [estadoAnterior,setEstadoAnterior] = useState("operativa")
 
 useEffect(()=>{
@@ -73,13 +76,15 @@ alert("Debe ingresar la placa")
 return
 }
 
-/* limpiar motivo si queda operativa */
+/* limpiar motivo si vuelve operativa */
 
 let motivoFinal = motivo
 
 if(estado==="operativa"){
 motivoFinal=""
 }
+
+/* actualizar ambulancia */
 
 const {error} = await supabase
 .from("ambulancias")
@@ -98,11 +103,11 @@ alert("Error actualizando ambulancia")
 return
 }
 
-/* REGISTRAR HISTORIAL OPERATIVO */
+/* HISTORIAL OPERATIVO */
 
 try{
 
-/* pasa de operativa a mantenimiento o no operativa */
+/* pasa de operativa a fuera servicio */
 
 if(
 (estado==="mantenimiento" || estado==="no operativa") &&
@@ -112,11 +117,14 @@ estadoAnterior==="operativa"
 await supabase
 .from("historial_operativo")
 .insert({
+
 ambulancia_id:id,
 estado:estado,
 motivo:motivo,
+tipo_falla:tipoFalla,
 fecha_inicio:new Date().toISOString(),
 usuario:localStorage.getItem("nombre")
+
 })
 
 }
@@ -131,7 +139,9 @@ estado==="operativa" &&
 await supabase
 .from("historial_operativo")
 .update({
+
 fecha_fin:new Date().toISOString()
+
 })
 .eq("ambulancia_id",id)
 .is("fecha_fin",null)
@@ -209,6 +219,44 @@ onChange={(e)=>setMotivo(e.target.value)}
 placeholder="Motivo si la ambulancia no está operativa o está en mantenimiento"
 style={{width:"100%",height:80,padding:6}}
 />
+
+{/* NUEVO CAMPO */}
+
+<p><b>Tipo de falla o mantenimiento</b></p>
+
+<select
+value={tipoFalla}
+onChange={(e)=>setTipoFalla(e.target.value)}
+style={{width:"100%",padding:6}}
+>
+
+<option value="">Seleccione</option>
+
+<option value="preventivo">
+Mantenimiento preventivo
+</option>
+
+<option value="correctivo">
+Mantenimiento correctivo
+</option>
+
+<option value="mecanico">
+Falla mecánica
+</option>
+
+<option value="electrico">
+Falla eléctrica
+</option>
+
+<option value="logistico">
+Logístico / administrativo
+</option>
+
+<option value="accidente">
+Accidente
+</option>
+
+</select>
 
 <br/><br/>
 
