@@ -120,7 +120,7 @@ fallas.filter(f => f.ambulancia_id === a.id)
 
 const historialAmb =
 historial
-.filter(h => h.ambulancia_id === a.id)
+.filter(h => String(h.ambulancia_id) === String(a.id))
 .sort((x,y)=>{
 
 const dx = x.fecha_inicio ? new Date(x.fecha_inicio).getTime() : 0
