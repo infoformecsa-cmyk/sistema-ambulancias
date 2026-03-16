@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
-export default function InformeFlota() {
+export default function InformeFlota(){
 
 const router = useRouter()
 
@@ -20,16 +20,16 @@ async function cargarDatos(){
 
 const {data:amb} = await supabase
 .from("ambulancias")
-.select("")
+.select("*")
 .order("codigo_operativo")
 
 const {data:f} = await supabase
 .from("reportes_fallas")
-.select("")
+.select("*")
 
 const {data:h} = await supabase
 .from("historial_operativo")
-.select("")
+.select("*")
 .order("fecha_inicio",{ascending:true})
 
 setAmbulancias(amb || [])
@@ -41,16 +41,15 @@ setHistorial(h || [])
 function calcularDias(inicio:string, fin:string | null){
 
 const fechaInicio = new Date(inicio)
-
 const fechaFin = fin ? new Date(fin) : new Date()
 
 const diff = fechaFin.getTime() - fechaInicio.getTime()
 
-return Math.floor(diff / (1000606024))
+return Math.floor(diff / (1000*60*60*24))
 
 }
 
-/* RESUMEN FLOTA /
+/* RESUMEN FLOTA */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
@@ -59,7 +58,7 @@ const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 const total = ambulancias.length
 
 const disponibilidad =
-total>0 ? ((operativas/total)100).toFixed(1) : 0
+total>0 ? ((operativas/total)*100).toFixed(1) : "0"
 
 return(
 
@@ -92,17 +91,17 @@ Imprimir Informe
 
 {ambulancias.map(a=>{
 
-/ FALLAS /
+/* FALLAS */
 
 const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
-/ HISTORIAL /
+/* HISTORIAL */
 
 const historialAmb =
 historial.filter(h => String(h.ambulancia_id) === String(a.id))
 
-/ DIAS FUERA /
+/* DIAS FUERA */
 
 let diasFuera = 0
 
@@ -114,20 +113,18 @@ diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 
 })
 
-/ INDICADORES /
+/* INDICADORES */
 
 const hoy = new Date()
 
 let primerRegistro = hoy
 
 if(historialAmb.length > 0 && historialAmb[0].fecha_inicio){
-
 primerRegistro = new Date(historialAmb[0].fecha_inicio)
-
 }
 
 const diasTotales =
-Math.floor((hoy.getTime() - primerRegistro.getTime())/(10006060*24))
+Math.floor((hoy.getTime() - primerRegistro.getTime())/(1000*60*60*24))
 
 const diasOperativos =
 diasTotales - diasFuera
