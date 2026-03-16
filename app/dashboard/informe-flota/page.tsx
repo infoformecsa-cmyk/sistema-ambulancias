@@ -48,10 +48,10 @@ function calcularDias(inicio:string, fin:string | null){
 
 if(!inicio) return 0
 
-const inicioDate = new Date(inicio)
-const finDate = fin ? new Date(fin) : new Date()
+const fechaInicio = new Date(inicio)
+const fechaFin = fin ? new Date(fin) : new Date()
 
-const diff = finDate.getTime() - inicioDate.getTime()
+const diff = fechaFin.getTime() - fechaInicio.getTime()
 
 return Math.floor(diff / (1000*60*60*24))
 
@@ -103,12 +103,12 @@ Imprimir Informe
 
 {ambulancias.map(a=>{
 
-/* FALLAS DE LA AMBULANCIA */
+/* FALLAS */
 
 const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
-/* HISTORIAL DE LA AMBULANCIA */
+/* HISTORIAL */
 
 const historialAmb =
 historial
@@ -122,7 +122,7 @@ return dy - dx
 
 })
 
-/* CALCULAR DIAS FUERA DE SERVICIO */
+/* DIAS FUERA DE SERVICIO */
 
 let diasFuera = 0
 
@@ -136,9 +136,29 @@ diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 
 })
 
-/* SI LA AMBULANCIA ESTA EN MANTENIMIENTO ACTUALMENTE */
+/* DIAS OPERATIVOS */
 
-if((a.estado === "mantenimiento" || a.estado === "no operativa") && historialAmb.length > 0){
+let diasOperativos = 0
+
+if(a.estado === "operativa"){
+
+diasOperativos = 1
+
+}
+
+/* DISPONIBILIDAD */
+
+let disponibilidadUnidad = 100
+
+if(a.estado === "mantenimiento" || a.estado === "no operativa"){
+
+disponibilidadUnidad = 0
+
+}
+
+/* SI ESTA EN MANTENIMIENTO ACTUALMENTE */
+
+if(historialAmb.length > 0){
 
 const actual = historialAmb[0]
 
@@ -148,22 +168,6 @@ diasFuera = calcularDias(actual.fecha_inicio,null)
 
 }
 
-}
-
-/* DIAS OPERATIVOS */
-
-let diasOperativos = 0
-
-if(a.estado === "operativa"){
-diasOperativos = 1
-}
-
-/* DISPONIBILIDAD */
-
-let disponibilidadUnidad = 100
-
-if(a.estado === "mantenimiento" || a.estado === "no operativa"){
-disponibilidadUnidad = 0
 }
 
 return(
