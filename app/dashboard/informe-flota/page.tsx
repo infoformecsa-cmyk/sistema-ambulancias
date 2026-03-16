@@ -1,10 +1,10 @@
 "use client"
 
-import {useEffect,useState} from "react"
-import {supabase} from "@/lib/supabaseClient"
-import {useRouter} from "next/navigation"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
-export default function InformeFlota(){
+export default function InformeFlota() {
 
 const router = useRouter()
 
@@ -38,8 +38,6 @@ setHistorial(h || [])
 
 }
 
-/ calcular dias /
-
 function calcularDias(inicio:string, fin:string | null){
 
 const fechaInicio = new Date(inicio)
@@ -48,7 +46,7 @@ const fechaFin = fin ? new Date(fin) : new Date()
 
 const diff = fechaFin.getTime() - fechaInicio.getTime()
 
-return Math.floor(diff/(1000606024))
+return Math.floor(diff / (1000606024))
 
 }
 
@@ -97,45 +95,45 @@ Imprimir Informe
 / FALLAS /
 
 const fallasAmb =
-fallas.filter(f=>String(f.ambulancia_id) === String(a.id))
+fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
 / HISTORIAL /
 
 const historialAmb =
-historial
-.filter(h=>String(h.ambulancia_id) === String(a.id))
-.sort((a,b)=> new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime())
+historial.filter(h => String(h.ambulancia_id) === String(a.id))
 
-/ DIAS FUERA SERVICIO /
+/ DIAS FUERA /
 
 let diasFuera = 0
 
-historialAmb.forEach(h=>{
+historialAmb.forEach(h => {
 
+if(h.fecha_inicio){
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
+}
 
 })
 
-/ CALCULO OPERATIVIDAD /
+/ INDICADORES /
 
 const hoy = new Date()
 
 let primerRegistro = hoy
 
-if(historialAmb.length>0){
+if(historialAmb.length > 0 && historialAmb[0].fecha_inicio){
 
 primerRegistro = new Date(historialAmb[0].fecha_inicio)
 
 }
 
 const diasTotales =
-Math.floor((hoy.getTime()-primerRegistro.getTime())/(10006060*24))
+Math.floor((hoy.getTime() - primerRegistro.getTime())/(10006060*24))
 
 const diasOperativos =
 diasTotales - diasFuera
 
 const disponibilidadUnidad =
-diasTotales>0
+diasTotales > 0
 ? Math.round((diasOperativos/diasTotales)*100)
 : 100
 
@@ -224,7 +222,7 @@ return(
 <tr><td colSpan={4}>Sin registros</td></tr>
 )}
 
-{fallasAmb.map(f=>(
+{fallasAmb.map(f => (
 
 <tr key={f.id}>
 
@@ -265,11 +263,11 @@ return(
 <tr><td colSpan={5}>Sin registros</td></tr>
 )}
 
-{historialAmb.map(h=>(
+{historialAmb.map(h => (
 
 <tr key={h.id}>
 
-<td>{new Date(h.fecha_inicio).toLocaleDateString()}</td>
+<td>{h.fecha_inicio ? new Date(h.fecha_inicio).toLocaleDateString() : "-"}</td>
 
 <td>
 {h.fecha_fin
@@ -281,7 +279,7 @@ return(
 
 <td>{h.motivo}</td>
 
-<td>{calcularDias(h.fecha_inicio,h.fecha_fin)}</td>
+<td>{h.fecha_inicio ? calcularDias(h.fecha_inicio,h.fecha_fin) : "-"}</td>
 
 </tr>
 
