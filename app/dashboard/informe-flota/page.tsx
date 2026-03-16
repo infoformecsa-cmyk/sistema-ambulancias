@@ -35,6 +35,9 @@ setAmbulancias(amb || [])
 setFallas(f || [])
 setHistorial(h || [])
 
+console.log("AMBULANCIAS:", amb)
+console.log("HISTORIAL:", h)
+
 }
 
 /* CALCULO DIAS */
