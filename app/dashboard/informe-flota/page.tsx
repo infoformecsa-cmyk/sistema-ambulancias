@@ -11,6 +11,7 @@ const router = useRouter()
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [fallas,setFallas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
+const [loading,setLoading] = useState(true)
 
 useEffect(()=>{
 cargarDatos()
@@ -30,25 +31,14 @@ const {data:f} = await supabase
 
 const {data:h} = await supabase
 .from("historial_operativo")
-.select(`
-id,
-ambulancia_id,
-estado,
-motivo,
-fecha_inicio,
-fecha_fin,
-ambulancias(
-codigo_operativo
-)
-`)
+.select("*")
 .order("fecha_inicio",{ascending:false})
 
 setAmbulancias(amb || [])
 setFallas(f || [])
 setHistorial(h || [])
 
-console.log("AMBULANCIAS:", amb)
-console.log("HISTORIAL:", h)
+setLoading(false)
 
 }
 
@@ -58,12 +48,10 @@ function calcularDias(inicio:string, fin:string | null){
 
 if(!inicio) return 0
 
-const fechaInicio = new Date(inicio)
-const fechaFin = fin ? new Date(fin) : new Date()
+const inicioDate = new Date(inicio)
+const finDate = fin ? new Date(fin) : new Date()
 
-if(isNaN(fechaInicio.getTime())) return 0
-
-const diff = fechaFin.getTime() - fechaInicio.getTime()
+const diff = finDate.getTime() - inicioDate.getTime()
 
 return Math.floor(diff / (1000*60*60*24))
 
@@ -79,6 +67,10 @@ const total = ambulancias.length
 
 const disponibilidad =
 total>0 ? ((operativas/total)*100).toFixed(1) : "0"
+
+if(loading){
+return <div style={{padding:40}}>Cargando informe...</div>
+}
 
 return(
 
@@ -114,21 +106,13 @@ Imprimir Informe
 /* FALLAS */
 
 const fallasAmb =
-fallas.filter(f => f.ambulancia_id === a.id)
+fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
 /* HISTORIAL */
 
 const historialAmb =
 historial
 .filter(h => String(h.ambulancia_id) === String(a.id))
-.sort((x,y)=>{
-
-const dx = x.fecha_inicio ? new Date(x.fecha_inicio).getTime() : 0
-const dy = y.fecha_inicio ? new Date(y.fecha_inicio).getTime() : 0
-
-return dy - dx
-
-})
 
 /* DIAS FUERA */
 
@@ -138,44 +122,20 @@ historialAmb.forEach(h => {
 
 if(h.estado === "mantenimiento" || h.estado === "no operativa"){
 
-if(h.fecha_inicio){
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
-}
 
 }
 
 })
 
-/* CALCULO DISPONIBILIDAD */
+/* DIAS OPERATIVOS */
 
-const hoy = new Date()
+const diasOperativos = diasFuera === 0 ? 1 : 0
 
-let primerRegistro = hoy
-
-historialAmb.forEach(h=>{
-
-if(h.fecha_inicio){
-
-const fecha = new Date(h.fecha_inicio)
-
-if(!isNaN(fecha.getTime()) && fecha < primerRegistro){
-primerRegistro = fecha
-}
-
-}
-
-})
-
-const diasTotales =
-Math.floor((hoy.getTime() - primerRegistro.getTime())/(1000*60*60*24))
-
-const diasOperativos =
-diasTotales - diasFuera
+/* DISPONIBILIDAD */
 
 const disponibilidadUnidad =
-diasTotales > 0
-? Math.round((diasOperativos/diasTotales)*100)
-: 100
+diasFuera > 0 ? 0 : 100
 
 return(
 
@@ -229,7 +189,7 @@ return(
 <tr>
 
 <td>{disponibilidadUnidad}%</td>
-<td>{diasOperativos < 0 ? 0 : diasOperativos}</td>
+<td>{diasOperativos}</td>
 <td>{diasFuera}</td>
 <td>{fallasAmb.length}</td>
 
@@ -329,7 +289,7 @@ historialAmb.map(h => (
 
 <td>{h.motivo || "-"}</td>
 
-<td>{h.fecha_inicio ? calcularDias(h.fecha_inicio,h.fecha_fin) : "-"}</td>
+<td>{calcularDias(h.fecha_inicio,h.fecha_fin)}</td>
 
 </tr>
 
