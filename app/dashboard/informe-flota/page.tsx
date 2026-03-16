@@ -42,7 +42,7 @@ setLoading(false)
 
 }
 
-/* CALCULO DIAS */
+/* CALCULAR DIAS */
 
 function calcularDias(inicio:string, fin:string | null){
 
@@ -108,17 +108,25 @@ Imprimir Informe
 const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
-/* HISTORIAL */
+/* HISTORIAL DE ESA AMBULANCIA */
 
 const historialAmb =
 historial
 .filter(h => String(h.ambulancia_id) === String(a.id))
+.sort((a,b)=>{
 
-/* DIAS FUERA */
+const fa = a.fecha_inicio ? new Date(a.fecha_inicio).getTime() : 0
+const fb = b.fecha_inicio ? new Date(b.fecha_inicio).getTime() : 0
+
+return fb-fa
+
+})
+
+/* CALCULAR DIAS FUERA */
 
 let diasFuera = 0
 
-historialAmb.forEach(h => {
+historialAmb.forEach(h=>{
 
 if(h.estado === "mantenimiento" || h.estado === "no operativa"){
 
@@ -128,14 +136,51 @@ diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 
 })
 
+/* CALCULAR TIEMPO TOTAL DESDE PRIMER REGISTRO */
+
+let primerRegistro = null
+
+historialAmb.forEach(h=>{
+
+if(h.fecha_inicio){
+
+const fecha = new Date(h.fecha_inicio)
+
+if(!primerRegistro || fecha < primerRegistro){
+primerRegistro = fecha
+}
+
+}
+
+})
+
+let diasTotales = 0
+
+if(primerRegistro){
+
+const hoy = new Date()
+
+diasTotales = Math.floor(
+(hoy.getTime() - primerRegistro.getTime())/(1000*60*60*24)
+)
+
+}
+
 /* DIAS OPERATIVOS */
 
-const diasOperativos = diasFuera === 0 ? 1 : 0
+let diasOperativos = diasTotales - diasFuera
+
+if(diasOperativos < 0) diasOperativos = 0
 
 /* DISPONIBILIDAD */
 
-const disponibilidadUnidad =
-diasFuera > 0 ? 0 : 100
+let disponibilidadUnidad = 100
+
+if(diasTotales > 0){
+
+disponibilidadUnidad = Math.round((diasOperativos/diasTotales)*100)
+
+}
 
 return(
 
