@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
-export default function InformeFlota(){
+export default function InformeFlota() {
 
 const router = useRouter()
 
@@ -30,7 +30,7 @@ const {data:f} = await supabase
 const {data:h} = await supabase
 .from("historial_operativo")
 .select("*")
-.order("fecha_inicio",{ascending:true})
+.order("fecha_inicio",{ascending:false})
 
 setAmbulancias(amb || [])
 setFallas(f || [])
@@ -95,23 +95,41 @@ const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
 const historialAmb =
-historial.filter(h => String(h.ambulancia_id) === String(a.id))
+historial
+.filter(h => String(h.ambulancia_id) === String(a.id))
+.sort((a,b)=> new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime())
+
+/* CALCULO DIAS FUERA */
 
 let diasFuera = 0
 
 historialAmb.forEach(h => {
+
 if(h.fecha_inicio){
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 }
+
 })
+
+/* CALCULO DISPONIBILIDAD */
 
 const hoy = new Date()
 
 let primerRegistro = hoy
 
-if(historialAmb.length > 0 && historialAmb[0].fecha_inicio){
-primerRegistro = new Date(historialAmb[0].fecha_inicio)
+historialAmb.forEach(h => {
+
+if(h.fecha_inicio){
+
+const fecha = new Date(h.fecha_inicio)
+
+if(fecha < primerRegistro){
+primerRegistro = fecha
 }
+
+}
+
+})
 
 const diasTotales =
 Math.floor((hoy.getTime() - primerRegistro.getTime())/(1000*60*60*24))
@@ -131,6 +149,7 @@ return(
 <h3>{a.codigo_operativo} | {a.placa}</h3>
 
 <table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
+
 <thead>
 <tr>
 <th>Estado</th>
@@ -141,13 +160,16 @@ return(
 </thead>
 
 <tbody>
+
 <tr>
 <td>{a.estado}</td>
 <td>{a.tipo}</td>
 <td>{a.kilometraje_actual || "-"}</td>
 <td>{a.kilometraje_mtto || "-"}</td>
 </tr>
+
 </tbody>
+
 </table>
 
 <br/>
@@ -157,21 +179,27 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
+
 <tr>
 <th>Disponibilidad</th>
 <th>Días operativos</th>
 <th>Días fuera de servicio</th>
 <th>Fallas registradas</th>
 </tr>
+
 </thead>
 
 <tbody>
+
 <tr>
+
 <td>{disponibilidadUnidad}%</td>
 <td>{diasOperativos < 0 ? 0 : diasOperativos}</td>
 <td>{diasFuera}</td>
 <td>{fallasAmb.length}</td>
+
 </tr>
+
 </tbody>
 
 </table>
@@ -183,12 +211,14 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
+
 <tr>
 <th>Fecha</th>
 <th>Descripción</th>
 <th>Criticidad</th>
 <th>Estado</th>
 </tr>
+
 </thead>
 
 <tbody>
@@ -200,15 +230,18 @@ return(
 {fallasAmb.map(f => (
 
 <tr key={f.id}>
+
 <td>{new Date(f.created_at).toLocaleDateString()}</td>
 <td>{f.descripcion}</td>
 <td>{f.criticidad}</td>
 <td>{f.estado}</td>
+
 </tr>
 
 ))}
 
 </tbody>
+
 </table>
 
 <br/>
@@ -218,6 +251,7 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
+
 <tr>
 <th>Inicio</th>
 <th>Fin</th>
@@ -225,6 +259,7 @@ return(
 <th>Motivo</th>
 <th>Días fuera de servicio</th>
 </tr>
+
 </thead>
 
 <tbody>
@@ -246,7 +281,9 @@ return(
 </td>
 
 <td>{h.estado}</td>
+
 <td>{h.motivo}</td>
+
 <td>{h.fecha_inicio ? calcularDias(h.fecha_inicio,h.fecha_fin) : "-"}</td>
 
 </tr>
