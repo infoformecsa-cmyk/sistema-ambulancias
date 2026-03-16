@@ -91,29 +91,19 @@ Imprimir Informe
 
 {ambulancias.map(a=>{
 
-/* FALLAS */
-
 const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
-
-/* HISTORIAL */
 
 const historialAmb =
 historial.filter(h => String(h.ambulancia_id) === String(a.id))
 
-/* DIAS FUERA */
-
 let diasFuera = 0
 
 historialAmb.forEach(h => {
-
 if(h.fecha_inicio){
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 }
-
 })
-
-/* INDICADORES */
 
 const hoy = new Date()
 
@@ -141,7 +131,6 @@ return(
 <h3>{a.codigo_operativo} | {a.placa}</h3>
 
 <table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
-
 <thead>
 <tr>
 <th>Estado</th>
@@ -152,16 +141,13 @@ return(
 </thead>
 
 <tbody>
-
 <tr>
 <td>{a.estado}</td>
 <td>{a.tipo}</td>
 <td>{a.kilometraje_actual || "-"}</td>
 <td>{a.kilometraje_mtto || "-"}</td>
 </tr>
-
 </tbody>
-
 </table>
 
 <br/>
@@ -171,27 +157,21 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Disponibilidad</th>
 <th>Días operativos</th>
 <th>Días fuera de servicio</th>
 <th>Fallas registradas</th>
 </tr>
-
 </thead>
 
 <tbody>
-
 <tr>
-
 <td>{disponibilidadUnidad}%</td>
 <td>{diasOperativos < 0 ? 0 : diasOperativos}</td>
 <td>{diasFuera}</td>
 <td>{fallasAmb.length}</td>
-
 </tr>
-
 </tbody>
 
 </table>
@@ -203,14 +183,12 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Fecha</th>
 <th>Descripción</th>
 <th>Criticidad</th>
 <th>Estado</th>
 </tr>
-
 </thead>
 
 <tbody>
@@ -222,18 +200,15 @@ return(
 {fallasAmb.map(f => (
 
 <tr key={f.id}>
-
 <td>{new Date(f.created_at).toLocaleDateString()}</td>
 <td>{f.descripcion}</td>
 <td>{f.criticidad}</td>
 <td>{f.estado}</td>
-
 </tr>
 
 ))}
 
 </tbody>
-
 </table>
 
 <br/>
@@ -243,7 +218,6 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Inicio</th>
 <th>Fin</th>
@@ -251,7 +225,6 @@ return(
 <th>Motivo</th>
 <th>Días fuera de servicio</th>
 </tr>
-
 </thead>
 
 <tbody>
@@ -273,9 +246,7 @@ return(
 </td>
 
 <td>{h.estado}</td>
-
 <td>{h.motivo}</td>
-
 <td>{h.fecha_inicio ? calcularDias(h.fecha_inicio,h.fecha_fin) : "-"}</td>
 
 </tr>
