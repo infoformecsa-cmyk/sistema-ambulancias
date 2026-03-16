@@ -26,10 +26,22 @@ const {data:amb} = await supabase
 const {data:f} = await supabase
 .from("reportes_fallas")
 .select("*")
+.order("created_at",{ascending:false})
 
 const {data:h} = await supabase
 .from("historial_operativo")
-.select("*")
+.select(`
+id,
+ambulancia_id,
+estado,
+motivo,
+fecha_inicio,
+fecha_fin,
+ambulancias(
+codigo_operativo
+)
+`)
+.order("fecha_inicio",{ascending:false})
 
 setAmbulancias(amb || [])
 setFallas(f || [])
@@ -102,13 +114,13 @@ Imprimir Informe
 /* FALLAS */
 
 const fallasAmb =
-fallas.filter(f => String(f.ambulancia_id) === String(a.id))
+fallas.filter(f => f.ambulancia_id === a.id)
 
 /* HISTORIAL */
 
 const historialAmb =
 historial
-.filter(h => String(h.ambulancia_id) === String(a.id))
+.filter(h => h.ambulancia_id === a.id)
 .sort((x,y)=>{
 
 const dx = x.fecha_inicio ? new Date(x.fecha_inicio).getTime() : 0
@@ -124,8 +136,12 @@ let diasFuera = 0
 
 historialAmb.forEach(h => {
 
+if(h.estado === "mantenimiento" || h.estado === "no operativa"){
+
 if(h.fecha_inicio){
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
+}
+
 }
 
 })
