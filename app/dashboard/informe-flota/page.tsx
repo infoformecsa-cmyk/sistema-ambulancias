@@ -37,10 +37,16 @@ setHistorial(h || [])
 
 }
 
+/* CALCULO DIAS */
+
 function calcularDias(inicio:string, fin:string | null){
+
+if(!inicio) return 0
 
 const fechaInicio = new Date(inicio)
 const fechaFin = fin ? new Date(fin) : new Date()
+
+if(isNaN(fechaInicio.getTime())) return 0
 
 const diff = fechaFin.getTime() - fechaInicio.getTime()
 
@@ -90,13 +96,26 @@ Imprimir Informe
 
 {ambulancias.map(a=>{
 
+/* FALLAS */
+
 const fallasAmb =
-fallas.filter(f => f.ambulancia_id == a.id)
+fallas.filter(f => String(f.ambulancia_id) === String(a.id))
+
+/* HISTORIAL */
 
 const historialAmb =
 historial
-.filter(h => String(h.ambulancia_id).trim() === String(a.id).trim())
-.sort((x,y)=> new Date(y.fecha_inicio).getTime() - new Date(x.fecha_inicio).getTime())
+.filter(h => String(h.ambulancia_id) === String(a.id))
+.sort((x,y)=>{
+
+const dx = x.fecha_inicio ? new Date(x.fecha_inicio).getTime() : 0
+const dy = y.fecha_inicio ? new Date(y.fecha_inicio).getTime() : 0
+
+return dy - dx
+
+})
+
+/* DIAS FUERA */
 
 let diasFuera = 0
 
@@ -108,6 +127,8 @@ diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 
 })
 
+/* CALCULO DISPONIBILIDAD */
+
 const hoy = new Date()
 
 let primerRegistro = hoy
@@ -118,7 +139,7 @@ if(h.fecha_inicio){
 
 const fecha = new Date(h.fecha_inicio)
 
-if(fecha < primerRegistro){
+if(!isNaN(fecha.getTime()) && fecha < primerRegistro){
 primerRegistro = fecha
 }
 
@@ -218,22 +239,28 @@ return(
 
 <tbody>
 
-{fallasAmb.length===0 && (
-<tr><td colSpan={4}>Sin registros</td></tr>
-)}
+{fallasAmb.length===0 ? (
 
-{fallasAmb.map(f => (
+<tr>
+<td colSpan={4}>Sin registros</td>
+</tr>
+
+) : (
+
+fallasAmb.map(f => (
 
 <tr key={f.id}>
 
-<td>{new Date(f.created_at).toLocaleDateString()}</td>
+<td>{f.created_at ? new Date(f.created_at).toLocaleDateString() : "-"}</td>
 <td>{f.descripcion}</td>
 <td>{f.criticidad}</td>
 <td>{f.estado}</td>
 
 </tr>
 
-))}
+))
+
+)}
 
 </tbody>
 
@@ -259,11 +286,15 @@ return(
 
 <tbody>
 
-{historialAmb.length===0 && (
-<tr><td colSpan={5}>Sin registros</td></tr>
-)}
+{historialAmb.length===0 ? (
 
-{historialAmb.map(h => (
+<tr>
+<td colSpan={5}>Sin registros</td>
+</tr>
+
+) : (
+
+historialAmb.map(h => (
 
 <tr key={h.id}>
 
@@ -275,15 +306,17 @@ return(
 : "En curso"}
 </td>
 
-<td>{h.estado}</td>
+<td>{h.estado || "-"}</td>
 
-<td>{h.motivo}</td>
+<td>{h.motivo || "-"}</td>
 
 <td>{h.fecha_inicio ? calcularDias(h.fecha_inicio,h.fecha_fin) : "-"}</td>
 
 </tr>
 
-))}
+))
+
+)}
 
 </tbody>
 
