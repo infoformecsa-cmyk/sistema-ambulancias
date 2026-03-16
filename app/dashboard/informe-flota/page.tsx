@@ -38,8 +38,6 @@ setHistorial(h || [])
 
 }
 
-/* calcular días entre fechas */
-
 function calcularDias(inicio:string, fin:string | null){
 
 const fechaInicio = new Date(inicio)
@@ -51,7 +49,7 @@ return Math.floor(diff/(1000*60*60*24))
 
 }
 
-/* resumen flota */
+/* RESUMEN FLOTa */
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
@@ -61,6 +59,7 @@ const total = ambulancias.length
 
 const disponibilidad =
 total>0 ? ((operativas/total)*100).toFixed(1) : 0
+
 
 return(
 
@@ -93,14 +92,17 @@ Imprimir Informe
 
 {ambulancias.map(a=>{
 
-const fallasAmb = fallas.filter(f=>f.ambulancia_id===a.id)
+/* FALLAS */
+
+const fallasAmb =
+fallas.filter(f=>f.ambulancia_id === a.id)
+
+/* HISTORIAL */
 
 const historialAmb =
-historial
-.filter(h=>h.ambulancia_id===a.id)
-.sort((a,b)=>new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime())
+historial.filter(h=>h.ambulancia_id === a.id)
 
-/* calcular días fuera */
+/* DIAS FUERA */
 
 let diasFuera = 0
 
@@ -108,59 +110,52 @@ historialAmb.forEach(h=>{
 diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 })
 
-/* calcular días totales desde primer registro */
+/* INDICADORES */
 
-let diasTotales = 0
-
-if(historialAmb.length>0){
-
-const inicio = new Date(historialAmb[0].fecha_inicio)
 const hoy = new Date()
 
-diasTotales = Math.floor((hoy.getTime()-inicio.getTime())/(1000*60*60*24))
+let primerRegistro = hoy
 
+if(historialAmb.length>0){
+primerRegistro = new Date(historialAmb[0].fecha_inicio)
 }
 
-/* días operativos */
+const diasTotales =
+Math.floor((hoy.getTime()-primerRegistro.getTime())/(1000*60*60*24))
 
 const diasOperativos =
-diasTotales>diasFuera
-? diasTotales - diasFuera
-: 0
+diasTotales - diasFuera
 
 const disponibilidadUnidad =
 diasTotales>0
 ? Math.round((diasOperativos/diasTotales)*100)
 : 100
 
+
 return(
 
-<div key={a.id} style={{marginBottom:40}}>
+<div key={a.id} style={{marginBottom:50}}>
 
 <h3>{a.codigo_operativo} | {a.placa}</h3>
 
 <table border={1} cellPadding={8} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Estado</th>
 <th>Tipo</th>
 <th>KM</th>
 <th>Próx Mtto</th>
 </tr>
-
 </thead>
 
 <tbody>
 
 <tr>
-
 <td>{a.estado}</td>
 <td>{a.tipo}</td>
 <td>{a.kilometraje_actual || "-"}</td>
 <td>{a.kilometraje_mtto || "-"}</td>
-
 </tr>
 
 </tbody>
