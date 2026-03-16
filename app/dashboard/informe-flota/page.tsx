@@ -95,8 +95,8 @@ fallas.filter(f => f.ambulancia_id == a.id)
 
 const historialAmb =
 historial
-.filter(h => h.ambulancia_id == a.id)
-.sort((a,b)=> new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime())
+.filter(h => String(h.ambulancia_id).trim() === String(a.id).trim())
+.sort((x,y)=> new Date(y.fecha_inicio).getTime() - new Date(x.fecha_inicio).getTime())
 
 let diasFuera = 0
 
