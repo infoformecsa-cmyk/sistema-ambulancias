@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
-export default function InformeFlota() {
+export default function InformeFlota(){
 
 const router = useRouter()
 
@@ -30,7 +30,6 @@ const {data:f} = await supabase
 const {data:h} = await supabase
 .from("historial_operativo")
 .select("*")
-.order("fecha_inicio",{ascending:false})
 
 setAmbulancias(amb || [])
 setFallas(f || [])
@@ -92,14 +91,12 @@ Imprimir Informe
 {ambulancias.map(a=>{
 
 const fallasAmb =
-fallas.filter(f => String(f.ambulancia_id) === String(a.id))
+fallas.filter(f => f.ambulancia_id == a.id)
 
 const historialAmb =
 historial
-.filter(h => String(h.ambulancia_id) === String(a.id))
+.filter(h => h.ambulancia_id == a.id)
 .sort((a,b)=> new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime())
-
-/* CALCULO DIAS FUERA */
 
 let diasFuera = 0
 
@@ -111,13 +108,11 @@ diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 
 })
 
-/* CALCULO DISPONIBILIDAD */
-
 const hoy = new Date()
 
 let primerRegistro = hoy
 
-historialAmb.forEach(h => {
+historialAmb.forEach(h=>{
 
 if(h.fecha_inicio){
 
