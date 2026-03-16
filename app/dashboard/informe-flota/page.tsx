@@ -103,26 +103,26 @@ Imprimir Informe
 
 {ambulancias.map(a=>{
 
-/* FALLAS */
+/* FALLAS DE LA AMBULANCIA */
 
 const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
-/* HISTORIAL DE ESA AMBULANCIA */
+/* HISTORIAL DE LA AMBULANCIA */
 
 const historialAmb =
 historial
 .filter(h => String(h.ambulancia_id) === String(a.id))
-.sort((a,b)=>{
+.sort((x,y)=>{
 
-const fa = a.fecha_inicio ? new Date(a.fecha_inicio).getTime() : 0
-const fb = b.fecha_inicio ? new Date(b.fecha_inicio).getTime() : 0
+const dx = x.fecha_inicio ? new Date(x.fecha_inicio).getTime() : 0
+const dy = y.fecha_inicio ? new Date(y.fecha_inicio).getTime() : 0
 
-return fb-fa
+return dy - dx
 
 })
 
-/* CALCULAR DIAS FUERA */
+/* CALCULAR DIAS FUERA DE SERVICIO */
 
 let diasFuera = 0
 
@@ -136,50 +136,34 @@ diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
 
 })
 
-/* CALCULAR TIEMPO TOTAL DESDE PRIMER REGISTRO */
+/* SI LA AMBULANCIA ESTA EN MANTENIMIENTO ACTUALMENTE */
 
-let primerRegistro = null
+if((a.estado === "mantenimiento" || a.estado === "no operativa") && historialAmb.length > 0){
 
-historialAmb.forEach(h=>{
+const actual = historialAmb[0]
 
-if(h.fecha_inicio){
+if(!actual.fecha_fin){
 
-const fecha = new Date(h.fecha_inicio)
-
-if(!primerRegistro || fecha < primerRegistro){
-primerRegistro = fecha
-}
+diasFuera = calcularDias(actual.fecha_inicio,null)
 
 }
-
-})
-
-let diasTotales = 0
-
-if(primerRegistro){
-
-const hoy = new Date()
-
-diasTotales = Math.floor(
-(hoy.getTime() - primerRegistro.getTime())/(1000*60*60*24)
-)
 
 }
 
 /* DIAS OPERATIVOS */
 
-let diasOperativos = diasTotales - diasFuera
+let diasOperativos = 0
 
-if(diasOperativos < 0) diasOperativos = 0
+if(a.estado === "operativa"){
+diasOperativos = 1
+}
 
 /* DISPONIBILIDAD */
 
 let disponibilidadUnidad = 100
 
-if(diasTotales > 0){
-
-disponibilidadUnidad = Math.round((diasOperativos/diasTotales)*100)
-
+if(a.estado === "mantenimiento" || a.estado === "no operativa"){
+disponibilidadUnidad = 0
 }
 
 return(
