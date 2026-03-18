@@ -40,14 +40,12 @@ return
 }
 
 if(data){
-
 setCodigo(data.codigo_operativo || "")
 setPlaca(data.placa || "")
 setTipo(data.tipo || "ALFA")
 setEstado(data.estado || "operativa")
 setEstadoAnterior(data.estado || "operativa")
 setMotivo(data.motivo_no_operativo || "")
-
 }
 
 }
@@ -82,7 +80,8 @@ const { error: updateError } = await supabase
 codigo_operativo: codigo,
 placa: placa,
 tipo: tipo,
-estado: estado
+estado: estado,
+motivo_no_operativo: motivoFinal // ✅ CORRECCIÓN CLAVE
 })
 .eq("id", id)
 
@@ -96,11 +95,8 @@ return
 /* HISTORIAL OPERATIVO */
 /* ========================= */
 
-if(estado !== estadoAnterior){
-
-/* cerrar historial abierto */
-
-const {error:cierreError} = await supabase
+/* 🔥 SIEMPRE cerramos historial abierto */
+await supabase
 .from("historial_operativo")
 .update({
 fecha_fin:new Date().toISOString()
@@ -108,20 +104,16 @@ fecha_fin:new Date().toISOString()
 .eq("ambulancia_id",id)
 .is("fecha_fin",null)
 
-if(cierreError){
-console.log("ERROR CERRANDO HISTORIAL:",cierreError)
-}
-
-/* crear nuevo historial */
-
+/* 🔥 SIEMPRE creamos nuevo historial */
 const {error:histError} = await supabase
 .from("historial_operativo")
 .insert({
 ambulancia_id:id,
 estado:estado,
-motivo:motivoFinal || "Cambio de estado",
+motivo:motivoFinal || "Actualización",
 tipo_falla:tipoFalla || null,
 fecha_inicio:new Date().toISOString(),
+fecha_fin:null,
 usuario:localStorage.getItem("nombre")
 })
 
@@ -129,8 +121,6 @@ if(histError){
 console.log("ERROR INSERT HISTORIAL:",histError)
 alert("Error guardando historial: "+histError.message)
 return
-}
-
 }
 
 alert("Ambulancia actualizada correctamente")
@@ -177,10 +167,8 @@ value={tipo}
 onChange={(e)=>setTipo(e.target.value)}
 style={{width:"100%",padding:6}}
 >
-
 <option value="ALFA">ALFA</option>
 <option value="BRAVO">BRAVO</option>
-
 </select>
 
 <p><b>Estado</b></p>
@@ -190,11 +178,9 @@ value={estado}
 onChange={(e)=>setEstado(e.target.value)}
 style={{width:"100%",padding:6}}
 >
-
 <option value="operativa">Operativa</option>
 <option value="mantenimiento">Mantenimiento</option>
 <option value="no operativa">No Operativa</option>
-
 </select>
 
 <p><b>Motivo</b></p>
@@ -213,33 +199,13 @@ value={tipoFalla}
 onChange={(e)=>setTipoFalla(e.target.value)}
 style={{width:"100%",padding:6}}
 >
-
 <option value="">Seleccione</option>
-
-<option value="preventivo">
-Mantenimiento preventivo
-</option>
-
-<option value="correctivo">
-Mantenimiento correctivo
-</option>
-
-<option value="mecanico">
-Falla mecánica
-</option>
-
-<option value="electrico">
-Falla eléctrica
-</option>
-
-<option value="logistico">
-Logístico / administrativo
-</option>
-
-<option value="accidente">
-Accidente
-</option>
-
+<option value="preventivo">Mantenimiento preventivo</option>
+<option value="correctivo">Mantenimiento correctivo</option>
+<option value="mecanico">Falla mecánica</option>
+<option value="electrico">Falla eléctrica</option>
+<option value="logistico">Logístico / administrativo</option>
+<option value="accidente">Accidente</option>
 </select>
 
 <br/><br/>
