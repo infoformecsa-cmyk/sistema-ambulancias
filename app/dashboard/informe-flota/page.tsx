@@ -12,6 +12,7 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [fallas,setFallas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
+const [editando,setEditando] = useState(false)
 
 useEffect(()=>{
 cargarDatos()
@@ -76,7 +77,7 @@ return(
 
 <div style={{padding:40,fontFamily:"Arial"}}>
 
-<h1>Informe General de Flota</h1>
+<h1>PRUEBA JAIME 999</h1>
 
 <button onClick={()=>router.push("/dashboard")}>
 ← Volver
@@ -84,6 +85,10 @@ return(
 
 <button onClick={()=>window.print()} style={{marginLeft:10}}>
 Imprimir Informe
+</button>
+
+<button onClick={()=>setEditando(!editando)} style={{marginLeft:10}}>
+{editando ? "Salir edición" : "Editar informe"}
 </button>
 
 <hr/>
@@ -152,20 +157,55 @@ return(
 <th>Descripción</th>
 <th>Criticidad</th>
 <th>Estado</th>
+{editando && <th>Acciones</th>}
 </tr>
 </thead>
 
 <tbody>
 
 {fallasAmb.length===0 ? (
-<tr><td colSpan={4}>Sin registros</td></tr>
+<tr><td colSpan={5}>Sin registros</td></tr>
 ) : (
 fallasAmb.map(f => (
 <tr key={f.id}>
+
 <td>{f.created_at ? new Date(f.created_at).toLocaleDateString() : "-"}</td>
-<td>{f.descripcion}</td>
+
+<td>
+{editando ? (
+<input
+defaultValue={f.descripcion}
+onBlur={async (e)=>{
+await supabase
+.from("reportes_fallas")
+.update({ descripcion: e.target.value })
+.eq("id", f.id)
+}}
+/>
+) : (
+f.descripcion
+)}
+</td>
+
 <td>{f.criticidad}</td>
 <td>{f.estado}</td>
+
+{editando && (
+<td>
+<button onClick={async ()=>{
+if(confirm("¿Eliminar falla?")){
+await supabase
+.from("reportes_fallas")
+.delete()
+.eq("id", f.id)
+cargarDatos()
+}
+}}>
+Eliminar
+</button>
+</td>
+)}
+
 </tr>
 ))
 )}
@@ -187,21 +227,58 @@ fallasAmb.map(f => (
 <th>Estado</th>
 <th>Motivo</th>
 <th>Días</th>
+{editando && <th>Acciones</th>}
 </tr>
 </thead>
 
 <tbody>
 
 {historialAmb.length===0 ? (
-<tr><td colSpan={5}>Sin registros</td></tr>
+<tr><td colSpan={6}>Sin registros</td></tr>
 ) : (
 historialAmb.map(h => (
 <tr key={h.id}>
+
 <td>{h.fecha_inicio ? new Date(h.fecha_inicio).toLocaleDateString() : "-"}</td>
+
 <td>{h.fecha_fin ? new Date(h.fecha_fin).toLocaleDateString() : "En curso"}</td>
+
 <td>{h.estado || "-"}</td>
-<td>{h.motivo || "-"}</td>
+
+<td>
+{editando ? (
+<input
+defaultValue={h.motivo || ""}
+onBlur={async (e)=>{
+await supabase
+.from("historial_operativo")
+.update({ motivo: e.target.value })
+.eq("id", h.id)
+}}
+/>
+) : (
+h.motivo || "-"
+)}
+</td>
+
 <td>{calcularDias(h.fecha_inicio,h.fecha_fin)}</td>
+
+{editando && (
+<td>
+<button onClick={async ()=>{
+if(confirm("¿Eliminar registro?")){
+await supabase
+.from("historial_operativo")
+.delete()
+.eq("id", h.id)
+cargarDatos()
+}
+}}>
+Eliminar
+</button>
+</td>
+)}
+
 </tr>
 ))
 )}
@@ -217,6 +294,18 @@ historialAmb.map(h => (
 )
 
 })}
+
+{/* 🔥 ESTILO PARA IMPRESIÓN */}
+<style jsx>{`
+@media print {
+button {
+display: none;
+}
+input {
+border: none;
+}
+}
+`}</style>
 
 </div>
 
