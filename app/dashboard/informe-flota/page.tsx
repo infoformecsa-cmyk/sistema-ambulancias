@@ -43,7 +43,6 @@ setLoading(false)
 }
 
 /* CALCULAR DIAS */
-
 function calcularDias(inicio:string, fin:string | null){
 
 if(!inicio) return 0
@@ -51,14 +50,15 @@ if(!inicio) return 0
 const fechaInicio = new Date(inicio)
 const fechaFin = fin ? new Date(fin) : new Date()
 
+if(isNaN(fechaInicio.getTime())) return 0
+
 const diff = fechaFin.getTime() - fechaInicio.getTime()
 
 return Math.floor(diff / (1000*60*60*24))
 
 }
 
-/* RESUMEN FLOTA */
-
+/* RESUMEN */
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
@@ -104,71 +104,13 @@ Imprimir Informe
 {ambulancias.map(a=>{
 
 /* FALLAS */
-
 const fallasAmb =
 fallas.filter(f => String(f.ambulancia_id) === String(a.id))
 
 /* HISTORIAL */
-
 const historialAmb =
 historial
 .filter(h => String(h.ambulancia_id) === String(a.id))
-.sort((x,y)=>{
-
-const dx = x.fecha_inicio ? new Date(x.fecha_inicio).getTime() : 0
-const dy = y.fecha_inicio ? new Date(y.fecha_inicio).getTime() : 0
-
-return dy - dx
-
-})
-
-/* DIAS FUERA DE SERVICIO */
-
-let diasFuera = 0
-
-historialAmb.forEach(h=>{
-
-if(h.estado === "mantenimiento" || h.estado === "no operativa"){
-
-diasFuera += calcularDias(h.fecha_inicio,h.fecha_fin)
-
-}
-
-})
-
-/* DIAS OPERATIVOS */
-
-let diasOperativos = 0
-
-if(a.estado === "operativa"){
-
-diasOperativos = 1
-
-}
-
-/* DISPONIBILIDAD */
-
-let disponibilidadUnidad = 100
-
-if(a.estado === "mantenimiento" || a.estado === "no operativa"){
-
-disponibilidadUnidad = 0
-
-}
-
-/* SI ESTA EN MANTENIMIENTO ACTUALMENTE */
-
-if(historialAmb.length > 0){
-
-const actual = historialAmb[0]
-
-if(!actual.fecha_fin){
-
-diasFuera = calcularDias(actual.fecha_inicio,null)
-
-}
-
-}
 
 return(
 
@@ -188,46 +130,12 @@ return(
 </thead>
 
 <tbody>
-
 <tr>
 <td>{a.estado}</td>
 <td>{a.tipo}</td>
 <td>{a.kilometraje_actual || "-"}</td>
 <td>{a.kilometraje_mtto || "-"}</td>
 </tr>
-
-</tbody>
-
-</table>
-
-<br/>
-
-<h4>Indicadores de Operatividad</h4>
-
-<table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
-
-<thead>
-
-<tr>
-<th>Disponibilidad</th>
-<th>Días operativos</th>
-<th>Días fuera de servicio</th>
-<th>Fallas registradas</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-<tr>
-
-<td>{disponibilidadUnidad}%</td>
-<td>{diasOperativos}</td>
-<td>{diasFuera}</td>
-<td>{fallasAmb.length}</td>
-
-</tr>
-
 </tbody>
 
 </table>
@@ -239,39 +147,27 @@ return(
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Fecha</th>
 <th>Descripción</th>
 <th>Criticidad</th>
 <th>Estado</th>
 </tr>
-
 </thead>
 
 <tbody>
 
 {fallasAmb.length===0 ? (
-
-<tr>
-<td colSpan={4}>Sin registros</td>
-</tr>
-
+<tr><td colSpan={4}>Sin registros</td></tr>
 ) : (
-
 fallasAmb.map(f => (
-
 <tr key={f.id}>
-
 <td>{f.created_at ? new Date(f.created_at).toLocaleDateString() : "-"}</td>
 <td>{f.descripcion}</td>
 <td>{f.criticidad}</td>
 <td>{f.estado}</td>
-
 </tr>
-
 ))
-
 )}
 
 </tbody>
@@ -285,49 +181,29 @@ fallasAmb.map(f => (
 <table border={1} cellPadding={6} style={{borderCollapse:"collapse",width:"100%"}}>
 
 <thead>
-
 <tr>
 <th>Inicio</th>
 <th>Fin</th>
 <th>Estado</th>
 <th>Motivo</th>
-<th>Días fuera de servicio</th>
+<th>Días</th>
 </tr>
-
 </thead>
 
 <tbody>
 
 {historialAmb.length===0 ? (
-
-<tr>
-<td colSpan={5}>Sin registros</td>
-</tr>
-
+<tr><td colSpan={5}>Sin registros</td></tr>
 ) : (
-
 historialAmb.map(h => (
-
 <tr key={h.id}>
-
 <td>{h.fecha_inicio ? new Date(h.fecha_inicio).toLocaleDateString() : "-"}</td>
-
-<td>
-{h.fecha_fin
-? new Date(h.fecha_fin).toLocaleDateString()
-: "En curso"}
-</td>
-
+<td>{h.fecha_fin ? new Date(h.fecha_fin).toLocaleDateString() : "En curso"}</td>
 <td>{h.estado || "-"}</td>
-
 <td>{h.motivo || "-"}</td>
-
 <td>{calcularDias(h.fecha_inicio,h.fecha_fin)}</td>
-
 </tr>
-
 ))
-
 )}
 
 </tbody>
