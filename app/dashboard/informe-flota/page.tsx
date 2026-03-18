@@ -77,7 +77,7 @@ return(
 
 <div style={{padding:40,fontFamily:"Arial"}}>
 
-<h1>PRUEBA JAIME 999</h1>
+<h1>Informe General de Flota</h1>
 
 <button onClick={()=>router.push("/dashboard")}>
 ← Volver
