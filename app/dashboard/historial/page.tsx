@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic"
 
 export default function Page(){
   return (
-    <Suspense fallback={<div>Cargando historial...</div>}>
+    <Suspense fallback={<div style={{padding:20}}>Cargando historial...</div>}>
       <HistorialContent />
     </Suspense>
   )

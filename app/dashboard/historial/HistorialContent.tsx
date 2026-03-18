@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient"
 export default function HistorialContent(){
 
 const [ambulancias,setAmbulancias] = useState<any[]>([])
-const [ambulancia,setAmbulancia] = useState("")
+const [ambulancia,setAmbulancia] = useState<string>("")
 const [estado,setEstado] = useState("operativa")
 const [motivo,setMotivo] = useState("")
 const [tipoFalla,setTipoFalla] = useState("")
@@ -15,20 +15,18 @@ const [fechaFin,setFechaFin] = useState("")
 
 const [modo,setModo] = useState("nuevo")
 const [eventos,setEventos] = useState<any[]>([])
-const [eventoSeleccionado,setEventoSeleccionado] = useState("")
+const [eventoSeleccionado,setEventoSeleccionado] = useState<string>("")
 
 const [loading,setLoading] = useState(false)
 
-/* 🔥 CARGA INICIAL SEGURA */
+/* 🔥 INIT */
 useEffect(()=>{
 
-if(typeof window !== "undefined"){
 const params = new URLSearchParams(window.location.search)
 const amb = params.get("ambulancia")
 
 if(amb){
 setAmbulancia(amb)
-}
 }
 
 cargar()
@@ -43,12 +41,9 @@ const {data,error} = await supabase
 .select("*")
 .order("codigo_operativo")
 
-if(error){
-console.log(error)
-return
-}
-
+if(!error){
 setAmbulancias(data || [])
+}
 
 }
 
@@ -67,12 +62,9 @@ const {data,error} = await supabase
 .eq("ambulancia_id",ambulancia)
 .order("fecha_inicio",{ascending:false})
 
-if(error){
-console.log(error)
-return
-}
-
+if(!error){
 setEventos(data || [])
+}
 
 }
 
@@ -94,17 +86,13 @@ setLoading(false)
 return
 }
 
-/* VALIDACIÓN */
 if(estado !== "operativa" && !motivo){
 alert("Debe ingresar motivo")
 setLoading(false)
 return
 }
 
-/* ========================= */
-/* 🟡 EDITAR */
-/* ========================= */
-
+/* EDITAR */
 if(modo === "editar"){
 
 if(!eventoSeleccionado){
@@ -122,28 +110,23 @@ tipo_falla:tipoFalla || null,
 fecha_inicio:new Date(fechaInicio).toISOString(),
 fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null
 })
-.eq("id",eventoSeleccionado)
+.eq("id", String(eventoSeleccionado))
 
 if(error){
 alert("Error actualizando")
-setLoading(false)
-return
-}
-
+}else{
 alert("Evento actualizado")
 cargarEventos()
+}
+
 setLoading(false)
 return
 
 }
 
-/* ========================= */
-/* 🟢 NUEVO */
-/* ========================= */
-
+/* NUEVO */
 const hoy = new Date().toISOString().split("T")[0]
 
-/* cerrar solo si es evento actual */
 if(!fechaFin && fechaInicio === hoy){
 
 await supabase
@@ -163,20 +146,15 @@ motivo,
 tipo_falla:tipoFalla || null,
 fecha_inicio:new Date(fechaInicio).toISOString(),
 fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null,
-usuario: typeof window !== "undefined"
-? localStorage.getItem("nombre")
-: null
+usuario: localStorage.getItem("nombre")
 })
 
 if(error){
 alert("Error guardando historial")
-setLoading(false)
-return
+}else{
+alert("Evento registrado")
 }
 
-alert("Evento registrado")
-
-/* limpiar */
 setMotivo("")
 setTipoFalla("")
 setFechaInicio("")
@@ -195,7 +173,6 @@ return(
 
 <hr/>
 
-<p><b>Modo</b></p>
 <select value={modo} onChange={(e)=>setModo(e.target.value)}>
 <option value="nuevo">Nuevo evento</option>
 <option value="editar">Editar evento</option>
@@ -203,14 +180,12 @@ return(
 
 <br/><br/>
 
-<p><b>Ambulancia</b></p>
-
 <select
 value={ambulancia}
 onChange={(e)=>setAmbulancia(e.target.value)}
 style={{width:"100%",padding:6}}
 >
-<option value="">Seleccione</option>
+<option value="">Seleccione ambulancia</option>
 {ambulancias.map(a=>(
 <option key={a.id} value={a.id}>
 {a.codigo_operativo} - {a.placa}
@@ -218,12 +193,10 @@ style={{width:"100%",padding:6}}
 ))}
 </select>
 
-{/* EDITAR */}
 {modo==="editar" && (
 
 <>
-
-<p><b>Seleccione evento</b></p>
+<br/><br/>
 
 <select
 value={eventoSeleccionado}
@@ -245,8 +218,7 @@ setFechaFin(ev.fecha_fin?.split("T")[0] || "")
 }}
 style={{width:"100%",padding:6}}
 >
-
-<option value="">Seleccione</option>
+<option value="">Seleccione evento</option>
 
 {eventos.map(ev=>(
 <option key={ev.id} value={ev.id}>
@@ -255,12 +227,10 @@ style={{width:"100%",padding:6}}
 ))}
 
 </select>
-
 </>
-
 )}
 
-<p><b>Estado</b></p>
+<br/><br/>
 
 <select value={estado} onChange={(e)=>setEstado(e.target.value)}>
 <option value="operativa">Operativa</option>
@@ -268,18 +238,19 @@ style={{width:"100%",padding:6}}
 <option value="no operativa">No operativa</option>
 </select>
 
-<p><b>Motivo</b></p>
+<br/><br/>
 
 <textarea
 value={motivo}
 onChange={(e)=>setMotivo(e.target.value)}
+placeholder="Motivo"
 style={{width:"100%",height:80}}
 />
 
-<p><b>Tipo de falla</b></p>
+<br/><br/>
 
 <select value={tipoFalla} onChange={(e)=>setTipoFalla(e.target.value)}>
-<option value="">Seleccione</option>
+<option value="">Tipo de falla</option>
 <option value="preventivo">Preventivo</option>
 <option value="correctivo">Correctivo</option>
 <option value="mecanico">Mecánico</option>
@@ -287,21 +258,13 @@ style={{width:"100%",height:80}}
 <option value="accidente">Accidente</option>
 </select>
 
-<p><b>Fecha inicio</b></p>
+<br/><br/>
 
-<input
-type="date"
-value={fechaInicio}
-onChange={(e)=>setFechaInicio(e.target.value)}
-/>
+<input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} />
 
-<p><b>Fecha fin (opcional)</b></p>
+<br/><br/>
 
-<input
-type="date"
-value={fechaFin}
-onChange={(e)=>setFechaFin(e.target.value)}
-/>
+<input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} />
 
 <br/><br/>
 
