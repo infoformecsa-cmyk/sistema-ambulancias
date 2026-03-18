@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
 export default function HistorialContent(){
+
+const router = useRouter()
 
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState<string>("")
@@ -168,6 +171,22 @@ setLoading(false)
 return(
 
 <div style={{padding:40,fontFamily:"Arial",maxWidth:600}}>
+
+{/* 🔥 BOTÓN NUEVO */}
+<button 
+onClick={()=>router.push("/dashboard")}
+style={{
+marginBottom:20,
+padding:"8px 12px",
+background:"#0070f3",
+color:"white",
+border:"none",
+borderRadius:5,
+cursor:"pointer"
+}}
+>
+← Volver al dashboard
+</button>
 
 <h1>Registro de Historial Operativo</h1>
 
