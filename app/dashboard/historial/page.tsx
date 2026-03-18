@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -16,11 +18,13 @@ const [tipoFalla,setTipoFalla] = useState("")
 const [fechaInicio,setFechaInicio] = useState("")
 const [fechaFin,setFechaFin] = useState("")
 
-/* 🔥 NUEVO */
 const [modo,setModo] = useState("nuevo")
 const [eventos,setEventos] = useState<any[]>([])
 const [eventoSeleccionado,setEventoSeleccionado] = useState("")
 
+const [loading,setLoading] = useState(false)
+
+/* 🔥 CARGA INICIAL SEGURA */
 useEffect(()=>{
 
 const amb = searchParams.get("ambulancia")
@@ -31,21 +35,26 @@ setAmbulancia(amb)
 
 cargar()
 
-},[])
+},[searchParams])
 
 /* cargar ambulancias */
 async function cargar(){
 
-const {data} = await supabase
+const {data,error} = await supabase
 .from("ambulancias")
 .select("*")
 .order("codigo_operativo")
+
+if(error){
+console.log(error)
+return
+}
 
 setAmbulancias(data || [])
 
 }
 
-/* 🔥 cargar eventos de esa ambulancia */
+/* cargar eventos */
 useEffect(()=>{
 if(ambulancia){
 cargarEventos()
@@ -54,11 +63,16 @@ cargarEventos()
 
 async function cargarEventos(){
 
-const {data} = await supabase
+const {data,error} = await supabase
 .from("historial_operativo")
 .select("*")
 .eq("ambulancia_id",ambulancia)
 .order("fecha_inicio",{ascending:false})
+
+if(error){
+console.log(error)
+return
+}
 
 setEventos(data || [])
 
@@ -67,22 +81,37 @@ setEventos(data || [])
 /* GUARDAR */
 async function guardar(){
 
+if(loading) return
+setLoading(true)
+
 if(!ambulancia){
 alert("Seleccione ambulancia")
+setLoading(false)
 return
 }
 
 if(!fechaInicio){
 alert("Seleccione fecha inicio")
+setLoading(false)
 return
 }
 
-/* 🟡 EDITAR EVENTO */
+/* VALIDACIÓN */
+if(estado !== "operativa" && !motivo){
+alert("Debe ingresar motivo")
+setLoading(false)
+return
+}
+
+/* ========================= */
+/* 🟡 EDITAR */
+/* ========================= */
 
 if(modo === "editar"){
 
 if(!eventoSeleccionado){
-alert("Seleccione evento a editar")
+alert("Seleccione evento")
+setLoading(false)
 return
 }
 
@@ -91,7 +120,7 @@ const {error} = await supabase
 .update({
 estado,
 motivo,
-tipo_falla:tipoFalla,
+tipo_falla:tipoFalla || null,
 fecha_inicio:new Date(fechaInicio).toISOString(),
 fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null
 })
@@ -99,19 +128,24 @@ fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null
 
 if(error){
 alert("Error actualizando")
+setLoading(false)
 return
 }
 
 alert("Evento actualizado")
+cargarEventos()
+setLoading(false)
 return
 
 }
 
-/* 🟢 NUEVO EVENTO */
+/* ========================= */
+/* 🟢 NUEVO */
+/* ========================= */
 
-/* SOLO cerrar si es HOY */
 const hoy = new Date().toISOString().split("T")[0]
 
+/* cerrar solo si es evento actual */
 if(!fechaFin && fechaInicio === hoy){
 
 await supabase
@@ -128,23 +162,30 @@ const {error} = await supabase
 ambulancia_id:ambulancia,
 estado,
 motivo,
-tipo_falla:tipoFalla,
+tipo_falla:tipoFalla || null,
 fecha_inicio:new Date(fechaInicio).toISOString(),
 fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null,
-usuario:localStorage.getItem("nombre")
+usuario: typeof window !== "undefined"
+? localStorage.getItem("nombre")
+: null
 })
 
 if(error){
 alert("Error guardando historial")
+setLoading(false)
 return
 }
 
 alert("Evento registrado")
 
+/* limpiar */
 setMotivo("")
 setTipoFalla("")
 setFechaInicio("")
 setFechaFin("")
+
+cargarEventos()
+setLoading(false)
 
 }
 
@@ -156,7 +197,6 @@ return(
 
 <hr/>
 
-{/* 🔥 MODO */}
 <p><b>Modo</b></p>
 <select value={modo} onChange={(e)=>setModo(e.target.value)}>
 <option value="nuevo">Nuevo evento</option>
@@ -172,19 +212,15 @@ value={ambulancia}
 onChange={(e)=>setAmbulancia(e.target.value)}
 style={{width:"100%",padding:6}}
 >
-
 <option value="">Seleccione</option>
-
 {ambulancias.map(a=>(
 <option key={a.id} value={a.id}>
 {a.codigo_operativo} - {a.placa}
 </option>
 ))}
-
 </select>
 
-{/* 🔥 SI ES EDITAR */}
-
+{/* EDITAR */}
 {modo==="editar" && (
 
 <>
@@ -270,8 +306,8 @@ onChange={(e)=>setFechaFin(e.target.value)}
 
 <br/><br/>
 
-<button onClick={guardar}>
-Guardar evento
+<button onClick={guardar} disabled={loading}>
+{loading ? "Guardando..." : "Guardar evento"}
 </button>
 
 </div>
