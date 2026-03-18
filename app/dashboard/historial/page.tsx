@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useSearchParams } from "next/navigation"
 
 export default function Historial(){
+
+const searchParams = useSearchParams()
 
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState("")
@@ -13,10 +16,24 @@ const [tipoFalla,setTipoFalla] = useState("")
 const [fechaInicio,setFechaInicio] = useState("")
 const [fechaFin,setFechaFin] = useState("")
 
+/* 🔥 NUEVO */
+const [modo,setModo] = useState("nuevo")
+const [eventos,setEventos] = useState<any[]>([])
+const [eventoSeleccionado,setEventoSeleccionado] = useState("")
+
 useEffect(()=>{
+
+const amb = searchParams.get("ambulancia")
+
+if(amb){
+setAmbulancia(amb)
+}
+
 cargar()
+
 },[])
 
+/* cargar ambulancias */
 async function cargar(){
 
 const {data} = await supabase
@@ -28,6 +45,26 @@ setAmbulancias(data || [])
 
 }
 
+/* 🔥 cargar eventos de esa ambulancia */
+useEffect(()=>{
+if(ambulancia){
+cargarEventos()
+}
+},[ambulancia])
+
+async function cargarEventos(){
+
+const {data} = await supabase
+.from("historial_operativo")
+.select("*")
+.eq("ambulancia_id",ambulancia)
+.order("fecha_inicio",{ascending:false})
+
+setEventos(data || [])
+
+}
+
+/* GUARDAR */
 async function guardar(){
 
 if(!ambulancia){
@@ -40,9 +77,42 @@ alert("Seleccione fecha inicio")
 return
 }
 
-/* cerrar historial activo SOLO si es evento actual */
+/* 🟡 EDITAR EVENTO */
 
-if(!fechaFin){
+if(modo === "editar"){
+
+if(!eventoSeleccionado){
+alert("Seleccione evento a editar")
+return
+}
+
+const {error} = await supabase
+.from("historial_operativo")
+.update({
+estado,
+motivo,
+tipo_falla:tipoFalla,
+fecha_inicio:new Date(fechaInicio).toISOString(),
+fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null
+})
+.eq("id",eventoSeleccionado)
+
+if(error){
+alert("Error actualizando")
+return
+}
+
+alert("Evento actualizado")
+return
+
+}
+
+/* 🟢 NUEVO EVENTO */
+
+/* SOLO cerrar si es HOY */
+const hoy = new Date().toISOString().split("T")[0]
+
+if(!fechaFin && fechaInicio === hoy){
 
 await supabase
 .from("historial_operativo")
@@ -52,14 +122,12 @@ await supabase
 
 }
 
-/* insertar nuevo evento */
-
 const {error} = await supabase
 .from("historial_operativo")
 .insert({
 ambulancia_id:ambulancia,
-estado:estado,
-motivo:motivo,
+estado,
+motivo,
 tipo_falla:tipoFalla,
 fecha_inicio:new Date(fechaInicio).toISOString(),
 fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null,
@@ -71,7 +139,7 @@ alert("Error guardando historial")
 return
 }
 
-alert("Evento registrado correctamente")
+alert("Evento registrado")
 
 setMotivo("")
 setTipoFalla("")
@@ -87,6 +155,15 @@ return(
 <h1>Registro de Historial Operativo</h1>
 
 <hr/>
+
+{/* 🔥 MODO */}
+<p><b>Modo</b></p>
+<select value={modo} onChange={(e)=>setModo(e.target.value)}>
+<option value="nuevo">Nuevo evento</option>
+<option value="editar">Editar evento</option>
+</select>
+
+<br/><br/>
 
 <p><b>Ambulancia</b></p>
 
@@ -105,6 +182,48 @@ style={{width:"100%",padding:6}}
 ))}
 
 </select>
+
+{/* 🔥 SI ES EDITAR */}
+
+{modo==="editar" && (
+
+<>
+
+<p><b>Seleccione evento</b></p>
+
+<select
+value={eventoSeleccionado}
+onChange={(e)=>{
+
+setEventoSeleccionado(e.target.value)
+
+const ev = eventos.find(x=>x.id===e.target.value)
+
+if(ev){
+setEstado(ev.estado)
+setMotivo(ev.motivo || "")
+setTipoFalla(ev.tipo_falla || "")
+setFechaInicio(ev.fecha_inicio?.split("T")[0] || "")
+setFechaFin(ev.fecha_fin?.split("T")[0] || "")
+}
+
+}}
+style={{width:"100%",padding:6}}
+>
+
+<option value="">Seleccione</option>
+
+{eventos.map(ev=>(
+<option key={ev.id} value={ev.id}>
+{new Date(ev.fecha_inicio).toLocaleDateString()} - {ev.estado}
+</option>
+))}
+
+</select>
+
+</>
+
+)}
 
 <p><b>Estado</b></p>
 

@@ -16,8 +16,7 @@ const [placa,setPlaca] = useState("")
 const [tipo,setTipo] = useState("ALFA")
 const [estado,setEstado] = useState("operativa")
 const [motivo,setMotivo] = useState("")
-const [tipoFalla,setTipoFalla] = useState("")
-const [estadoAnterior,setEstadoAnterior] = useState("operativa")
+const [loading,setLoading] = useState(false)
 
 useEffect(()=>{
 if(id){
@@ -44,7 +43,6 @@ setCodigo(data.codigo_operativo || "")
 setPlaca(data.placa || "")
 setTipo(data.tipo || "ALFA")
 setEstado(data.estado || "operativa")
-setEstadoAnterior(data.estado || "operativa")
 setMotivo(data.motivo_no_operativo || "")
 }
 
@@ -52,74 +50,49 @@ setMotivo(data.motivo_no_operativo || "")
 
 async function guardar(){
 
+if(loading) return
+setLoading(true)
+
 if(!codigo){
 alert("Debe ingresar el código operativo")
+setLoading(false)
 return
 }
 
 if(!placa){
 alert("Debe ingresar la placa")
+setLoading(false)
 return
 }
 
-let motivoFinal = motivo
-
-if(estado==="operativa"){
-motivoFinal=""
+/* 🔥 VALIDACIÓN CLAVE */
+if(estado !== "operativa" && !motivo){
+alert("Debe ingresar el motivo si no está operativa")
+setLoading(false)
+return
 }
+
+let motivoFinal = estado === "operativa" ? "" : motivo
 
 try{
 
-/* ========================= */
-/* ACTUALIZAR AMBULANCIA */
-/* ========================= */
+/* ✅ SOLO ACTUALIZA AMBULANCIA */
 
-const { error: updateError } = await supabase
+const { error } = await supabase
 .from("ambulancias")
 .update({
 codigo_operativo: codigo,
 placa: placa,
 tipo: tipo,
 estado: estado,
-motivo_no_operativo: motivoFinal // ✅ CORRECCIÓN CLAVE
+motivo_no_operativo: motivoFinal
 })
 .eq("id", id)
 
-if(updateError){
-console.log("ERROR UPDATE:",updateError)
-alert("Error actualizando ambulancia: "+updateError.message)
-return
-}
-
-/* ========================= */
-/* HISTORIAL OPERATIVO */
-/* ========================= */
-
-/* 🔥 SIEMPRE cerramos historial abierto */
-await supabase
-.from("historial_operativo")
-.update({
-fecha_fin:new Date().toISOString()
-})
-.eq("ambulancia_id",id)
-.is("fecha_fin",null)
-
-/* 🔥 SIEMPRE creamos nuevo historial */
-const {error:histError} = await supabase
-.from("historial_operativo")
-.insert({
-ambulancia_id:id,
-estado:estado,
-motivo:motivoFinal || "Actualización",
-tipo_falla:tipoFalla || null,
-fecha_inicio:new Date().toISOString(),
-fecha_fin:null,
-usuario:localStorage.getItem("nombre")
-})
-
-if(histError){
-console.log("ERROR INSERT HISTORIAL:",histError)
-alert("Error guardando historial: "+histError.message)
+if(error){
+console.log("ERROR UPDATE:",error)
+alert("Error actualizando: "+error.message)
+setLoading(false)
 return
 }
 
@@ -133,6 +106,8 @@ console.log("ERROR GENERAL:",e)
 alert("Error guardando cambios")
 
 }
+
+setLoading(false)
 
 }
 
@@ -192,35 +167,20 @@ placeholder="Motivo si la ambulancia no está operativa"
 style={{width:"100%",height:80,padding:6}}
 />
 
-<p><b>Tipo de falla o mantenimiento</b></p>
-
-<select
-value={tipoFalla}
-onChange={(e)=>setTipoFalla(e.target.value)}
-style={{width:"100%",padding:6}}
->
-<option value="">Seleccione</option>
-<option value="preventivo">Mantenimiento preventivo</option>
-<option value="correctivo">Mantenimiento correctivo</option>
-<option value="mecanico">Falla mecánica</option>
-<option value="electrico">Falla eléctrica</option>
-<option value="logistico">Logístico / administrativo</option>
-<option value="accidente">Accidente</option>
-</select>
-
 <br/><br/>
 
 <button
 onClick={guardar}
+disabled={loading}
 style={{
 padding:"10px 16px",
-background:"#0070f3",
+background: loading ? "gray" : "#0070f3",
 color:"white",
 border:"none",
 borderRadius:6
 }}
 >
-Guardar cambios
+{loading ? "Guardando..." : "Guardar cambios"}
 </button>
 
 <button
