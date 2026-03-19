@@ -11,31 +11,36 @@ const params = useParams()
 const id = params?.id as string
 
 const [ambulancia,setAmbulancia] = useState<any>(null)
+const [historial,setHistorial] = useState<any[]>([])
 
 const [nuevoKm,setNuevoKm] = useState("")
 const [kmMtto,setKmMtto] = useState("")
-
-const [historial,setHistorial] = useState<any[]>([])
 
 const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
-/* 🔥 CARGA */
+/* 🔥 INIT */
 useEffect(()=>{
 if(!id) return
+cargarTodo()
+},[id])
 
-async function init(){
+/* 🔄 REFRESH TIEMPO */
+useEffect(()=>{
+const interval = setInterval(()=>{
+setHistorial(prev => [...prev])
+},60000)
+return ()=>clearInterval(interval)
+},[])
+
+async function cargarTodo(){
 await Promise.all([
 cargarAmbulancia(),
 cargarHistorial()
 ])
 }
-
-init()
-
-},[id])
 
 async function cargarAmbulancia(){
 const {data} = await supabase
@@ -57,7 +62,7 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
-/* 🔥 CAMBIO DE ESTADO SEGURO */
+/* 🔥 CAMBIO ESTADO SEGURO */
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
@@ -68,7 +73,7 @@ async function confirmarCambioEstado(){
 if(loading) return
 
 if(!motivoCambio){
-alert("Debe ingresar un motivo")
+alert("Ingrese motivo")
 return
 }
 
@@ -78,7 +83,7 @@ try{
 
 const usuario = localStorage.getItem("nombre")
 
-/* 🔒 VALIDAR DUPLICADO */
+/* 🔒 SOLO EL ÚLTIMO EVENTO */
 const {data:ultimo} = await supabase
 .from("historial_operativo")
 .select("*")
@@ -87,23 +92,34 @@ const {data:ultimo} = await supabase
 .limit(1)
 
 if(ultimo && ultimo.length > 0){
+
 const last = ultimo[0]
 
-if(last.estado === estadoPendiente && !last.fecha_fin){
-alert("Ya existe este estado activo")
+/* 🔥 BLOQUEO DUPLICADO REAL */
+const ahora = new Date().getTime()
+const ultimoTiempo = new Date(last.fecha_inicio).getTime()
+
+if(
+last.estado === estadoPendiente &&
+!last.fecha_fin &&
+(ahora - ultimoTiempo) < 60000
+){
+alert("Acción duplicada bloqueada")
 setLoading(false)
 return
 }
-}
 
-/* cerrar evento anterior */
+/* cerrar SOLO ese evento */
+if(!last.fecha_fin){
 await supabase
 .from("historial_operativo")
 .update({ fecha_fin: new Date().toISOString() })
-.eq("ambulancia_id",id)
-.is("fecha_fin",null)
+.eq("id", last.id)
+}
 
-/* nuevo evento */
+}
+
+/* crear nuevo */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -114,15 +130,13 @@ fecha_inicio:new Date().toISOString(),
 usuario
 })
 
-/* actualizar ambulancia */
+/* sync ambulancia */
 await supabase
 .from("ambulancias")
 .update({
 estado:estadoPendiente,
 motivo_no_operativo:
-estadoPendiente === "operativa"
-? null
-: motivoCambio
+estadoPendiente === "operativa" ? null : motivoCambio
 })
 .eq("id",id)
 
@@ -132,14 +146,90 @@ setMostrarModal(false)
 setMotivoCambio("")
 setEstadoPendiente("")
 
-await Promise.all([cargarAmbulancia(),cargarHistorial()])
+await cargarTodo()
 
 }catch(e){
-alert("Error en el cambio de estado")
 console.log(e)
+alert("Error en cambio de estado")
 }
 
 setLoading(false)
+}
+
+/* 🔥 ALERTA CORRECTA */
+function renderAlerta(){
+
+if(!ambulancia) return null
+
+if(ambulancia.estado === "no operativa"){
+return <div style={{background:"#fee2e2",padding:12,borderRadius:6}}>
+🚨 FUERA DE SERVICIO
+</div>
+}
+
+if(ambulancia.estado === "mantenimiento"){
+return <div style={{background:"#fef9c3",padding:12,borderRadius:6}}>
+🔧 EN MANTENIMIENTO
+</div>
+}
+
+/* solo si operativa evalúa km */
+if(!ambulancia.kilometraje_mtto || !ambulancia.kilometraje_actual){
+return <div style={{background:"#dcfce7",padding:12,borderRadius:6}}>
+✅ OPERATIVA
+</div>
+}
+
+const faltan = ambulancia.kilometraje_mtto - ambulancia.kilometraje_actual
+
+if(faltan <= 0){
+return <div style={{background:"#fee2e2",padding:12,borderRadius:6}}>
+🚨 MTTO VENCIDO
+</div>
+}
+
+if(faltan <= 400){
+return <div style={{background:"#fef9c3",padding:12,borderRadius:6}}>
+⚠️ {faltan} km para mantenimiento
+</div>
+}
+
+return <div style={{background:"#dcfce7",padding:12,borderRadius:6}}>
+✅ OPERATIVA
+</div>
+}
+
+/* 🔥 TIEMPO PRO */
+function calcularTiempo(inicio:string, fin:string|null){
+
+const i = new Date(inicio)
+const f = fin ? new Date(fin) : new Date()
+
+if(f < i) return "0 h"
+
+const diff = f.getTime() - i.getTime()
+
+const dias = Math.floor(diff / (1000*60*60*24))
+const horas = Math.floor((diff % (1000*60*60*24)) / (1000*60*60))
+const minutos = Math.floor((diff % (1000*60*60)) / (1000*60))
+
+if(dias > 0) return `${dias}d ${horas}h`
+if(horas > 0) return `${horas}h ${minutos}m`
+
+return `${minutos} min`
+}
+
+/* 🔥 ELIMINAR EVENTO */
+async function eliminarEvento(idEvento:string){
+
+if(!confirm("Eliminar registro?")) return
+
+await supabase
+.from("historial_operativo")
+.delete()
+.eq("id",idEvento)
+
+cargarHistorial()
 }
 
 /* 🔥 KM */
@@ -156,7 +246,6 @@ setNuevoKm("")
 cargarAmbulancia()
 }
 
-/* 🔥 MTTO */
 async function guardarMtto(){
 
 if(!kmMtto) return
@@ -170,43 +259,6 @@ setKmMtto("")
 cargarAmbulancia()
 }
 
-/* 🔥 ALERTA */
-function renderAlerta(){
-
-if(!ambulancia?.kilometraje_mtto || !ambulancia?.kilometraje_actual) return null
-
-const faltan = ambulancia.kilometraje_mtto - ambulancia.kilometraje_actual
-
-if(faltan <= 0){
-return <div style={{background:"#fee2e2",padding:12,borderRadius:6}}>🚨 Mantenimiento vencido</div>
-}
-
-if(faltan <= 400){
-return <div style={{background:"#fef9c3",padding:12,borderRadius:6}}>⚠️ Faltan {faltan} km</div>
-}
-
-return <div style={{background:"#dcfce7",padding:12,borderRadius:6}}>✅ Operativa</div>
-}
-
-/* 🔥 TIEMPO CORRECTO */
-function calcularTiempo(inicio:string, fin:string|null){
-
-const i = new Date(inicio)
-const f = fin ? new Date(fin) : new Date()
-
-if(f < i) return "0 h"
-
-const diff = f.getTime() - i.getTime()
-
-const dias = Math.floor(diff / (1000*60*60*24))
-const horas = Math.floor((diff % (1000*60*60*24)) / (1000*60*60))
-const minutos = Math.floor((diff % (1000*60*60)) / (1000*60))
-
-if(dias > 0) return `${dias} d ${horas} h`
-
-return `${horas} h ${minutos} min`
-}
-
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
@@ -215,35 +267,29 @@ return(
 
 <h1>🚑 Ficha Mecánica</h1>
 
-<button onClick={()=>router.push("/dashboard")}>
-← Volver
-</button>
+<button onClick={()=>router.push("/dashboard")}>← Volver</button>
 
 <hr/>
 
-{/* 🔹 ESTADO */}
 <h2>Estado Operativo</h2>
 
 <div style={{background:"#f3f4f6",padding:15,borderRadius:8}}>
-
-<p><b>KM:</b> {ambulancia.kilometraje_actual || 0}</p>
+<p><b>KM:</b> {ambulancia.kilometraje_actual}</p>
 <p><b>Estado:</b> {ambulancia.estado}</p>
-
 {renderAlerta()}
-
 </div>
 
 <div style={{marginTop:15}}>
 
-<button onClick={()=>abrirCambioEstado("operativa")} style={{background:"#16a34a",color:"white",padding:10,borderRadius:6}}>
+<button onClick={()=>abrirCambioEstado("operativa")} style={{background:"#16a34a",color:"white",padding:10}}>
 🟢 Operativa
 </button>
 
-<button onClick={()=>abrirCambioEstado("mantenimiento")} style={{background:"#f59e0b",color:"white",padding:10,borderRadius:6,marginLeft:10}}>
+<button onClick={()=>abrirCambioEstado("mantenimiento")} style={{background:"#f59e0b",color:"white",padding:10,marginLeft:10}}>
 🔧 Mantenimiento
 </button>
 
-<button onClick={()=>abrirCambioEstado("no operativa")} style={{background:"#dc2626",color:"white",padding:10,borderRadius:6,marginLeft:10}}>
+<button onClick={()=>abrirCambioEstado("no operativa")} style={{background:"#dc2626",color:"white",padding:10,marginLeft:10}}>
 🔴 Fuera de servicio
 </button>
 
@@ -251,99 +297,71 @@ return(
 
 <hr/>
 
-{/* 🔹 KM */}
 <h2>Registro Diario</h2>
 
-<input type="number" placeholder="Nuevo KM" value={nuevoKm}
-onChange={(e)=>setNuevoKm(e.target.value)} />
-
-<button onClick={actualizarKilometraje} style={{marginLeft:10}}>
-Actualizar
-</button>
+<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
+<button onClick={actualizarKilometraje}>Actualizar</button>
 
 <hr/>
 
-{/* 🔹 MTTO */}
 <h2>Mantenimiento Preventivo</h2>
 
 <p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
 
-<input type="number" placeholder="KM mantenimiento" value={kmMtto}
-onChange={(e)=>setKmMtto(e.target.value)} />
-
-<button onClick={guardarMtto} style={{marginLeft:10}}>
-Guardar
-</button>
+<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
+<button onClick={guardarMtto}>Guardar</button>
 
 <hr/>
 
-{/* 🔹 HISTORIAL */}
 <h2>Historial Operativo</h2>
 
-<table style={{width:"100%",borderCollapse:"collapse"}}>
-
+<table style={{width:"100%"}}>
 <thead>
-<tr style={{background:"#f3f4f6"}}>
+<tr>
 <th>Estado</th>
 <th>Motivo</th>
 <th>Tiempo</th>
+<th></th>
 </tr>
 </thead>
 
 <tbody>
 
 {historial.map(h=>(
-<tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
+<tr key={h.id}>
 <td>{h.estado}</td>
 <td>{h.motivo}</td>
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+<td>
+<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
+</td>
 </tr>
 ))}
 
 </tbody>
-
 </table>
 
-{/* 🔹 MODAL */}
+{/* MODAL */}
 {mostrarModal && (
-
 <div style={{
 position:"fixed",
 top:0,left:0,width:"100%",height:"100%",
 background:"rgba(0,0,0,0.5)",
 display:"flex",justifyContent:"center",alignItems:"center"
 }}>
-
-<div style={{background:"white",padding:20,width:400,borderRadius:10}}>
-
-<h3>Cambio de estado</h3>
-
-<p><b>{estadoPendiente}</b></p>
-
-<textarea
-value={motivoCambio}
-onChange={(e)=>setMotivoCambio(e.target.value)}
-style={{width:"100%",height:100}}
-/>
-
+<div style={{background:"white",padding:20,width:400}}>
+<h3>Motivo</h3>
+<textarea value={motivoCambio} onChange={(e)=>setMotivoCambio(e.target.value)} />
 <br/><br/>
-
-<button onClick={confirmarCambioEstado} disabled={loading}>
+<button onClick={confirmarCambioEstado}>
 {loading ? "Guardando..." : "Confirmar"}
 </button>
-
-<button onClick={()=>setMostrarModal(false)} style={{marginLeft:10}}>
-Cancelar
-</button>
-
+<button onClick={()=>setMostrarModal(false)}>Cancelar</button>
 </div>
-
 </div>
-
 )}
 
 </div>
 
 )
-
 }
