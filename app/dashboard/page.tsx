@@ -14,7 +14,7 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [alertas,setAlertas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 
-/* ✅ TIPADO CORRECTO */
+/* 🔥 TIPADO CORRECTO */
 const [horasMap,setHorasMap] = useState<Record<string, number>>({})
 
 useEffect(()=>{
@@ -45,7 +45,7 @@ return ()=>clearInterval(intervalo)
 
 },[])
 
-/* 🔥 CARGA CENTRALIZADA */
+/* 🔥 CARGA */
 async function cargar(){
 
 const {data:amb} = await supabase
@@ -103,7 +103,7 @@ setHorasMap(mapa)
 }
 
 /* ===================== */
-/* 📊 KPI */
+/* KPI */
 /* ===================== */
 
 const total = ambulancias.length
@@ -115,7 +115,6 @@ const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 const disponibilidad =
 total>0 ? Math.round((operativas/total)*100) : 0
 
-/* ✅ TIPADO SEGURO */
 const totalHorasFuera = Object.values(horasMap)
 .reduce((a, b) => a + (b || 0), 0)
 
@@ -124,7 +123,7 @@ const promedioHoras = total
 : 0
 
 /* ===================== */
-/* 🏆 RANKING */
+/* RANKING */
 /* ===================== */
 
 const ranking = [...ambulancias]
@@ -136,7 +135,7 @@ horasFuera: horasMap[String(a.id)] || 0
 .slice(0,5)
 
 /* ===================== */
-/* 🚑 TIPOS */
+/* TIPOS */
 /* ===================== */
 
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
@@ -152,7 +151,7 @@ const alfaPct = alfa.length ? Math.round((alfaOp/alfa.length)*100) : 0
 const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
 
 /* ===================== */
-/* 🚨 ALERTAS MTTO */
+/* ALERTAS */
 /* ===================== */
 
 const mttoVencido = ambulancias.filter(a=>{
@@ -189,13 +188,35 @@ return(
 
 <hr/>
 
-{/* ALERTAS */}
+{/* ALERTAS CRÍTICAS */}
 {alertas.length>0 && (
-<div style={{background:"#fee2e2",padding:20,borderRadius:8}}>
+<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
 <h3>🚨 Fallas críticas</h3>
 {alertas.map(a=>(
-<div key={a.id}>{a.descripcion}</div>
+<div key={a.id}>
+<b>ID:</b> {a.ambulancia_id} - {a.descripcion}
+</div>
 ))}
+</div>
+)}
+
+{/* ALERTAS MTTO */}
+{mttoVencido.length>0 && (
+<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Mantenimiento vencido</h3>
+{mttoVencido.map(a=>(
+<div key={a.id}>{a.codigo_operativo}</div>
+))}
+</div>
+)}
+
+{mttoProximo.length>0 && (
+<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>⚠️ Mantenimiento próximo</h3>
+{mttoProximo.map(a=>{
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
+})}
 </div>
 )}
 
@@ -234,15 +255,29 @@ return(
 
 <hr/>
 
-{/* TABLA */}
+{/* TABLA COMPLETA */}
 <h2>📋 Flota</h2>
 
-<table style={{width:"100%"}}>
+<table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead>
+<tr style={{background:"#f3f4f6"}}>
+<th>Estado</th>
+<th>Código</th>
+<th>Placa</th>
+<th>Tipo</th>
+<th>KM</th>
+<th>Horas fuera</th>
+<th>Acciones</th>
+</tr>
+</thead>
 
 <tbody>
+
 {ambulancias.map(a=>(
 
-<tr key={a.id}>
+<tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
+
 <td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
 <td>{a.codigo_operativo}</td>
 <td>{a.placa}</td>
@@ -251,12 +286,29 @@ return(
 <td>{horasMap[String(a.id)] || 0} h</td>
 
 <td>
-<button onClick={()=>router.push(`/ambulancia/${a.id}`)}>Ficha</button>
+
+<button onClick={()=>router.push(`/ambulancia/${a.id}`)}>
+Ficha
+</button>
+
+{rol==="admin" && (
+<>
+<button onClick={()=>router.push(`/ambulancia/editar/${a.id}`)}>
+Editar
+</button>
+
+<button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)}>
+Historial
+</button>
+</>
+)}
+
 </td>
 
 </tr>
 
 ))}
+
 </tbody>
 
 </table>
