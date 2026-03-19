@@ -15,22 +15,15 @@ const [ambulancia,setAmbulancia] = useState<any>(null)
 const [nuevoKm,setNuevoKm] = useState("")
 const [kmMtto,setKmMtto] = useState("")
 
-const [descripcion,setDescripcion] = useState("")
-const [archivo,setArchivo] = useState<File | null>(null)
-const [preview,setPreview] = useState<string | null>(null)
-
-const [criticidad,setCriticidad] = useState("media")
-
 const [fallas,setFallas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 
-/* 🔥 NUEVO NIVEL 2 */
 const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
-/* 🔥 CARGA OPTIMIZADA */
+/* 🔥 CARGA */
 useEffect(()=>{
 if(!id) return
 
@@ -76,40 +69,34 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
-/* 🔥 MODAL CONTROL */
+/* 🔥 ESTADO */
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
 
-/* 🔥 CONFIRMACIÓN SEGURA */
 async function confirmarCambioEstado(){
 
 if(loading) return
-
 if(!motivoCambio){
 alert("Debe ingresar un motivo")
 return
 }
 
-if(!ambulancia) return
-
 setLoading(true)
-
-try{
 
 const usuario = localStorage.getItem("nombre")
 
 await supabase
 .from("historial_operativo")
 .update({ fecha_fin: new Date().toISOString() })
-.eq("ambulancia_id",ambulancia.id)
+.eq("ambulancia_id",id)
 .is("fecha_fin",null)
 
 await supabase
 .from("historial_operativo")
 .insert({
-ambulancia_id:ambulancia.id,
+ambulancia_id:id,
 estado:estadoPendiente,
 motivo:motivoCambio,
 fecha_inicio:new Date().toISOString(),
@@ -125,31 +112,22 @@ estadoPendiente === "operativa"
 ? null
 : motivoCambio
 })
-.eq("id",ambulancia.id)
+.eq("id",id)
 
-alert("Estado actualizado correctamente")
+alert("Estado actualizado")
 
 setMostrarModal(false)
 setMotivoCambio("")
 setEstadoPendiente("")
 
-await Promise.all([
-cargarAmbulancia(),
-cargarHistorial()
-])
-
-}catch(e){
-console.log(e)
-alert("Error cambiando estado")
-}
+await Promise.all([cargarAmbulancia(),cargarHistorial()])
 
 setLoading(false)
-
 }
 
-/* RESTO FUNCIONES (sin cambios críticos) */
-
+/* 🔥 KM */
 async function actualizarKilometraje(){
+
 if(!nuevoKm) return
 
 await supabase
@@ -158,11 +136,13 @@ await supabase
 .eq("id",id)
 
 alert("Kilometraje actualizado")
+
 setNuevoKm("")
 cargarAmbulancia()
 }
 
-async function guardarMttoPreventivo(){
+async function guardarMtto(){
+
 if(!kmMtto) return
 
 await supabase
@@ -170,130 +150,152 @@ await supabase
 .update({ kilometraje_mtto: Number(kmMtto) })
 .eq("id",id)
 
-alert("Mantenimiento registrado")
+alert("Mantenimiento guardado")
+
 setKmMtto("")
 cargarAmbulancia()
 }
 
-async function registrarFalla(){
+/* 🔥 ALERTA */
+function renderAlerta(){
 
-if(!descripcion){
-alert("Ingrese la descripción")
-return
+if(!ambulancia?.kilometraje_mtto || !ambulancia?.kilometraje_actual) return null
+
+const faltan = ambulancia.kilometraje_mtto - ambulancia.kilometraje_actual
+
+if(faltan <= 0){
+return <div style={{background:"#ffdddd",padding:10}}>🚨 MANTENIMIENTO VENCIDO</div>
 }
 
-let rutaImagen = null
-
-if(archivo){
-const nombreArchivo = `reportes/${Date.now()}_${archivo.name}`
-
-const {data,error} = await supabase.storage
-.from("Fallas")
-.upload(nombreArchivo,archivo)
-
-if(error){
-alert("Error subiendo imagen")
-return
+if(faltan <= 400){
+return <div style={{background:"#fff3cd",padding:10}}>⚠️ Faltan {faltan} km para mantenimiento</div>
 }
 
-rutaImagen = data.path
+return <div style={{background:"#e6f7ff",padding:10}}>✅ Operación normal</div>
 }
 
-await supabase
-.from("reportes_fallas")
-.insert({
-ambulancia_id:id,
-descripcion,
-imagen_url:rutaImagen,
-usuario:localStorage.getItem("nombre"),
-criticidad,
-estado:"abierta"
-})
-
-alert("Falla registrada")
-
-setDescripcion("")
-setArchivo(null)
-setPreview(null)
-
-cargarFallas()
-
-}
-
-function manejarArchivo(e:any){
-const file = e.target.files?.[0]
-if(!file) return
-setArchivo(file)
-setPreview(URL.createObjectURL(file))
-}
-
-function obtenerImagen(path:string){
-if(!path) return null
-const {data} = supabase.storage.from("Fallas").getPublicUrl(path)
-return data.publicUrl
-}
-
-function calcularTiempo(inicio:string, fin:string | null){
-const i = new Date(inicio)
-const f = fin ? new Date(fin) : new Date()
-const diff = f.getTime() - i.getTime()
-const h = Math.floor(diff / (1000*60*60))
-const m = Math.floor((diff % (1000*60*60)) / (1000*60))
-return `${h} h ${m} min`
+function calcularTiempo(i:string,f:string|null){
+const inicio = new Date(i)
+const fin = f ? new Date(f) : new Date()
+const diff = fin.getTime() - inicio.getTime()
+const h = Math.floor(diff/(1000*60*60))
+return `${h} h`
 }
 
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
 
-<div style={{padding:40,fontFamily:"Arial"}}>
+<div style={{padding:40,fontFamily:"Arial",maxWidth:900}}>
 
 <h1>Ficha Mecánica Ambulancia</h1>
 
 <button onClick={()=>router.push("/dashboard")}>
-← Volver
+← Volver al Dashboard
 </button>
 
 <hr/>
 
-<h2>Estado</h2>
+{/* 🔹 ESTADO */}
+<h2>Estado Operativo</h2>
 
-<p><b>Kilometraje actual:</b> {ambulancia.kilometraje_actual || 0}</p>
+<p><b>KM actual:</b> {ambulancia.kilometraje_actual || 0}</p>
 <p><b>Estado:</b> {ambulancia.estado}</p>
 
-{/* 🔥 BOTONES */}
-<div style={{marginTop:10, marginBottom:20}}>
+{renderAlerta()}
 
-<button onClick={()=>abrirCambioEstado("operativa")}>
-🟢 Operativa
+<div style={{marginTop:15}}>
+
+<button onClick={()=>abrirCambioEstado("operativa")} style={{background:"green",color:"white",padding:8,marginRight:10}}>
+Operativa
 </button>
 
-<button onClick={()=>abrirCambioEstado("mantenimiento")}>
-🔧 Mantenimiento
+<button onClick={()=>abrirCambioEstado("mantenimiento")} style={{background:"orange",color:"white",padding:8,marginRight:10}}>
+Mantenimiento
 </button>
 
-<button onClick={()=>abrirCambioEstado("no operativa")}>
-🔴 Fuera de servicio
+<button onClick={()=>abrirCambioEstado("no operativa")} style={{background:"red",color:"white",padding:8}}>
+Fuera de servicio
 </button>
 
 </div>
 
-{/* 🔥 MODAL */}
+<hr/>
+
+{/* 🔹 KM */}
+<h2>Registro Diario</h2>
+
+<input
+type="number"
+placeholder="Nuevo KM"
+value={nuevoKm}
+onChange={(e)=>setNuevoKm(e.target.value)}
+/>
+
+<button onClick={actualizarKilometraje} style={{marginLeft:10}}>
+Actualizar KM
+</button>
+
+<hr/>
+
+{/* 🔹 MTTO */}
+<h2>Mantenimiento Preventivo</h2>
+
+<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
+
+<input
+type="number"
+placeholder="Definir KM mantenimiento"
+value={kmMtto}
+onChange={(e)=>setKmMtto(e.target.value)}
+/>
+
+<button onClick={guardarMtto} style={{marginLeft:10}}>
+Guardar
+</button>
+
+<hr/>
+
+{/* 🔹 HISTORIAL */}
+<h2>Historial Operativo</h2>
+
+<table border={1} style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead>
+<tr>
+<th>Estado</th>
+<th>Motivo</th>
+<th>Tiempo</th>
+</tr>
+</thead>
+
+<tbody>
+
+{historial.map(h=>(
+<tr key={h.id}>
+<td>{h.estado}</td>
+<td>{h.motivo}</td>
+<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+</tr>
+))}
+
+</tbody>
+
+</table>
+
+{/* 🔹 MODAL */}
 {mostrarModal && (
 
 <div style={{
 position:"fixed",
-top:0,left:0,
-width:"100%",height:"100%",
+top:0,left:0,width:"100%",height:"100%",
 background:"rgba(0,0,0,0.5)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
+display:"flex",justifyContent:"center",alignItems:"center"
 }}>
 
 <div style={{background:"white",padding:20,width:400,borderRadius:10}}>
 
-<h3>Motivo del cambio</h3>
+<h3>Cambio de estado</h3>
 
 <p><b>{estadoPendiente}</b></p>
 
@@ -309,7 +311,7 @@ style={{width:"100%",height:100}}
 {loading ? "Guardando..." : "Confirmar"}
 </button>
 
-<button onClick={()=>setMostrarModal(false)}>
+<button onClick={()=>setMostrarModal(false)} style={{marginLeft:10}}>
 Cancelar
 </button>
 
@@ -318,24 +320,6 @@ Cancelar
 </div>
 
 )}
-
-<hr/>
-
-<h2>Historial Operativo</h2>
-
-<table border={1} style={{width:"100%"}}>
-
-<tbody>
-{historial.map(h=>(
-<tr key={h.id}>
-<td>{h.estado}</td>
-<td>{h.motivo}</td>
-<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
-</tr>
-))}
-</tbody>
-
-</table>
 
 </div>
 
