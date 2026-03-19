@@ -13,7 +13,9 @@ const [nombre,setNombre] = useState("")
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [alertas,setAlertas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
-const [horasMap,setHorasMap] = useState<any>({}) // 🔥 NUEVO
+
+/* ✅ TIPADO CORRECTO */
+const [horasMap,setHorasMap] = useState<Record<string, number>>({})
 
 useEffect(()=>{
 
@@ -68,8 +70,8 @@ setAmbulancias(ambs)
 setAlertas(alert || [])
 setHistorial(histo)
 
-/* 🔥 CALCULO UNA SOLA VEZ */
-const mapa:any = {}
+/* 🔥 CALCULO SEGURO */
+const mapa: Record<string, number> = {}
 
 ambs.forEach(a=>{
 
@@ -84,13 +86,15 @@ if(e.estado === "operativa") return
 const inicio = new Date(e.fecha_inicio)
 const fin = e.fecha_fin ? new Date(e.fecha_fin) : new Date()
 
+if(isNaN(inicio.getTime())) return
+if(isNaN(fin.getTime())) return
 if(fin < inicio) return
 
 total += (fin.getTime() - inicio.getTime())
 
 })
 
-mapa[a.id] = Math.floor(total / (1000*60*60))
+mapa[String(a.id)] = Math.floor(total / (1000*60*60))
 
 })
 
@@ -111,9 +115,13 @@ const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 const disponibilidad =
 total>0 ? Math.round((operativas/total)*100) : 0
 
-const totalHorasFuera = Object.values(horasMap).reduce((a:any,b:any)=>a+b,0)
+/* ✅ TIPADO SEGURO */
+const totalHorasFuera = Object.values(horasMap)
+.reduce((a, b) => a + (b || 0), 0)
 
-const promedioHoras = total ? Math.round(totalHorasFuera / total) : 0
+const promedioHoras = total
+? Math.round(totalHorasFuera / total)
+: 0
 
 /* ===================== */
 /* 🏆 RANKING */
@@ -122,7 +130,7 @@ const promedioHoras = total ? Math.round(totalHorasFuera / total) : 0
 const ranking = [...ambulancias]
 .map(a=>({
 ...a,
-horasFuera: horasMap[a.id] || 0
+horasFuera: horasMap[String(a.id)] || 0
 }))
 .sort((a,b)=>b.horasFuera - a.horasFuera)
 .slice(0,5)
@@ -181,7 +189,7 @@ return(
 
 <hr/>
 
-{/* 🔥 ALERTAS */}
+{/* ALERTAS */}
 {alertas.length>0 && (
 <div style={{background:"#fee2e2",padding:20,borderRadius:8}}>
 <h3>🚨 Fallas críticas</h3>
@@ -193,7 +201,7 @@ return(
 
 <hr/>
 
-{/* 🔥 KPI */}
+{/* KPI */}
 <h2>📊 Estado General</h2>
 
 <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
@@ -210,7 +218,7 @@ return(
 
 <hr/>
 
-{/* 🔥 RANKING */}
+{/* RANKING */}
 <h2>🏆 Ambulancias más críticas</h2>
 
 <table style={{width:"100%"}}>
@@ -218,7 +226,7 @@ return(
 {ranking.map(a=>(
 <tr key={a.id}>
 <td>{a.codigo_operativo}</td>
-<td>{horasMap[a.id] || 0} h</td>
+<td>{horasMap[String(a.id)] || 0} h</td>
 </tr>
 ))}
 </tbody>
@@ -226,7 +234,7 @@ return(
 
 <hr/>
 
-{/* 🔥 TABLA */}
+{/* TABLA */}
 <h2>📋 Flota</h2>
 
 <table style={{width:"100%"}}>
@@ -240,7 +248,7 @@ return(
 <td>{a.placa}</td>
 <td>{a.tipo}</td>
 <td>{a.kilometraje_actual || 0}</td>
-<td>{horasMap[a.id] || 0} h</td>
+<td>{horasMap[String(a.id)] || 0} h</td>
 
 <td>
 <button onClick={()=>router.push(`/ambulancia/${a.id}`)}>Ficha</button>
