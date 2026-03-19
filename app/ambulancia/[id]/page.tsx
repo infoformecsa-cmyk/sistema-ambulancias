@@ -15,7 +15,6 @@ const [ambulancia,setAmbulancia] = useState<any>(null)
 const [nuevoKm,setNuevoKm] = useState("")
 const [kmMtto,setKmMtto] = useState("")
 
-const [fallas,setFallas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 
 const [mostrarModal,setMostrarModal] = useState(false)
@@ -30,7 +29,6 @@ if(!id) return
 async function init(){
 await Promise.all([
 cargarAmbulancia(),
-cargarFallas(),
 cargarHistorial()
 ])
 }
@@ -49,16 +47,6 @@ const {data} = await supabase
 if(data) setAmbulancia(data)
 }
 
-async function cargarFallas(){
-const {data} = await supabase
-.from("reportes_fallas")
-.select("*")
-.eq("ambulancia_id",id)
-.order("created_at",{ascending:false})
-
-setFallas(data || [])
-}
-
 async function cargarHistorial(){
 const {data} = await supabase
 .from("historial_operativo")
@@ -69,7 +57,7 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
-/* 🔥 ESTADO */
+/* 🔥 CAMBIO DE ESTADO SEGURO */
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
@@ -78,6 +66,7 @@ setMostrarModal(true)
 async function confirmarCambioEstado(){
 
 if(loading) return
+
 if(!motivoCambio){
 alert("Debe ingresar un motivo")
 return
@@ -85,14 +74,36 @@ return
 
 setLoading(true)
 
+try{
+
 const usuario = localStorage.getItem("nombre")
 
+/* 🔒 VALIDAR DUPLICADO */
+const {data:ultimo} = await supabase
+.from("historial_operativo")
+.select("*")
+.eq("ambulancia_id",id)
+.order("fecha_inicio",{ascending:false})
+.limit(1)
+
+if(ultimo && ultimo.length > 0){
+const last = ultimo[0]
+
+if(last.estado === estadoPendiente && !last.fecha_fin){
+alert("Ya existe este estado activo")
+setLoading(false)
+return
+}
+}
+
+/* cerrar evento anterior */
 await supabase
 .from("historial_operativo")
 .update({ fecha_fin: new Date().toISOString() })
 .eq("ambulancia_id",id)
 .is("fecha_fin",null)
 
+/* nuevo evento */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -103,6 +114,7 @@ fecha_inicio:new Date().toISOString(),
 usuario
 })
 
+/* actualizar ambulancia */
 await supabase
 .from("ambulancias")
 .update({
@@ -122,6 +134,11 @@ setEstadoPendiente("")
 
 await Promise.all([cargarAmbulancia(),cargarHistorial()])
 
+}catch(e){
+alert("Error en el cambio de estado")
+console.log(e)
+}
+
 setLoading(false)
 }
 
@@ -135,12 +152,11 @@ await supabase
 .update({ kilometraje_actual: Number(nuevoKm) })
 .eq("id",id)
 
-alert("Kilometraje actualizado")
-
 setNuevoKm("")
 cargarAmbulancia()
 }
 
+/* 🔥 MTTO */
 async function guardarMtto(){
 
 if(!kmMtto) return
@@ -149,8 +165,6 @@ await supabase
 .from("ambulancias")
 .update({ kilometraje_mtto: Number(kmMtto) })
 .eq("id",id)
-
-alert("Mantenimiento guardado")
 
 setKmMtto("")
 cargarAmbulancia()
@@ -164,34 +178,45 @@ if(!ambulancia?.kilometraje_mtto || !ambulancia?.kilometraje_actual) return null
 const faltan = ambulancia.kilometraje_mtto - ambulancia.kilometraje_actual
 
 if(faltan <= 0){
-return <div style={{background:"#ffdddd",padding:10}}>🚨 MANTENIMIENTO VENCIDO</div>
+return <div style={{background:"#fee2e2",padding:12,borderRadius:6}}>🚨 Mantenimiento vencido</div>
 }
 
 if(faltan <= 400){
-return <div style={{background:"#fff3cd",padding:10}}>⚠️ Faltan {faltan} km para mantenimiento</div>
+return <div style={{background:"#fef9c3",padding:12,borderRadius:6}}>⚠️ Faltan {faltan} km</div>
 }
 
-return <div style={{background:"#e6f7ff",padding:10}}>✅ Operación normal</div>
+return <div style={{background:"#dcfce7",padding:12,borderRadius:6}}>✅ Operativa</div>
 }
 
-function calcularTiempo(i:string,f:string|null){
-const inicio = new Date(i)
-const fin = f ? new Date(f) : new Date()
-const diff = fin.getTime() - inicio.getTime()
-const h = Math.floor(diff/(1000*60*60))
-return `${h} h`
+/* 🔥 TIEMPO CORRECTO */
+function calcularTiempo(inicio:string, fin:string|null){
+
+const i = new Date(inicio)
+const f = fin ? new Date(fin) : new Date()
+
+if(f < i) return "0 h"
+
+const diff = f.getTime() - i.getTime()
+
+const dias = Math.floor(diff / (1000*60*60*24))
+const horas = Math.floor((diff % (1000*60*60*24)) / (1000*60*60))
+const minutos = Math.floor((diff % (1000*60*60)) / (1000*60))
+
+if(dias > 0) return `${dias} d ${horas} h`
+
+return `${horas} h ${minutos} min`
 }
 
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
 
-<div style={{padding:40,fontFamily:"Arial",maxWidth:900}}>
+<div style={{padding:30,fontFamily:"Arial",maxWidth:900}}>
 
-<h1>Ficha Mecánica Ambulancia</h1>
+<h1>🚑 Ficha Mecánica</h1>
 
 <button onClick={()=>router.push("/dashboard")}>
-← Volver al Dashboard
+← Volver
 </button>
 
 <hr/>
@@ -199,23 +224,27 @@ return(
 {/* 🔹 ESTADO */}
 <h2>Estado Operativo</h2>
 
-<p><b>KM actual:</b> {ambulancia.kilometraje_actual || 0}</p>
+<div style={{background:"#f3f4f6",padding:15,borderRadius:8}}>
+
+<p><b>KM:</b> {ambulancia.kilometraje_actual || 0}</p>
 <p><b>Estado:</b> {ambulancia.estado}</p>
 
 {renderAlerta()}
 
+</div>
+
 <div style={{marginTop:15}}>
 
-<button onClick={()=>abrirCambioEstado("operativa")} style={{background:"green",color:"white",padding:8,marginRight:10}}>
-Operativa
+<button onClick={()=>abrirCambioEstado("operativa")} style={{background:"#16a34a",color:"white",padding:10,borderRadius:6}}>
+🟢 Operativa
 </button>
 
-<button onClick={()=>abrirCambioEstado("mantenimiento")} style={{background:"orange",color:"white",padding:8,marginRight:10}}>
-Mantenimiento
+<button onClick={()=>abrirCambioEstado("mantenimiento")} style={{background:"#f59e0b",color:"white",padding:10,borderRadius:6,marginLeft:10}}>
+🔧 Mantenimiento
 </button>
 
-<button onClick={()=>abrirCambioEstado("no operativa")} style={{background:"red",color:"white",padding:8}}>
-Fuera de servicio
+<button onClick={()=>abrirCambioEstado("no operativa")} style={{background:"#dc2626",color:"white",padding:10,borderRadius:6,marginLeft:10}}>
+🔴 Fuera de servicio
 </button>
 
 </div>
@@ -225,15 +254,11 @@ Fuera de servicio
 {/* 🔹 KM */}
 <h2>Registro Diario</h2>
 
-<input
-type="number"
-placeholder="Nuevo KM"
-value={nuevoKm}
-onChange={(e)=>setNuevoKm(e.target.value)}
-/>
+<input type="number" placeholder="Nuevo KM" value={nuevoKm}
+onChange={(e)=>setNuevoKm(e.target.value)} />
 
 <button onClick={actualizarKilometraje} style={{marginLeft:10}}>
-Actualizar KM
+Actualizar
 </button>
 
 <hr/>
@@ -243,12 +268,8 @@ Actualizar KM
 
 <p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
 
-<input
-type="number"
-placeholder="Definir KM mantenimiento"
-value={kmMtto}
-onChange={(e)=>setKmMtto(e.target.value)}
-/>
+<input type="number" placeholder="KM mantenimiento" value={kmMtto}
+onChange={(e)=>setKmMtto(e.target.value)} />
 
 <button onClick={guardarMtto} style={{marginLeft:10}}>
 Guardar
@@ -259,10 +280,10 @@ Guardar
 {/* 🔹 HISTORIAL */}
 <h2>Historial Operativo</h2>
 
-<table border={1} style={{width:"100%",borderCollapse:"collapse"}}>
+<table style={{width:"100%",borderCollapse:"collapse"}}>
 
 <thead>
-<tr>
+<tr style={{background:"#f3f4f6"}}>
 <th>Estado</th>
 <th>Motivo</th>
 <th>Tiempo</th>
@@ -272,7 +293,7 @@ Guardar
 <tbody>
 
 {historial.map(h=>(
-<tr key={h.id}>
+<tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
 <td>{h.estado}</td>
 <td>{h.motivo}</td>
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
