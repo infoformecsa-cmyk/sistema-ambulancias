@@ -31,60 +31,31 @@ return
 setRol(r)
 setNombre(n || "")
 
-cargarAmbulancias()
-cargarAlertas()
+cargar()
 
 const intervalo=setInterval(()=>{
-cargarAmbulancias()
-cargarAlertas()
+cargar()
 },30000)
 
 return ()=>clearInterval(intervalo)
 
 },[])
 
-async function cargarAmbulancias(){
+async function cargar(){
 
-try{
-
-const {data,error} = await supabase
+const {data:amb} = await supabase
 .from("ambulancias")
 .select("*")
 .order("codigo_operativo")
 
-if(error){
-console.log("Error ambulancias:",error)
-return
-}
-
-setAmbulancias(data || [])
-
-}catch(e){
-console.log("Error carga ambulancias",e)
-}
-
-}
-
-async function cargarAlertas(){
-
-try{
-
-const {data,error}=await supabase
+const {data:alert} = await supabase
 .from("reportes_fallas")
 .select("*")
 .eq("estado","abierta")
 .eq("criticidad","critica")
 
-if(error){
-console.log("Error alertas:",error)
-return
-}
-
-setAlertas(data || [])
-
-}catch(e){
-console.log("Error alertas",e)
-}
+setAmbulancias(amb || [])
+setAlertas(alert || [])
 
 }
 
@@ -94,94 +65,174 @@ router.push("/")
 }
 
 function colorEstado(e:string){
-if(e==="operativa") return "green"
-if(e==="mantenimiento") return "orange"
-return "red"
+if(e==="operativa") return "#16a34a"
+if(e==="mantenimiento") return "#f59e0b"
+return "#dc2626"
 }
 
-/* ESTADISTICAS */
+/* ===================== */
+/* 📊 GENERALES */
+/* ===================== */
+
+const total = ambulancias.length
 
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
-const total = ambulancias.length
+const disponibilidad =
+total>0 ? Math.round((operativas/total)*100) : 0
 
-const operatividad = total>0 ? Math.round((operativas/total)*100) : 0
-const disponibilidadReal = total>0 ? ((operativas/total)*100).toFixed(1) : 0
-
-/* ALERTAS */
-
-const mantenimientoProximo = ambulancias.filter(a=>{
-if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
-const faltan = a.kilometraje_mtto - a.kilometraje_actual
-return faltan <= 1000 && faltan > 0
-})
-
-const mantenimientoVencido = ambulancias.filter(a=>{
-if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
-return a.kilometraje_actual >= a.kilometraje_mtto
-})
-
-/* TIPOS */
+/* ===================== */
+/* 🚑 TIPOS */
+/* ===================== */
 
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
 const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
 
-const alfaOperativas = alfa.filter(a=>a.estado==="operativa").length
-const alfaNoOperativas = alfa.length - alfaOperativas
+const alfaOp = alfa.filter(a=>a.estado==="operativa").length
+const alfaNoOp = alfa.length - alfaOp
 
-const bravoOperativas = bravo.filter(a=>a.estado==="operativa").length
-const bravoNoOperativas = bravo.length - bravoOperativas
+const bravoOp = bravo.filter(a=>a.estado==="operativa").length
+const bravoNoOp = bravo.length - bravoOp
+
+const alfaPct = alfa.length ? Math.round((alfaOp/alfa.length)*100) : 0
+const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
+
+/* ===================== */
+/* 🚨 ALERTAS MTTO */
+/* ===================== */
+
+const mttoVencido = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+return a.kilometraje_actual >= a.kilometraje_mtto
+})
+
+const mttoProximo = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return faltan <= 400 && faltan > 0
+})
 
 return(
 
-<div style={{padding:40,fontFamily:"Arial"}}>
+<div style={{padding:30,fontFamily:"Arial"}}>
 
-<h1>Sistema de Control de Ambulancias</h1>
+<h1>🚑 Sistema de Control de Ambulancias</h1>
 
-<p>Usuario: {nombre} | Rol: {rol}</p>
+<p><b>{nombre}</b> | {rol}</p>
 
-<button onClick={cerrarSesion}>Cerrar sesión</button>
+<button onClick={cerrarSesion}>
+Cerrar sesión
+</button>
 
 <hr/>
 
-{/* ALERTAS */}
+{/* ===================== */
+/* 🚨 ALERTAS */
+/* ===================== */}
 
 {alertas.length>0 && (
-<div style={{background:"#ffdddd",padding:20,border:"2px solid red"}}>
-<h2>🚨 ALERTAS CRÍTICAS</h2>
+<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Fallas críticas</h3>
 {alertas.map(a=>(
 <div key={a.id}>
-<b>ID:</b> {a.ambulancia_id}<br/>
-{a.descripcion}
+<b>ID {a.ambulancia_id}:</b> {a.descripcion}
 </div>
 ))}
 </div>
 )}
 
+{mttoVencido.length>0 && (
+<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Mantenimiento vencido</h3>
+{mttoVencido.map(a=>(
+<div key={a.id}>{a.codigo_operativo}</div>
+))}
+</div>
+)}
+
+{mttoProximo.length>0 && (
+<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>⚠️ Mantenimiento próximo</h3>
+{mttoProximo.map(a=>{
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
+})}
+</div>
+)}
+
+{/* ===================== */
+/* 📊 KPI */
+/* ===================== */}
+
+<h2>📊 Estado General</h2>
+
+<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+
+<div style={{padding:20,border:"1px solid #ddd",borderRadius:10}}>
+<h3>Operativas</h3>
+<h2 style={{color:"#16a34a"}}>{operativas}</h2>
+</div>
+
+<div style={{padding:20,border:"1px solid #ddd",borderRadius:10}}>
+<h3>Mantenimiento</h3>
+<h2 style={{color:"#f59e0b"}}>{mantenimiento}</h2>
+</div>
+
+<div style={{padding:20,border:"1px solid #ddd",borderRadius:10}}>
+<h3>No operativas</h3>
+<h2 style={{color:"#dc2626"}}>{fuera}</h2>
+</div>
+
+<div style={{padding:20,border:"1px solid #ddd",borderRadius:10}}>
+<h3>Disponibilidad</h3>
+<h2>{disponibilidad}%</h2>
+</div>
+
+</div>
+
 <hr/>
 
-<h2>Panel de Flota</h2>
+{/* ===================== */
+/* 🚑 ALFA / BRAVO */
+/* ===================== */}
 
-<p>Operativas: {operativas} | Mantenimiento: {mantenimiento} | No operativas: {fuera}</p>
-<p>Disponibilidad: {disponibilidadReal}%</p>
+<h2>🚑 Distribución por tipo</h2>
+
+<div style={{display:"flex",gap:30}}>
+
+<div style={{flex:1}}>
+<h3>ALFA</h3>
+<p>Operativas: {alfaOp} ({alfaPct}%)</p>
+<p>No operativas: {alfaNoOp}</p>
+</div>
+
+<div style={{flex:1}}>
+<h3>BRAVO</h3>
+<p>Operativas: {bravoOp} ({bravoPct}%)</p>
+<p>No operativas: {bravoNoOp}</p>
+</div>
+
+</div>
 
 <hr/>
 
-<h2>Flota registrada</h2>
+{/* ===================== */
+/* 📋 TABLA */
+/* ===================== */}
 
-<table border={1} cellPadding={8} style={{width:"100%",borderCollapse:"collapse"}}>
+<h2>📋 Flota</h2>
+
+<table style={{width:"100%",borderCollapse:"collapse"}}>
 
 <thead>
-<tr>
+<tr style={{background:"#f3f4f6"}}>
 <th>Estado</th>
-<th>Codigo</th>
+<th>Código</th>
 <th>Placa</th>
 <th>Tipo</th>
 <th>KM</th>
-<th>Próx Mtto</th>
-<th>Motivo</th>
 <th>Acciones</th>
 </tr>
 </thead>
@@ -190,9 +241,11 @@ return(
 
 {ambulancias.map(a=>(
 
-<tr key={a.id}>
+<tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
 
-<td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
+<td style={{color:colorEstado(a.estado)}}>
+{a.estado}
+</td>
 
 <td>{a.codigo_operativo}</td>
 <td>{a.placa}</td>
@@ -200,44 +253,21 @@ return(
 <td>{a.kilometraje_actual || 0}</td>
 
 <td>
-{a.kilometraje_mtto ? (
-<>
-{a.kilometraje_mtto}
-<br/>
-<span style={{fontSize:12,color:"gray"}}>
-faltan {Math.max(a.kilometraje_mtto - (a.kilometraje_actual || 0),0)} km
-</span>
-</>
-) : "-"}
-</td>
-
-<td>{a.motivo_no_operativo || "-"}</td>
-
-<td>
-
-{rol==="admin" && (
-<>
 
 <button onClick={()=>router.push(`/ambulancia/${a.id}`)}>
 Ficha
 </button>
 
+{rol==="admin" && (
+<>
 <button onClick={()=>router.push(`/ambulancia/editar/${a.id}`)}>
 Editar
 </button>
 
-{/* 🔥 NUEVO BOTÓN HISTORIAL */}
 <button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)}>
 Historial
 </button>
-
 </>
-)}
-
-{rol==="supervisor" && (
-<button onClick={()=>router.push(`/ambulancia/${a.id}`)}>
-Ficha
-</button>
 )}
 
 </td>
