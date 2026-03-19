@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter, useParams } from "next/navigation"
 
@@ -27,6 +28,7 @@ if(!id) return
 cargarTodo()
 },[id])
 
+/* REFRESH TIEMPO */
 useEffect(()=>{
 const interval = setInterval(()=>{
 setHistorial(prev => [...prev])
@@ -70,6 +72,7 @@ setMostrarModal(true)
 async function confirmarCambioEstado(){
 
 if(loading) return
+
 if(!motivoCambio){
 alert("Ingrese motivo")
 return
@@ -131,13 +134,14 @@ alert("Error en cambio de estado")
 setLoading(false)
 }
 
-/* ALERTA VISUAL */
+/* ESTADO COLOR */
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#16a34a"
 if(ambulancia.estado === "mantenimiento") return "#f59e0b"
 return "#dc2626"
 }
 
+/* ALERTA */
 function renderAlerta(){
 
 if(ambulancia.estado === "no operativa"){
@@ -153,6 +157,7 @@ return <div style={alertGreen}>✅ OPERATIVA</div>
 
 /* TIEMPO */
 function calcularTiempo(i:string,f:string|null){
+
 const inicio = new Date(i)
 const fin = f ? new Date(f) : new Date()
 const diff = fin.getTime() - inicio.getTime()
@@ -166,6 +171,7 @@ return `${horas} h`
 
 /* ELIMINAR */
 async function eliminarEvento(idEvento:string){
+
 if(!confirm("Eliminar registro?")) return
 
 await supabase
@@ -178,6 +184,7 @@ cargarHistorial()
 
 /* KM */
 async function actualizarKilometraje(){
+
 if(!nuevoKm) return
 
 await supabase
@@ -190,6 +197,7 @@ cargarAmbulancia()
 }
 
 async function guardarMtto(){
+
 if(!kmMtto) return
 
 await supabase
@@ -209,7 +217,7 @@ return(
 
 <h1>🚑 Ficha Mecánica</h1>
 
-{/* 🔥 ENCABEZADO NUEVO */}
+{/* ENCABEZADO */}
 <div style={{
 background:"#e5f3ff",
 padding:15,
@@ -295,12 +303,14 @@ Fuera servicio
 ))}
 
 </tbody>
+
 </table>
 
 {/* MODAL */}
 {mostrarModal && (
 <div style={modalBg}>
 <div style={modalBox}>
+
 <h3>Motivo del cambio</h3>
 
 <textarea
@@ -324,26 +334,64 @@ Cancelar
 )}
 
 </div>
+
 )
 }
 
-/* 🎨 ESTILOS */
-const btnGreen = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
-const btnYellow = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
-const btnRed = {background:"#dc2626",color:"white",padding:10,borderRadius:6}
+/* ESTILOS TIPADOS */
 
-const alertGreen = {background:"#dcfce7",padding:12,borderRadius:6}
-const alertYellow = {background:"#fef9c3",padding:12,borderRadius:6}
-const alertRed = {background:"#fee2e2",padding:12,borderRadius:6}
-
-const modalBg = {
-position:"fixed",
-top:0,left:0,width:"100%",height:"100%",
-background:"rgba(0,0,0,0.5)",
-display:"flex",justifyContent:"center",alignItems:"center"
+const btnGreen: CSSProperties = {
+background:"#16a34a",
+color:"white",
+padding:10,
+borderRadius:6
 }
 
-const modalBox = {
+const btnYellow: CSSProperties = {
+background:"#f59e0b",
+color:"white",
+padding:10,
+borderRadius:6
+}
+
+const btnRed: CSSProperties = {
+background:"#dc2626",
+color:"white",
+padding:10,
+borderRadius:6
+}
+
+const alertGreen: CSSProperties = {
+background:"#dcfce7",
+padding:12,
+borderRadius:6
+}
+
+const alertYellow: CSSProperties = {
+background:"#fef9c3",
+padding:12,
+borderRadius:6
+}
+
+const alertRed: CSSProperties = {
+background:"#fee2e2",
+padding:12,
+borderRadius:6
+}
+
+const modalBg: CSSProperties = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.5)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}
+
+const modalBox: CSSProperties = {
 background:"white",
 padding:20,
 width:400,
