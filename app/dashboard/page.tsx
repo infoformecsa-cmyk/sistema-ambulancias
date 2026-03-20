@@ -14,11 +14,11 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [alertas,setAlertas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 
-/* 🔥 EDICIÓN INLINE */
+/* 🔥 NUEVO: EDICIÓN */
 const [editando,setEditando] = useState<string | null>(null)
 const [editData,setEditData] = useState<any>({})
 
-/* 🔥 TIPADO */
+/* 🔥 TIPADO CORRECTO */
 const [horasMap,setHorasMap] = useState<Record<string, number>>({})
 
 useEffect(()=>{
@@ -67,7 +67,9 @@ setHistorial(histo)
 const mapa: Record<string, number> = {}
 
 ambs.forEach(a=>{
+
 const eventos = histo.filter(h=>String(h.ambulancia_id) === String(a.id))
+
 let total = 0
 
 eventos.forEach(e=>{
@@ -132,6 +134,18 @@ const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
 const alfaNoPct = alfa.length ? Math.round((alfaNoOp/alfa.length)*100) : 0
 const bravoNoPct = bravo.length ? Math.round((bravoNoOp/bravo.length)*100) : 0
 
+/* ALERTAS */
+const mttoVencido = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+return a.kilometraje_actual >= a.kilometraje_mtto
+})
+
+const mttoProximo = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return faltan <= 400 && faltan > 0
+})
+
 function cerrarSesion(){
 localStorage.clear()
 router.push("/")
@@ -166,11 +180,45 @@ return(
 
 <hr/>
 
+{/* 🔴 ALERTAS CRÍTICAS */}
+{alertas.length>0 && (
+<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Fallas críticas</h3>
+{alertas.map(a=>(
+<div key={a.id}>
+<b>ID:</b> {a.ambulancia_id} - {a.descripcion}
+</div>
+))}
+</div>
+)}
+
+{/* 🔴 MTTO VENCIDO */}
+{mttoVencido.length>0 && (
+<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Mantenimiento vencido</h3>
+{mttoVencido.map(a=>(
+<div key={a.id}>{a.codigo_operativo}</div>
+))}
+</div>
+)}
+
+{/* 🟡 MTTO PRÓXIMO */}
+{mttoProximo.length>0 && (
+<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>⚠️ Mantenimiento próximo</h3>
+{mttoProximo.map(a=>{
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
+})}
+</div>
+)}
+
+<hr/>
+
 {/* KPI */}
 <h2>📊 Estado General</h2>
 
 <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-
 <div style={card}><h3>Operativas</h3><h2 style={{color:"#16a34a"}}>{operativas}</h2></div>
 <div style={card}><h3>Mantenimiento</h3><h2 style={{color:"#f59e0b"}}>{mantenimiento}</h2></div>
 <div style={card}><h3>No operativas</h3><h2 style={{color:"#dc2626"}}>{fuera}</h2></div>
@@ -184,7 +232,6 @@ return(
 
 <div style={card}><h3>BRAVO Operativas</h3><h2 style={{color:"#16a34a"}}>{bravoOp} ({bravoPct}%)</h2></div>
 <div style={card}><h3>BRAVO No operativas</h3><h2 style={{color:"#dc2626"}}>{bravoNoOp} ({bravoNoPct}%)</h2></div>
-
 </div>
 
 <hr/>
@@ -193,7 +240,6 @@ return(
 <h2>📋 Flota</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
-
 <tbody>
 
 {ambulancias.map(a=>(
@@ -203,27 +249,24 @@ return(
 <td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
 
 <td>
-{editando === a.id ? (
-<input value={editData.codigo_operativo}
-onChange={(e)=>setEditData({...editData,codigo_operativo:e.target.value})}/>
-) : a.codigo_operativo}
+{editando === a.id
+? <input value={editData.codigo_operativo} onChange={(e)=>setEditData({...editData,codigo_operativo:e.target.value})}/>
+: a.codigo_operativo}
 </td>
 
 <td>
-{editando === a.id ? (
-<input value={editData.placa}
-onChange={(e)=>setEditData({...editData,placa:e.target.value})}/>
-) : a.placa}
+{editando === a.id
+? <input value={editData.placa} onChange={(e)=>setEditData({...editData,placa:e.target.value})}/>
+: a.placa}
 </td>
 
 <td>
-{editando === a.id ? (
-<select value={editData.tipo}
-onChange={(e)=>setEditData({...editData,tipo:e.target.value})}>
+{editando === a.id
+? <select value={editData.tipo} onChange={(e)=>setEditData({...editData,tipo:e.target.value})}>
 <option value="ALFA">ALFA</option>
 <option value="BRAVO">BRAVO</option>
 </select>
-) : a.tipo}
+: a.tipo}
 </td>
 
 <td>{a.kilometraje_actual || 0}</td>
@@ -260,11 +303,9 @@ Historial
 ))}
 
 </tbody>
-
 </table>
 
 </div>
-
 )
 }
 
