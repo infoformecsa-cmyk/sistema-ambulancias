@@ -14,7 +14,11 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [alertas,setAlertas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 
-/* 🔥 TIPADO CORRECTO */
+/* 🔥 EDICIÓN INLINE */
+const [editando,setEditando] = useState<string | null>(null)
+const [editData,setEditData] = useState<any>({})
+
+/* 🔥 TIPADO */
 const [horasMap,setHorasMap] = useState<Record<string, number>>({})
 
 useEffect(()=>{
@@ -48,20 +52,9 @@ return ()=>clearInterval(intervalo)
 /* 🔥 CARGA */
 async function cargar(){
 
-const {data:amb} = await supabase
-.from("ambulancias")
-.select("*")
-.order("codigo_operativo")
-
-const {data:alert} = await supabase
-.from("reportes_fallas")
-.select("*")
-.eq("estado","abierta")
-.eq("criticidad","critica")
-
-const {data:hist} = await supabase
-.from("historial_operativo")
-.select("*")
+const {data:amb} = await supabase.from("ambulancias").select("*").order("codigo_operativo")
+const {data:alert} = await supabase.from("reportes_fallas").select("*").eq("estado","abierta").eq("criticidad","critica")
+const {data:hist} = await supabase.from("historial_operativo").select("*")
 
 const ambs = amb || []
 const histo = hist || []
@@ -70,17 +63,14 @@ setAmbulancias(ambs)
 setAlertas(alert || [])
 setHistorial(histo)
 
-/* 🔥 CALCULO SEGURO */
+/* 🔥 HORAS */
 const mapa: Record<string, number> = {}
 
 ambs.forEach(a=>{
-
 const eventos = histo.filter(h=>String(h.ambulancia_id) === String(a.id))
-
 let total = 0
 
 eventos.forEach(e=>{
-
 if(e.estado === "operativa") return
 
 const inicio = new Date(e.fecha_inicio)
@@ -91,53 +81,42 @@ if(isNaN(fin.getTime())) return
 if(fin < inicio) return
 
 total += (fin.getTime() - inicio.getTime())
-
 })
 
 mapa[String(a.id)] = Math.floor(total / (1000*60*60))
-
 })
 
 setHorasMap(mapa)
-
 }
 
-/* ===================== */
+/* 🔥 GUARDAR EDICIÓN */
+async function guardarEdicion(id:string){
+
+await supabase
+.from("ambulancias")
+.update({
+codigo_operativo: editData.codigo_operativo,
+placa: editData.placa,
+tipo: editData.tipo
+})
+.eq("id",id)
+
+setEditando(null)
+cargar()
+}
+
 /* KPI */
-/* ===================== */
-
 const total = ambulancias.length
-
 const operativas = ambulancias.filter(a=>a.estado==="operativa").length
 const mantenimiento = ambulancias.filter(a=>a.estado==="mantenimiento").length
 const fuera = ambulancias.filter(a=>a.estado==="no operativa").length
 
-const disponibilidad =
-total>0 ? Math.round((operativas/total)*100) : 0
+const disponibilidad = total>0 ? Math.round((operativas/total)*100) : 0
 
-const totalHorasFuera = Object.values(horasMap)
-.reduce((a, b) => a + (b || 0), 0)
+const totalHorasFuera = Object.values(horasMap).reduce((a, b) => a + (b || 0), 0)
+const promedioHoras = total ? Math.round(totalHorasFuera / total) : 0
 
-const promedioHoras = total
-? Math.round(totalHorasFuera / total)
-: 0
-
-/* ===================== */
-/* RANKING */
-/* ===================== */
-
-const ranking = [...ambulancias]
-.map(a=>({
-...a,
-horasFuera: horasMap[String(a.id)] || 0
-}))
-.sort((a,b)=>b.horasFuera - a.horasFuera)
-.slice(0,5)
-
-/* ===================== */
 /* TIPOS */
-/* ===================== */
-
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
 const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
 
@@ -152,21 +131,6 @@ const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
 
 const alfaNoPct = alfa.length ? Math.round((alfaNoOp/alfa.length)*100) : 0
 const bravoNoPct = bravo.length ? Math.round((bravoNoOp/bravo.length)*100) : 0
-
-/* ===================== */
-/* ALERTAS */
-/* ===================== */
-
-const mttoVencido = ambulancias.filter(a=>{
-if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
-return a.kilometraje_actual >= a.kilometraje_mtto
-})
-
-const mttoProximo = ambulancias.filter(a=>{
-if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
-const faltan = a.kilometraje_mtto - a.kilometraje_actual
-return faltan <= 400 && faltan > 0
-})
 
 function cerrarSesion(){
 localStorage.clear()
@@ -185,43 +149,20 @@ return(
 
 <h1>🚑 Sistema de Control de Ambulancias</h1>
 
+{/* 🔥 BOTONES NUEVOS */}
+<div style={{marginTop:10, display:"flex", gap:10}}>
+<button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnBlue}>
+➕ Nueva Ambulancia
+</button>
+
+<button onClick={()=>router.push("/dashboard/informe-flota")} style={btnGreen}>
+📊 Informe MSP
+</button>
+</div>
+
 <p><b>{nombre}</b> | {rol}</p>
 
 <button onClick={cerrarSesion}>Cerrar sesión</button>
-
-<hr/>
-
-{/* ALERTAS CRÍTICAS */}
-{alertas.length>0 && (
-<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
-<h3>🚨 Fallas críticas</h3>
-{alertas.map(a=>(
-<div key={a.id}>
-<b>ID:</b> {a.ambulancia_id} - {a.descripcion}
-</div>
-))}
-</div>
-)}
-
-{/* ALERTAS MTTO */}
-{mttoVencido.length>0 && (
-<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
-<h3>🚨 Mantenimiento vencido</h3>
-{mttoVencido.map(a=>(
-<div key={a.id}>{a.codigo_operativo}</div>
-))}
-</div>
-)}
-
-{mttoProximo.length>0 && (
-<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
-<h3>⚠️ Mantenimiento próximo</h3>
-{mttoProximo.map(a=>{
-const faltan = a.kilometraje_mtto - a.kilometraje_actual
-return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
-})}
-</div>
-)}
 
 <hr/>
 
@@ -238,8 +179,6 @@ return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
 <div style={card}><h3>Horas fuera</h3><h2>{totalHorasFuera} h</h2></div>
 <div style={card}><h3>Promedio</h3><h2>{promedioHoras} h</h2></div>
 
-{/* 🔥 KPI MEJORADOS */}
-
 <div style={card}><h3>ALFA Operativas</h3><h2 style={{color:"#16a34a"}}>{alfaOp} ({alfaPct}%)</h2></div>
 <div style={card}><h3>ALFA No operativas</h3><h2 style={{color:"#dc2626"}}>{alfaNoOp} ({alfaNoPct}%)</h2></div>
 
@@ -250,61 +189,61 @@ return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
 
 <hr/>
 
-{/* RANKING */}
-<h2>🏆 Ambulancias más críticas</h2>
-
-<table style={{width:"100%"}}>
-<tbody>
-{ranking.map(a=>(
-<tr key={a.id}>
-<td>{a.codigo_operativo}</td>
-<td>{horasMap[String(a.id)] || 0} h</td>
-</tr>
-))}
-</tbody>
-</table>
-
-<hr/>
-
-{/* TABLA COMPLETA */}
+{/* TABLA */}
 <h2>📋 Flota</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
-
-<thead>
-<tr style={{background:"#f3f4f6"}}>
-<th>Estado</th>
-<th>Código</th>
-<th>Placa</th>
-<th>Tipo</th>
-<th>KM</th>
-<th>Horas fuera</th>
-<th>Acciones</th>
-</tr>
-</thead>
 
 <tbody>
 
 {ambulancias.map(a=>(
 
-<tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
+<tr key={a.id}>
 
 <td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
-<td>{a.codigo_operativo}</td>
-<td>{a.placa}</td>
-<td>{a.tipo}</td>
+
+<td>
+{editando === a.id ? (
+<input value={editData.codigo_operativo}
+onChange={(e)=>setEditData({...editData,codigo_operativo:e.target.value})}/>
+) : a.codigo_operativo}
+</td>
+
+<td>
+{editando === a.id ? (
+<input value={editData.placa}
+onChange={(e)=>setEditData({...editData,placa:e.target.value})}/>
+) : a.placa}
+</td>
+
+<td>
+{editando === a.id ? (
+<select value={editData.tipo}
+onChange={(e)=>setEditData({...editData,tipo:e.target.value})}>
+<option value="ALFA">ALFA</option>
+<option value="BRAVO">BRAVO</option>
+</select>
+) : a.tipo}
+</td>
+
 <td>{a.kilometraje_actual || 0}</td>
 <td>{horasMap[String(a.id)] || 0} h</td>
 
 <td>
 
-<button onClick={()=>router.push(`/ambulancia/${a.id}`)}>
-Ficha
-</button>
-
-{rol==="admin" && (
+{editando === a.id ? (
 <>
-<button onClick={()=>router.push(`/ambulancia/editar/${a.id}`)}>
+<button onClick={()=>guardarEdicion(a.id)}>💾</button>
+<button onClick={()=>setEditando(null)}>❌</button>
+</>
+) : (
+<>
+<button onClick={()=>router.push(`/ambulancia/${a.id}`)}>Ficha</button>
+
+<button onClick={()=>{
+setEditando(a.id)
+setEditData(a)
+}}>
 Editar
 </button>
 
@@ -327,7 +266,6 @@ Historial
 </div>
 
 )
-
 }
 
 const card = {
@@ -336,3 +274,6 @@ border:"1px solid #ddd",
 borderRadius:10,
 minWidth:140
 }
+
+const btnBlue = {background:"#2563eb",color:"white",padding:10,borderRadius:6}
+const btnGreen = {background:"#0f766e",color:"white",padding:10,borderRadius:6}
