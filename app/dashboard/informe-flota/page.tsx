@@ -9,18 +9,26 @@ export default function InformeFlota(){
 const router = useRouter()
 
 const [ambulancias,setAmbulancias] = useState<any[]>([])
+const [historial,setHistorial] = useState<any[]>([])
 
 useEffect(()=>{
 cargar()
 },[])
 
 async function cargar(){
-const {data} = await supabase
+
+const {data:amb} = await supabase
 .from("ambulancias")
 .select("*")
 .order("codigo_operativo")
 
-setAmbulancias(data || [])
+const {data:hist} = await supabase
+.from("historial_operativo")
+.select("*")
+.order("fecha_inicio",{ascending:false})
+
+setAmbulancias(amb || [])
+setHistorial(hist || [])
 }
 
 /* KPI */
@@ -42,6 +50,23 @@ function colorEstado(e:string){
 if(e==="operativa") return "#16a34a"
 if(e==="mantenimiento") return "#f59e0b"
 return "#dc2626"
+}
+
+/* TIEMPO */
+function calcularTiempo(inicio:string, fin:string|null){
+
+const i = new Date(inicio)
+const f = fin ? new Date(fin) : new Date()
+
+if(f < i) return "0 h"
+
+const diff = f.getTime() - i.getTime()
+
+const horas = Math.floor(diff / (1000*60*60))
+const minutos = Math.floor((diff % (1000*60*60)) / (1000*60))
+
+if(horas > 0) return `${horas}h ${minutos}m`
+return `${minutos} min`
 }
 
 return(
@@ -106,7 +131,13 @@ style={btnBack}
 
 <tbody>
 
-{ambulancias.map(a=>(
+{ambulancias.map(a=>{
+
+const eventos = historial.filter(h=>String(h.ambulancia_id) === String(a.id))
+
+return(
+<>
+{/* FILA PRINCIPAL */}
 <tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
 <td style={td}>{a.codigo_operativo}</td>
 <td style={td}>{a.placa}</td>
@@ -114,7 +145,44 @@ style={btnBack}
 <td style={{...td,color:colorEstado(a.estado)}}>{a.estado}</td>
 <td style={td}>{a.kilometraje_actual || 0}</td>
 </tr>
+
+{/* HISTORIAL */}
+<tr>
+<td colSpan={5} style={{background:"#f9fafb",padding:10}}>
+
+<table style={{width:"100%"}}>
+<thead>
+<tr style={{fontSize:12,color:"#555"}}>
+<th style={{textAlign:"left"}}>Estado</th>
+<th style={{textAlign:"left"}}>Motivo</th>
+<th style={{textAlign:"left"}}>Tiempo</th>
+</tr>
+</thead>
+
+<tbody>
+
+{eventos.map(h=>(
+<tr key={h.id}>
+<td style={{color:colorEstado(h.estado)}}>{h.estado}</td>
+<td>{h.motivo || "-"}</td>
+<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+</tr>
 ))}
+
+{eventos.length === 0 && (
+<tr>
+<td colSpan={3} style={{color:"#999"}}>Sin historial</td>
+</tr>
+)}
+
+</tbody>
+</table>
+
+</td>
+</tr>
+</>
+)
+})}
 
 </tbody>
 </table>
