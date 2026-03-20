@@ -61,7 +61,7 @@ export default function AmbulanciasPage() {
               <td>{a.estado}</td>
 
               <td>
-                <Link href={`/ambulancia/${a.codigo}`}>
+                <Link href={`/ambulancia/${a.id}`}>
                   Abrir ficha
                 </Link>
               </td>
