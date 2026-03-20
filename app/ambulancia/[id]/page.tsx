@@ -22,18 +22,16 @@ const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
-/* 🔥 NUEVO: EDICIÓN */
+/* 🔥 EDICIÓN */
 const [editandoId,setEditandoId] = useState<string | null>(null)
 const [editEstado,setEditEstado] = useState("")
 const [editMotivo,setEditMotivo] = useState("")
 
-/* INIT */
 useEffect(()=>{
 if(!id) return
 cargarTodo()
 },[id])
 
-/* REFRESH TIEMPO */
 useEffect(()=>{
 const interval = setInterval(()=>{
 setHistorial(prev => [...prev])
@@ -69,7 +67,7 @@ setHistorial(data || [])
 }
 
 /* ===================== */
-/* EDITAR HISTORIAL */
+/* EDITAR */
 /* ===================== */
 
 function iniciarEdicion(h:any){
@@ -93,7 +91,7 @@ cargarHistorial()
 }
 
 /* ===================== */
-/* CAMBIO ESTADO */
+/* 🔥 CAMBIO CORREGIDO */
 /* ===================== */
 
 function abrirCambioEstado(estado:string){
@@ -116,6 +114,7 @@ try{
 
 const usuario = localStorage.getItem("nombre")
 
+/* 🔍 ÚLTIMO EVENTO */
 const {data:ultimo} = await supabase
 .from("historial_operativo")
 .select("*")
@@ -123,19 +122,28 @@ const {data:ultimo} = await supabase
 .order("fecha_inicio",{ascending:false})
 .limit(1)
 
-if(ultimo && ultimo.length > 0){
+const last = ultimo && ultimo.length > 0 ? ultimo[0] : null
 
-const last = ultimo[0]
+/* 🚫 EVITAR DUPLICADO */
+if(last && !last.fecha_fin && last.estado === estadoPendiente){
+alert("La ambulancia ya está en ese estado")
+setLoading(false)
+return
+}
 
-if(!last.fecha_fin){
+/* 🔒 CERRAR SOLO SI EXISTE Y ESTÁ ABIERTO */
+if(last && !last.fecha_fin){
+
 await supabase
 .from("historial_operativo")
-.update({ fecha_fin: new Date().toISOString() })
+.update({
+fecha_fin: new Date().toISOString()
+})
 .eq("id", last.id)
-}
 
 }
 
+/* ➕ CREAR NUEVO EVENTO */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -146,6 +154,7 @@ fecha_inicio:new Date().toISOString(),
 usuario
 })
 
+/* 🔄 ACTUALIZAR TABLA PRINCIPAL */
 await supabase
 .from("ambulancias")
 .update({
@@ -189,7 +198,6 @@ return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
 return <div style={alertGreen}>✅ OPERATIVA</div>
 }
 
-/* TIEMPO */
 function calcularTiempo(i:string,f:string|null){
 
 const inicio = new Date(i)
@@ -203,7 +211,6 @@ if(dias > 0) return `${dias} d ${horas} h`
 return `${horas} h`
 }
 
-/* ELIMINAR */
 async function eliminarEvento(idEvento:string){
 
 if(!confirm("Eliminar registro?")) return
@@ -216,7 +223,6 @@ await supabase
 cargarHistorial()
 }
 
-/* KM */
 async function actualizarKilometraje(){
 
 if(!nuevoKm) return
