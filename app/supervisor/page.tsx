@@ -11,6 +11,10 @@ const router = useRouter()
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [grupo,setGrupo] = useState("ALFA")
 
+/* 🔥 NUEVOS STATES */
+const [editKm,setEditKm] = useState<Record<string,string>>({})
+const [editMtto,setEditMtto] = useState<Record<string,string>>({})
+
 useEffect(()=>{
 cargar()
 },[grupo])
@@ -33,6 +37,36 @@ await supabase
 .update({ estado })
 .eq("id",id)
 
+cargar()
+}
+
+/* 🔵 ACTUALIZAR KM */
+async function actualizarKm(id:string){
+
+const km = Number(editKm[id])
+if(!km) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_actual: km })
+.eq("id",id)
+
+setEditKm({...editKm,[id]:""})
+cargar()
+}
+
+/* 🟡 ACTUALIZAR MTTO */
+async function actualizarMtto(id:string){
+
+const km = Number(editMtto[id])
+if(!km) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_mtto: km })
+.eq("id",id)
+
+setEditMtto({...editMtto,[id]:""})
 cargar()
 }
 
@@ -152,13 +186,46 @@ fontSize:12
 </span>
 </div>
 
-{/* KM */}
-<p style={{fontSize:18,fontWeight:"bold",marginTop:10}}>
+{/* 🔵 KM ACTUAL */}
+<div style={{marginTop:10}}>
+<p style={{fontSize:18,fontWeight:"bold"}}>
 KM: {a.kilometraje_actual || 0}
 </p>
 
-{/* ESTADO */}
+<input
+placeholder="Nuevo KM"
+value={editKm[a.id] || ""}
+onChange={(e)=>setEditKm({...editKm,[a.id]:e.target.value})}
+style={{padding:6,marginRight:8}}
+/>
+
+<button onClick={()=>actualizarKm(a.id)}>
+Guardar
+</button>
+</div>
+
+{/* 🟡 MTTO */}
+<div style={{marginTop:10}}>
+
 <p>
+<b>Próximo mantenimiento:</b> {a.kilometraje_mtto || "-"}
+</p>
+
+<input
+placeholder="KM mantenimiento"
+value={editMtto[a.id] || ""}
+onChange={(e)=>setEditMtto({...editMtto,[a.id]:e.target.value})}
+style={{padding:6,marginRight:8}}
+/>
+
+<button onClick={()=>actualizarMtto(a.id)}>
+Guardar
+</button>
+
+</div>
+
+{/* ESTADO */}
+<p style={{marginTop:10}}>
 Estado: 
 <span style={{color:colorEstado(a.estado),fontWeight:"bold"}}>
 {" "}{a.estado}
