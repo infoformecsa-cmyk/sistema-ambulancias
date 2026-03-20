@@ -23,12 +23,47 @@ useEffect(()=>{
 
 const r = localStorage.getItem("rol")
 const n = localStorage.getItem("nombre")
+const email = localStorage.getItem("email")
 
 if(!r){
 router.push("/")
 return
 }
 
+/* 🔥 VALIDACIÓN REAL POR BD */
+async function validarRol(){
+
+if(!email){
+router.push("/")
+return
+}
+
+const { data } = await supabase
+.from("usuarios")
+.select("rol")
+.eq("email", email)
+.single()
+
+/* 🚫 SOLO ADMIN PUEDE ESTAR AQUÍ */
+if(data?.rol !== "admin"){
+
+if(data?.rol === "supervisor"){
+router.push("/supervisor")
+return
+}
+
+/* otros roles */
+router.push("/")
+return
+
+}
+
+}
+
+/* ejecutar validación */
+validarRol()
+
+/* lógica original */
 if(r==="conductor"){
 router.push("/conductor")
 return
@@ -85,7 +120,7 @@ mapa[String(a.id)] = Math.floor(total / (1000*60*60))
 setHorasMap(mapa)
 }
 
-/* 🔥 GUARDAR EDICIÓN */
+/* GUARDAR EDICIÓN */
 async function guardarEdicion(id:string){
 
 await supabase
@@ -157,7 +192,6 @@ return(
 
 <h1>🚑 Sistema de Control de Ambulancias</h1>
 
-{/* 🔥 BOTONES (COMO EN TU IMAGEN) */}
 <div style={{marginTop:10, display:"flex", gap:10}}>
 <button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnBlue}>
 ➕ Nueva Ambulancia
@@ -203,7 +237,6 @@ return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
 
 <hr/>
 
-{/* KPI */}
 <h2>📊 Estado General</h2>
 
 <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
@@ -211,20 +244,16 @@ return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
 <div style={card}><h3>Mantenimiento</h3><h2 style={{color:"#f59e0b"}}>{mantenimiento}</h2></div>
 <div style={card}><h3>No operativas</h3><h2 style={{color:"#dc2626"}}>{fuera}</h2></div>
 <div style={card}><h3>Disponibilidad</h3><h2>{disponibilidad}%</h2></div>
-
 <div style={card}><h3>Horas fuera</h3><h2>{totalHorasFuera} h</h2></div>
 <div style={card}><h3>Promedio</h3><h2>{promedioHoras} h</h2></div>
-
 <div style={card}><h3>ALFA Operativas</h3><h2 style={{color:"#16a34a"}}>{alfaOp} ({alfaPct}%)</h2></div>
 <div style={card}><h3>ALFA No operativas</h3><h2 style={{color:"#dc2626"}}>{alfaNoOp} ({alfaNoPct}%)</h2></div>
-
 <div style={card}><h3>BRAVO Operativas</h3><h2 style={{color:"#16a34a"}}>{bravoOp} ({bravoPct}%)</h2></div>
 <div style={card}><h3>BRAVO No operativas</h3><h2 style={{color:"#dc2626"}}>{bravoNoOp} ({bravoNoPct}%)</h2></div>
 </div>
 
 <hr/>
 
-{/* TABLA */}
 <h2>📋 Flota</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>

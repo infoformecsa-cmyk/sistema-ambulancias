@@ -60,8 +60,32 @@ localStorage.setItem("usuario_id",data.id)
 localStorage.setItem("rol",data.rol)
 localStorage.setItem("nombre",data.nombre)
 
-/* redireccionar */
+/* 🔥 NUEVO: guardar email */
+localStorage.setItem("email",data.email)
 
+/* 🔥 NUEVO: redirección por rol */
+
+if(data.rol === "admin"){
+router.replace("/dashboard")
+return
+}
+
+if(data.rol === "supervisor"){
+router.replace("/supervisor")
+return
+}
+
+if(data.rol === "mecanico"){
+router.replace("/mecanica")
+return
+}
+
+if(data.rol === "conductor"){
+router.replace("/conductor")
+return
+}
+
+/* fallback (por si acaso) */
 router.replace("/dashboard")
 
 }
