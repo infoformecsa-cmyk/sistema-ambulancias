@@ -22,10 +22,8 @@ const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
-/* 🔥 NUEVO */
 const [foto,setFoto] = useState<File | null>(null)
 
-/* EDICIÓN */
 const [editandoId,setEditandoId] = useState<string | null>(null)
 const [editEstado,setEditEstado] = useState("")
 const [editMotivo,setEditMotivo] = useState("")
@@ -69,9 +67,35 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
-/* ===================== */
-/* FOTO UPLOAD */
-/* ===================== */
+/* 🔥 FUNCIONES RESTAURADAS */
+
+async function actualizarKilometraje(){
+
+if(!nuevoKm) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_actual: Number(nuevoKm) })
+.eq("id",id)
+
+setNuevoKm("")
+cargarAmbulancia()
+}
+
+async function guardarMtto(){
+
+if(!kmMtto) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_mtto: Number(kmMtto) })
+.eq("id",id)
+
+setKmMtto("")
+cargarAmbulancia()
+}
+
+/* FOTO */
 
 async function subirFoto(): Promise<string | null>{
 
@@ -79,8 +103,8 @@ if(!foto) return null
 
 const nombre = `ambulancia_${id}_${Date.now()}`
 
-const {data,error} = await supabase.storage
-.from("ambulancias")
+const {error} = await supabase.storage
+.from("fallas-ambulancias")
 .upload(nombre, foto)
 
 if(error){
@@ -88,16 +112,14 @@ console.log(error)
 return null
 }
 
-const {data:publicUrl} = supabase.storage
-.from("ambulancias")
+const {data} = supabase.storage
+.from("fallas-ambulancias")
 .getPublicUrl(nombre)
 
-return publicUrl.publicUrl
+return data.publicUrl
 }
 
-/* ===================== */
 /* CAMBIO ESTADO */
-/* ===================== */
 
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
@@ -128,14 +150,12 @@ const {data:ultimo} = await supabase
 
 const last = ultimo && ultimo.length > 0 ? ultimo[0] : null
 
-/* 🔥 BLOQUEO DUPLICADO */
 if(last && !last.fecha_fin && last.estado === estadoPendiente){
 alert("La ambulancia ya está en ese estado")
 setLoading(false)
 return
 }
 
-/* cerrar evento */
 if(last && !last.fecha_fin){
 await supabase
 .from("historial_operativo")
@@ -143,10 +163,8 @@ await supabase
 .eq("id", last.id)
 }
 
-/* 📸 subir imagen */
 const foto_url = await subirFoto()
 
-/* crear evento */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -158,7 +176,6 @@ usuario,
 foto_url
 })
 
-/* actualizar ambulancia */
 await supabase
 .from("ambulancias")
 .update({
@@ -181,9 +198,7 @@ alert("Error en cambio de estado")
 setLoading(false)
 }
 
-/* ===================== */
 /* VISUAL */
-/* ===================== */
 
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#16a34a"
@@ -205,24 +220,16 @@ return <div style={alertGreen}>✅ OPERATIVA</div>
 }
 
 function calcularTiempo(i:string,f:string|null){
-
 const inicio = new Date(i)
 const fin = f ? new Date(f) : new Date()
 const diff = fin.getTime() - inicio.getTime()
-
 const horas = Math.floor(diff / (1000*60*60))
 return `${horas} h`
 }
 
 async function eliminarEvento(idEvento:string){
-
 if(!confirm("Eliminar registro?")) return
-
-await supabase
-.from("historial_operativo")
-.delete()
-.eq("id",idEvento)
-
+await supabase.from("historial_operativo").delete().eq("id",idEvento)
 cargarHistorial()
 }
 
@@ -234,12 +241,7 @@ return(
 
 <h1>🚑 Ficha Mecánica</h1>
 
-<div style={{
-background:"#e5f3ff",
-padding:15,
-borderRadius:10,
-marginBottom:10
-}}>
+<div style={{background:"#e5f3ff",padding:15,borderRadius:10,marginBottom:10}}>
 <h2 style={{margin:0}}>
 {ambulancia.codigo_operativo} | {ambulancia.placa}
 </h2>
@@ -262,6 +264,24 @@ marginBottom:10
 <button onClick={()=>abrirCambioEstado("mantenimiento")} style={btnYellow}>Mantenimiento</button>
 <button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
+
+{/* 🔥 RESTAURADO */}
+
+<hr/>
+
+<h2>Registro Diario</h2>
+
+<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
+<button onClick={actualizarKilometraje}>Actualizar</button>
+
+<hr/>
+
+<h2>Mantenimiento Preventivo</h2>
+
+<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
+
+<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
+<button onClick={guardarMtto}>Guardar</button>
 
 <hr/>
 
@@ -286,7 +306,6 @@ marginBottom:10
 <tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
 
 <td>{new Date(h.fecha_inicio).toLocaleString()}</td>
-
 <td>{h.estado}</td>
 <td>{h.motivo}</td>
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
@@ -312,7 +331,6 @@ marginBottom:10
 {mostrarModal && (
 <div style={modalBg}>
 <div style={modalBox}>
-
 <h3>Motivo del cambio</h3>
 
 <textarea
