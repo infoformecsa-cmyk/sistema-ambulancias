@@ -22,6 +22,11 @@ const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
+/* 🔥 NUEVO: EDICIÓN */
+const [editandoId,setEditandoId] = useState<string | null>(null)
+const [editEstado,setEditEstado] = useState("")
+const [editMotivo,setEditMotivo] = useState("")
+
 /* INIT */
 useEffect(()=>{
 if(!id) return
@@ -63,7 +68,34 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
+/* ===================== */
+/* EDITAR HISTORIAL */
+/* ===================== */
+
+function iniciarEdicion(h:any){
+setEditandoId(h.id)
+setEditEstado(h.estado)
+setEditMotivo(h.motivo || "")
+}
+
+async function guardarEdicion(idEvento:string){
+
+await supabase
+.from("historial_operativo")
+.update({
+estado: editEstado,
+motivo: editMotivo
+})
+.eq("id", idEvento)
+
+setEditandoId(null)
+cargarHistorial()
+}
+
+/* ===================== */
 /* CAMBIO ESTADO */
+/* ===================== */
+
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
@@ -134,14 +166,16 @@ alert("Error en cambio de estado")
 setLoading(false)
 }
 
-/* ESTADO COLOR */
+/* ===================== */
+/* VISUAL */
+/* ===================== */
+
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#16a34a"
 if(ambulancia.estado === "mantenimiento") return "#f59e0b"
 return "#dc2626"
 }
 
-/* ALERTA */
 function renderAlerta(){
 
 if(ambulancia.estado === "no operativa"){
@@ -217,7 +251,6 @@ return(
 
 <h1>🚑 Ficha Mecánica</h1>
 
-{/* ENCABEZADO */}
 <div style={{
 background:"#e5f3ff",
 padding:15,
@@ -241,21 +274,10 @@ marginBottom:10
 {renderAlerta()}
 </div>
 
-{/* BOTONES */}
 <div style={{marginTop:15, display:"flex",gap:10}}>
-
-<button onClick={()=>abrirCambioEstado("operativa")} style={btnGreen}>
-Operativa
-</button>
-
-<button onClick={()=>abrirCambioEstado("mantenimiento")} style={btnYellow}>
-Mantenimiento
-</button>
-
-<button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>
-Fuera servicio
-</button>
-
+<button onClick={()=>abrirCambioEstado("operativa")} style={btnGreen}>Operativa</button>
+<button onClick={()=>abrirCambioEstado("mantenimiento")} style={btnYellow}>Mantenimiento</button>
+<button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
 
 <hr/>
@@ -293,12 +315,43 @@ Fuera servicio
 
 {historial.map(h=>(
 <tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
-<td>{h.estado}</td>
-<td>{h.motivo}</td>
-<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+
 <td>
-<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
+{editandoId === h.id ? (
+<select value={editEstado} onChange={(e)=>setEditEstado(e.target.value)}>
+<option value="operativa">operativa</option>
+<option value="mantenimiento">mantenimiento</option>
+<option value="no operativa">no operativa</option>
+</select>
+) : h.estado}
 </td>
+
+<td>
+{editandoId === h.id ? (
+<textarea
+value={editMotivo}
+onChange={(e)=>setEditMotivo(e.target.value)}
+style={{width:"100%"}}
+/>
+) : h.motivo}
+</td>
+
+<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+
+<td>
+{editandoId === h.id ? (
+<>
+<button onClick={()=>guardarEdicion(h.id)}>💾</button>
+<button onClick={()=>setEditandoId(null)}>❌</button>
+</>
+) : (
+<>
+<button onClick={()=>iniciarEdicion(h)}>✏️</button>
+<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
+</>
+)}
+</td>
+
 </tr>
 ))}
 
@@ -306,11 +359,9 @@ Fuera servicio
 
 </table>
 
-{/* MODAL */}
 {mostrarModal && (
 <div style={modalBg}>
 <div style={modalBox}>
-
 <h3>Motivo del cambio</h3>
 
 <textarea
@@ -334,50 +385,18 @@ Cancelar
 )}
 
 </div>
-
 )
 }
 
-/* ESTILOS TIPADOS */
+/* ESTILOS */
 
-const btnGreen: CSSProperties = {
-background:"#16a34a",
-color:"white",
-padding:10,
-borderRadius:6
-}
+const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
+const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
+const btnRed: CSSProperties = {background:"#dc2626",color:"white",padding:10,borderRadius:6}
 
-const btnYellow: CSSProperties = {
-background:"#f59e0b",
-color:"white",
-padding:10,
-borderRadius:6
-}
-
-const btnRed: CSSProperties = {
-background:"#dc2626",
-color:"white",
-padding:10,
-borderRadius:6
-}
-
-const alertGreen: CSSProperties = {
-background:"#dcfce7",
-padding:12,
-borderRadius:6
-}
-
-const alertYellow: CSSProperties = {
-background:"#fef9c3",
-padding:12,
-borderRadius:6
-}
-
-const alertRed: CSSProperties = {
-background:"#fee2e2",
-padding:12,
-borderRadius:6
-}
+const alertGreen: CSSProperties = {background:"#dcfce7",padding:12,borderRadius:6}
+const alertYellow: CSSProperties = {background:"#fef9c3",padding:12,borderRadius:6}
+const alertRed: CSSProperties = {background:"#fee2e2",padding:12,borderRadius:6}
 
 const modalBg: CSSProperties = {
 position:"fixed",
