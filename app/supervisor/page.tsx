@@ -17,7 +17,7 @@ async function cargar(){
 const {data} = await supabase
 .from("ambulancias")
 .select("*")
-.eq("grupo",grupo)
+.eq("tipo",grupo)
 .order("codigo_operativo")
 
 setAmbulancias(data || [])
