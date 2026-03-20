@@ -150,6 +150,10 @@ const bravoNoOp = bravo.length - bravoOp
 const alfaPct = alfa.length ? Math.round((alfaOp/alfa.length)*100) : 0
 const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
 
+/* 🔥 NUEVO */
+const alfaNoPct = alfa.length ? Math.round((alfaNoOp/alfa.length)*100) : 0
+const bravoNoPct = bravo.length ? Math.round((bravoNoOp/bravo.length)*100) : 0
+
 /* ===================== */
 /* ALERTAS */
 /* ===================== */
@@ -234,6 +238,14 @@ return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
 
 <div style={card}><h3>Horas fuera</h3><h2>{totalHorasFuera} h</h2></div>
 <div style={card}><h3>Promedio</h3><h2>{promedioHoras} h</h2></div>
+
+{/* 🔥 NUEVOS KPI */}
+
+<div style={card}><h3>ALFA Operativas</h3><h2 style={{color:"#16a34a"}}>{alfaPct}%</h2></div>
+<div style={card}><h3>ALFA No operativas</h3><h2 style={{color:"#dc2626"}}>{alfaNoPct}%</h2></div>
+
+<div style={card}><h3>BRAVO Operativas</h3><h2 style={{color:"#16a34a"}}>{bravoPct}%</h2></div>
+<div style={card}><h3>BRAVO No operativas</h3><h2 style={{color:"#dc2626"}}>{bravoNoPct}%</h2></div>
 
 </div>
 
