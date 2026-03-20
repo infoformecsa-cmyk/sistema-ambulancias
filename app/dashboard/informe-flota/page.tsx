@@ -78,7 +78,7 @@ return(
 <h1 style={{margin:0}}>MINISTERIO DE SALUD PÚBLICA</h1>
 <h2 style={{margin:0}}>Informe de Estado Operativo de Ambulancias</h2>
 <p style={{marginTop:5,color:"#555"}}>
-Fecha: {new Date().toLocaleDateString()}
+Fecha: {new Date().toLocaleDateString("es-EC")}
 </p>
 </div>
 
@@ -153,9 +153,11 @@ return(
 <table style={{width:"100%"}}>
 <thead>
 <tr style={{fontSize:12,color:"#555"}}>
+<th style={{textAlign:"left"}}>Fecha</th>
 <th style={{textAlign:"left"}}>Estado</th>
 <th style={{textAlign:"left"}}>Motivo</th>
 <th style={{textAlign:"left"}}>Tiempo</th>
+<th style={{textAlign:"left"}}>Foto</th>
 </tr>
 </thead>
 
@@ -163,15 +165,48 @@ return(
 
 {eventos.map(h=>(
 <tr key={h.id}>
-<td style={{color:colorEstado(h.estado)}}>{h.estado}</td>
-<td>{h.motivo || "-"}</td>
-<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+
+<td style={{fontSize:12}}>
+{new Date(h.fecha_inicio).toLocaleString("es-EC")}
+</td>
+
+<td style={{color:colorEstado(h.estado),fontSize:12}}>
+{h.estado}
+</td>
+
+<td style={{fontSize:12}}>
+{h.motivo || "-"}
+</td>
+
+<td style={{fontSize:12}}>
+{calcularTiempo(h.fecha_inicio,h.fecha_fin)}
+</td>
+
+<td>
+{h.foto_url ? (
+<img 
+src={h.foto_url}
+style={{
+width:50,
+height:50,
+objectFit:"cover",
+borderRadius:6,
+border:"1px solid #ddd"
+}}
+/>
+) : (
+<span style={{fontSize:12,color:"#999"}}>-</span>
+)}
+</td>
+
 </tr>
 ))}
 
 {eventos.length === 0 && (
 <tr>
-<td colSpan={3} style={{color:"#999"}}>Sin historial</td>
+<td colSpan={5} style={{color:"#999",fontSize:12}}>
+Sin historial
+</td>
 </tr>
 )}
 
