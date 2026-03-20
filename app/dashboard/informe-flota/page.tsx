@@ -110,14 +110,14 @@ return(
 )
 }
 
-/* ESTILOS */
-const tabla = {
+/* ESTILOS (TIPADOS CORRECTAMENTE) */
+const tabla: React.CSSProperties = {
 width:"100%",
 borderCollapse:"collapse",
 marginTop:10
 }
 
-const btnPrint = {
+const btnPrint: React.CSSProperties = {
 background:"#0f766e",
 color:"white",
 padding:10,
