@@ -22,7 +22,10 @@ const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
-/* 🔥 EDICIÓN */
+/* 🔥 NUEVO */
+const [foto,setFoto] = useState<File | null>(null)
+
+/* EDICIÓN */
 const [editandoId,setEditandoId] = useState<string | null>(null)
 const [editEstado,setEditEstado] = useState("")
 const [editMotivo,setEditMotivo] = useState("")
@@ -67,31 +70,33 @@ setHistorial(data || [])
 }
 
 /* ===================== */
-/* EDITAR */
+/* FOTO UPLOAD */
 /* ===================== */
 
-function iniciarEdicion(h:any){
-setEditandoId(h.id)
-setEditEstado(h.estado)
-setEditMotivo(h.motivo || "")
+async function subirFoto(): Promise<string | null>{
+
+if(!foto) return null
+
+const nombre = `ambulancia_${id}_${Date.now()}`
+
+const {data,error} = await supabase.storage
+.from("ambulancias")
+.upload(nombre, foto)
+
+if(error){
+console.log(error)
+return null
 }
 
-async function guardarEdicion(idEvento:string){
+const {data:publicUrl} = supabase.storage
+.from("ambulancias")
+.getPublicUrl(nombre)
 
-await supabase
-.from("historial_operativo")
-.update({
-estado: editEstado,
-motivo: editMotivo
-})
-.eq("id", idEvento)
-
-setEditandoId(null)
-cargarHistorial()
+return publicUrl.publicUrl
 }
 
 /* ===================== */
-/* 🔥 CAMBIO CORREGIDO */
+/* CAMBIO ESTADO */
 /* ===================== */
 
 function abrirCambioEstado(estado:string){
@@ -114,7 +119,6 @@ try{
 
 const usuario = localStorage.getItem("nombre")
 
-/* 🔍 ÚLTIMO EVENTO */
 const {data:ultimo} = await supabase
 .from("historial_operativo")
 .select("*")
@@ -124,26 +128,25 @@ const {data:ultimo} = await supabase
 
 const last = ultimo && ultimo.length > 0 ? ultimo[0] : null
 
-/* 🚫 EVITAR DUPLICADO */
+/* 🔥 BLOQUEO DUPLICADO */
 if(last && !last.fecha_fin && last.estado === estadoPendiente){
 alert("La ambulancia ya está en ese estado")
 setLoading(false)
 return
 }
 
-/* 🔒 CERRAR SOLO SI EXISTE Y ESTÁ ABIERTO */
+/* cerrar evento */
 if(last && !last.fecha_fin){
-
 await supabase
 .from("historial_operativo")
-.update({
-fecha_fin: new Date().toISOString()
-})
+.update({ fecha_fin: new Date().toISOString() })
 .eq("id", last.id)
-
 }
 
-/* ➕ CREAR NUEVO EVENTO */
+/* 📸 subir imagen */
+const foto_url = await subirFoto()
+
+/* crear evento */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -151,10 +154,11 @@ ambulancia_id:id,
 estado:estadoPendiente,
 motivo:motivoCambio,
 fecha_inicio:new Date().toISOString(),
-usuario
+usuario,
+foto_url
 })
 
-/* 🔄 ACTUALIZAR TABLA PRINCIPAL */
+/* actualizar ambulancia */
 await supabase
 .from("ambulancias")
 .update({
@@ -166,6 +170,8 @@ estadoPendiente === "operativa" ? null : motivoCambio
 
 setMostrarModal(false)
 setMotivoCambio("")
+setFoto(null)
+
 await cargarTodo()
 
 }catch(e){
@@ -204,10 +210,7 @@ const inicio = new Date(i)
 const fin = f ? new Date(f) : new Date()
 const diff = fin.getTime() - inicio.getTime()
 
-const dias = Math.floor(diff / (1000*60*60*24))
-const horas = Math.floor((diff % (1000*60*60*24)) / (1000*60*60))
-
-if(dias > 0) return `${dias} d ${horas} h`
+const horas = Math.floor(diff / (1000*60*60))
 return `${horas} h`
 }
 
@@ -221,32 +224,6 @@ await supabase
 .eq("id",idEvento)
 
 cargarHistorial()
-}
-
-async function actualizarKilometraje(){
-
-if(!nuevoKm) return
-
-await supabase
-.from("ambulancias")
-.update({ kilometraje_actual: Number(nuevoKm) })
-.eq("id",id)
-
-setNuevoKm("")
-cargarAmbulancia()
-}
-
-async function guardarMtto(){
-
-if(!kmMtto) return
-
-await supabase
-.from("ambulancias")
-.update({ kilometraje_mtto: Number(kmMtto) })
-.eq("id",id)
-
-setKmMtto("")
-cargarAmbulancia()
 }
 
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
@@ -288,31 +265,17 @@ marginBottom:10
 
 <hr/>
 
-<h2>Registro Diario</h2>
-
-<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
-<button onClick={actualizarKilometraje}>Actualizar</button>
-
-<hr/>
-
-<h2>Mantenimiento Preventivo</h2>
-
-<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
-
-<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
-<button onClick={guardarMtto}>Guardar</button>
-
-<hr/>
-
 <h2>Historial Operativo</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
 
 <thead style={{background:"#f3f4f6"}}>
 <tr>
+<th>Fecha</th>
 <th>Estado</th>
 <th>Motivo</th>
 <th>Tiempo</th>
+<th>Foto</th>
 <th></th>
 </tr>
 </thead>
@@ -322,40 +285,20 @@ marginBottom:10
 {historial.map(h=>(
 <tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
 
-<td>
-{editandoId === h.id ? (
-<select value={editEstado} onChange={(e)=>setEditEstado(e.target.value)}>
-<option value="operativa">operativa</option>
-<option value="mantenimiento">mantenimiento</option>
-<option value="no operativa">no operativa</option>
-</select>
-) : h.estado}
-</td>
+<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
 
-<td>
-{editandoId === h.id ? (
-<textarea
-value={editMotivo}
-onChange={(e)=>setEditMotivo(e.target.value)}
-style={{width:"100%"}}
-/>
-) : h.motivo}
-</td>
-
+<td>{h.estado}</td>
+<td>{h.motivo}</td>
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
 
 <td>
-{editandoId === h.id ? (
-<>
-<button onClick={()=>guardarEdicion(h.id)}>💾</button>
-<button onClick={()=>setEditandoId(null)}>❌</button>
-</>
-) : (
-<>
-<button onClick={()=>iniciarEdicion(h)}>✏️</button>
-<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
-</>
+{h.foto_url && (
+<img src={h.foto_url} style={{width:60,borderRadius:6}}/>
 )}
+</td>
+
+<td>
+<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
 </td>
 
 </tr>
@@ -365,9 +308,11 @@ style={{width:"100%"}}
 
 </table>
 
+{/* MODAL */}
 {mostrarModal && (
 <div style={modalBg}>
 <div style={modalBox}>
+
 <h3>Motivo del cambio</h3>
 
 <textarea
@@ -375,6 +320,10 @@ value={motivoCambio}
 onChange={(e)=>setMotivoCambio(e.target.value)}
 style={{width:"100%",height:100}}
 />
+
+<br/><br/>
+
+<input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
 
 <br/><br/>
 
