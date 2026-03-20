@@ -14,11 +14,9 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [alertas,setAlertas] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 
-/* 🔥 NUEVO: EDICIÓN */
 const [editando,setEditando] = useState<string | null>(null)
 const [editData,setEditData] = useState<any>({})
 
-/* 🔥 TIPADO CORRECTO */
 const [horasMap,setHorasMap] = useState<Record<string, number>>({})
 
 useEffect(()=>{
@@ -49,7 +47,6 @@ return ()=>clearInterval(intervalo)
 
 },[])
 
-/* 🔥 CARGA */
 async function cargar(){
 
 const {data:amb} = await supabase.from("ambulancias").select("*").order("codigo_operativo")
@@ -63,13 +60,10 @@ setAmbulancias(ambs)
 setAlertas(alert || [])
 setHistorial(histo)
 
-/* 🔥 HORAS */
 const mapa: Record<string, number> = {}
 
 ambs.forEach(a=>{
-
 const eventos = histo.filter(h=>String(h.ambulancia_id) === String(a.id))
-
 let total = 0
 
 eventos.forEach(e=>{
@@ -163,7 +157,7 @@ return(
 
 <h1>🚑 Sistema de Control de Ambulancias</h1>
 
-{/* 🔥 BOTONES NUEVOS */}
+{/* 🔥 BOTONES (COMO EN TU IMAGEN) */}
 <div style={{marginTop:10, display:"flex", gap:10}}>
 <button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnBlue}>
 ➕ Nueva Ambulancia
@@ -180,29 +174,23 @@ return(
 
 <hr/>
 
-{/* 🔴 ALERTAS CRÍTICAS */}
+{/* ALERTAS */}
 {alertas.length>0 && (
 <div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
 <h3>🚨 Fallas críticas</h3>
 {alertas.map(a=>(
-<div key={a.id}>
-<b>ID:</b> {a.ambulancia_id} - {a.descripcion}
-</div>
+<div key={a.id}><b>ID:</b> {a.ambulancia_id} - {a.descripcion}</div>
 ))}
 </div>
 )}
 
-{/* 🔴 MTTO VENCIDO */}
 {mttoVencido.length>0 && (
 <div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
 <h3>🚨 Mantenimiento vencido</h3>
-{mttoVencido.map(a=>(
-<div key={a.id}>{a.codigo_operativo}</div>
-))}
+{mttoVencido.map(a=>(<div key={a.id}>{a.codigo_operativo}</div>))}
 </div>
 )}
 
-{/* 🟡 MTTO PRÓXIMO */}
 {mttoProximo.length>0 && (
 <div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
 <h3>⚠️ Mantenimiento próximo</h3>
@@ -240,11 +228,24 @@ return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
 <h2>📋 Flota</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead>
+<tr style={{background:"#f3f4f6"}}>
+<th>Estado</th>
+<th>Código</th>
+<th>Placa</th>
+<th>Tipo</th>
+<th>KM</th>
+<th>Horas fuera</th>
+<th>Acciones</th>
+</tr>
+</thead>
+
 <tbody>
 
 {ambulancias.map(a=>(
 
-<tr key={a.id}>
+<tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
 
 <td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
 
@@ -303,6 +304,7 @@ Historial
 ))}
 
 </tbody>
+
 </table>
 
 </div>
