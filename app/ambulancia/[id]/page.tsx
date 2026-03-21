@@ -223,19 +223,26 @@ return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
 return <div style={alertGreen}>✅ OPERATIVA</div>
 }
 
-/* 🔥 FIX TIEMPO ECUADOR */
+/* 🔥 NUEVO TIEMPO MEJORADO */
 function calcularTiempo(i:string,f:string|null){
 
 const inicio = new Date(i)
 const fin = f ? new Date(f) : new Date()
 
 const offset = 5 * 60 * 60 * 1000
-
 const diff = (fin.getTime() - inicio.getTime()) + offset
 
-const horas = Math.floor(diff / (1000*60*60))
+if(diff <= 0) return "0 h"
 
-return `${horas < 0 ? 0 : horas} h`
+const totalHoras = Math.floor(diff / (1000*60*60))
+const dias = Math.floor(totalHoras / 24)
+const horas = totalHoras % 24
+
+if(dias > 0){
+return `${dias}d ${horas}h`
+}
+
+return `${horas} h`
 }
 
 async function eliminarEvento(idEvento:string){
