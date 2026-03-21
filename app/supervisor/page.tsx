@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -259,13 +260,13 @@ Cancelar
 )
 }
 
-/* ESTILOS */
+/* ESTILOS TIPADOS */
 
-const btn = {padding:"8px 16px",borderRadius:20,background:"#e5e7eb",border:"none"}
-const btnActive = {padding:"8px 16px",borderRadius:20,background:"#2563eb",color:"white",border:"none"}
-const btnSalir = {background:"#374151",color:"white",padding:10,borderRadius:6}
+const btn: CSSProperties = {padding:"8px 16px",borderRadius:20,background:"#e5e7eb",border:"none"}
+const btnActive: CSSProperties = {padding:"8px 16px",borderRadius:20,background:"#2563eb",color:"white",border:"none"}
+const btnSalir: CSSProperties = {background:"#374151",color:"white",padding:10,borderRadius:6}
 
-const btnEstado = (c:string)=>({
+const btnEstado = (c:string): CSSProperties => ({
 background:c,
 color:"white",
 padding:"8px 12px",
@@ -273,7 +274,7 @@ borderRadius:6,
 border:"none"
 })
 
-const panelBg = {
+const panelBg: CSSProperties = {
 position:"fixed",
 top:0,
 left:0,
@@ -285,14 +286,14 @@ justifyContent:"center",
 alignItems:"center"
 }
 
-const panelBox = {
+const panelBox: CSSProperties = {
 background:"white",
 padding:30,
 width:500,
 borderRadius:12
 }
 
-const btnConfirm = {
+const btnConfirm: CSSProperties = {
 background:"#16a34a",
 color:"white",
 padding:10,
@@ -300,7 +301,7 @@ borderRadius:6,
 marginRight:10
 }
 
-const btnCancel = {
+const btnCancel: CSSProperties = {
 background:"#dc2626",
 color:"white",
 padding:10,
