@@ -11,9 +11,8 @@ const router = useRouter()
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [grupo,setGrupo] = useState("ALFA")
 
-/* 🔥 NUEVOS STATES */
+/* 🔵 SOLO KM EDITABLE */
 const [editKm,setEditKm] = useState<Record<string,string>>({})
-const [editMtto,setEditMtto] = useState<Record<string,string>>({})
 
 useEffect(()=>{
 cargar()
@@ -52,21 +51,6 @@ await supabase
 .eq("id",id)
 
 setEditKm({...editKm,[id]:""})
-cargar()
-}
-
-/* 🟡 ACTUALIZAR MTTO */
-async function actualizarMtto(id:string){
-
-const km = Number(editMtto[id])
-if(!km) return
-
-await supabase
-.from("ambulancias")
-.update({ kilometraje_mtto: km })
-.eq("id",id)
-
-setEditMtto({...editMtto,[id]:""})
 cargar()
 }
 
@@ -186,7 +170,7 @@ fontSize:12
 </span>
 </div>
 
-{/* 🔵 KM ACTUAL */}
+{/* 🔵 KM EDITABLE */}
 <div style={{marginTop:10}}>
 <p style={{fontSize:18,fontWeight:"bold"}}>
 KM: {a.kilometraje_actual || 0}
@@ -204,23 +188,12 @@ Guardar
 </button>
 </div>
 
-{/* 🟡 MTTO */}
+{/* 🟡 SOLO VISUAL MTTO */}
 <div style={{marginTop:10}}>
 
 <p>
 <b>Próximo mantenimiento:</b> {a.kilometraje_mtto || "-"}
 </p>
-
-<input
-placeholder="KM mantenimiento"
-value={editMtto[a.id] || ""}
-onChange={(e)=>setEditMtto({...editMtto,[a.id]:e.target.value})}
-style={{padding:6,marginRight:8}}
-/>
-
-<button onClick={()=>actualizarMtto(a.id)}>
-Guardar
-</button>
 
 </div>
 
