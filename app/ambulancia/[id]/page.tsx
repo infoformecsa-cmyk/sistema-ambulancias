@@ -24,6 +24,9 @@ const [loading,setLoading] = useState(false)
 
 const [foto,setFoto] = useState<File | null>(null)
 
+/* 🔥 NUEVO VISOR */
+const [fotoVista,setFotoVista] = useState<string | null>(null)
+
 const [editandoId,setEditandoId] = useState<string | null>(null)
 const [editEstado,setEditEstado] = useState("")
 const [editMotivo,setEditMotivo] = useState("")
@@ -265,8 +268,6 @@ return(
 <button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
 
-{/* 🔥 RESTAURADO */}
-
 <hr/>
 
 <h2>Registro Diario</h2>
@@ -305,14 +306,18 @@ return(
 {historial.map(h=>(
 <tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
 
-<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
+<td>{new Date(h.created_at || h.fecha_inicio).toLocaleString()}</td>
 <td>{h.estado}</td>
 <td>{h.motivo}</td>
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
 
 <td>
 {h.foto_url && (
-<img src={h.foto_url} style={{width:60,borderRadius:6}}/>
+<img
+src={h.foto_url}
+style={{width:60,height:60,objectFit:"cover",borderRadius:6,cursor:"pointer"}}
+onClick={()=>setFotoVista(h.foto_url)}
+/>
 )}
 </td>
 
@@ -326,6 +331,13 @@ return(
 </tbody>
 
 </table>
+
+{/* 🔥 VISOR DE IMAGEN */}
+{fotoVista && (
+<div style={visorBg} onClick={()=>setFotoVista(null)}>
+<img src={fotoVista} style={visorImg}/>
+</div>
+)}
 
 {/* MODAL */}
 {mostrarModal && (
@@ -387,5 +399,25 @@ const modalBox: CSSProperties = {
 background:"white",
 padding:20,
 width:400,
+borderRadius:10
+}
+
+/* 🔥 NUEVO VISOR */
+const visorBg: CSSProperties = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.8)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+zIndex:9999
+}
+
+const visorImg: CSSProperties = {
+maxWidth:"90%",
+maxHeight:"90%",
 borderRadius:10
 }
