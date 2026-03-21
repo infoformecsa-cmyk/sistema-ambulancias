@@ -92,7 +92,7 @@ setKmMtto("")
 cargarAmbulancia()
 }
 
-/* 🔥 FOTO CORREGIDA (FIX REAL) */
+/* FOTO */
 
 async function subirFoto(): Promise<string | null>{
 
@@ -104,9 +104,7 @@ const nombre = `ambulancia_${id}_${Date.now()}`
 
 const { error } = await supabase.storage
 .from("ambulancias")
-.upload(nombre, foto, {
-upsert: true // 🔥 SOLUCIÓN CLAVE
-})
+.upload(nombre, foto, { upsert: true })
 
 if(error){
 console.log("ERROR SUBIENDO FOTO:", error)
@@ -225,12 +223,19 @@ return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
 return <div style={alertGreen}>✅ OPERATIVA</div>
 }
 
+/* 🔥 FIX TIEMPO ECUADOR */
 function calcularTiempo(i:string,f:string|null){
+
 const inicio = new Date(i)
 const fin = f ? new Date(f) : new Date()
-const diff = fin.getTime() - inicio.getTime()
+
+const offset = 5 * 60 * 60 * 1000
+
+const diff = (fin.getTime() - inicio.getTime()) + offset
+
 const horas = Math.floor(diff / (1000*60*60))
-return `${horas} h`
+
+return `${horas < 0 ? 0 : horas} h`
 }
 
 async function eliminarEvento(idEvento:string){
@@ -360,7 +365,14 @@ style={{width:"100%",height:100}}
 
 <br/><br/>
 
-<button onClick={confirmarCambioEstado}>
+<button 
+onClick={confirmarCambioEstado}
+disabled={loading}
+style={{
+opacity: loading ? 0.6 : 1,
+cursor: loading ? "not-allowed" : "pointer"
+}}
+>
 {loading ? "Guardando..." : "Confirmar"}
 </button>
 
