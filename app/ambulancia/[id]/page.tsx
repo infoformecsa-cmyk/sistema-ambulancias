@@ -27,10 +27,6 @@ const [foto,setFoto] = useState<File | null>(null)
 /* 🔥 NUEVO VISOR */
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-const [editandoId,setEditandoId] = useState<string | null>(null)
-const [editEstado,setEditEstado] = useState("")
-const [editMotivo,setEditMotivo] = useState("")
-
 useEffect(()=>{
 if(!id) return
 cargarTodo()
@@ -70,10 +66,9 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
-/* 🔥 FUNCIONES RESTAURADAS */
+/* KM */
 
 async function actualizarKilometraje(){
-
 if(!nuevoKm) return
 
 await supabase
@@ -86,7 +81,6 @@ cargarAmbulancia()
 }
 
 async function guardarMtto(){
-
 if(!kmMtto) return
 
 await supabase
@@ -98,7 +92,7 @@ setKmMtto("")
 cargarAmbulancia()
 }
 
-/* FOTO */
+/* 🔥 FOTO CORREGIDA */
 
 async function subirFoto(): Promise<string | null>{
 
@@ -106,20 +100,21 @@ if(!foto) return null
 
 const nombre = `ambulancia_${id}_${Date.now()}`
 
-const {error} = await supabase.storage
-.from("fallas-ambulancias")
+const {data, error} = await supabase.storage
+.from("ambulancias") // ✅ FIX AQUÍ
 .upload(nombre, foto)
 
 if(error){
-console.log(error)
+console.log("ERROR SUBIENDO FOTO:", error.message)
+alert("Error subiendo imagen")
 return null
 }
 
-const {data} = supabase.storage
-.from("fallas-ambulancias")
+const {data:publicUrl} = supabase.storage
+.from("ambulancias")
 .getPublicUrl(nombre)
 
-return data.publicUrl
+return publicUrl.publicUrl
 }
 
 /* CAMBIO ESTADO */
@@ -210,15 +205,12 @@ return "#dc2626"
 }
 
 function renderAlerta(){
-
 if(ambulancia.estado === "no operativa"){
 return <div style={alertRed}>🚨 FUERA DE SERVICIO</div>
 }
-
 if(ambulancia.estado === "mantenimiento"){
 return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
 }
-
 return <div style={alertGreen}>✅ OPERATIVA</div>
 }
 
@@ -332,7 +324,7 @@ onClick={()=>setFotoVista(h.foto_url)}
 
 </table>
 
-{/* 🔥 VISOR DE IMAGEN */}
+{/* VISOR */}
 {fotoVista && (
 <div style={visorBg} onClick={()=>setFotoVista(null)}>
 <img src={fotoVista} style={visorImg}/>
@@ -402,7 +394,6 @@ width:400,
 borderRadius:10
 }
 
-/* 🔥 NUEVO VISOR */
 const visorBg: CSSProperties = {
 position:"fixed",
 top:0,
