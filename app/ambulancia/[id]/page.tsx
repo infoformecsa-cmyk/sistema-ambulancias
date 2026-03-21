@@ -24,7 +24,7 @@ const [loading,setLoading] = useState(false)
 
 const [foto,setFoto] = useState<File | null>(null)
 
-/* 🔥 NUEVO VISOR */
+/* 🔥 VISOR */
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
 useEffect(()=>{
@@ -92,29 +92,40 @@ setKmMtto("")
 cargarAmbulancia()
 }
 
-/* 🔥 FOTO CORREGIDA */
+/* 🔥 FOTO CORREGIDA (FIX REAL) */
 
 async function subirFoto(): Promise<string | null>{
 
 if(!foto) return null
 
+try{
+
 const nombre = `ambulancia_${id}_${Date.now()}`
 
-const {data, error} = await supabase.storage
-.from("ambulancias") // ✅ FIX AQUÍ
-.upload(nombre, foto)
+const { error } = await supabase.storage
+.from("ambulancias")
+.upload(nombre, foto, {
+upsert: true // 🔥 SOLUCIÓN CLAVE
+})
 
 if(error){
-console.log("ERROR SUBIENDO FOTO:", error.message)
-alert("Error subiendo imagen")
+console.log("ERROR SUBIENDO FOTO:", error)
+alert("Error subiendo imagen: " + error.message)
 return null
 }
 
-const {data:publicUrl} = supabase.storage
+const { data } = supabase.storage
 .from("ambulancias")
 .getPublicUrl(nombre)
 
-return publicUrl.publicUrl
+return data.publicUrl
+
+}catch(e){
+console.log("ERROR GENERAL:", e)
+alert("Error inesperado subiendo imagen")
+return null
+}
+
 }
 
 /* CAMBIO ESTADO */
