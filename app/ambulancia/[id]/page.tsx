@@ -25,8 +25,8 @@ const [loading,setLoading] = useState(false)
 const [foto,setFoto] = useState<File | null>(null)
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-/* 🔥 BLOQUEO FUERTE */
-const lastAction = useRef(0)
+/* 🔥 FIX REAL ANTI DUPLICADO */
+const ejecutando = useRef(false)
 
 /* ADMIN */
 const [esAdmin,setEsAdmin] = useState(false)
@@ -132,34 +132,30 @@ const { data } = supabase.storage
 return data.publicUrl
 }
 
-/* CAMBIO ESTADO */
+/* BOTONES (NO TOCAR) */
 
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
 
+/* 🔥 FIX AQUÍ (SIN TOCAR LO DEMÁS) */
+
 async function confirmarCambioEstado(){
 
-/* 🔥 BLOQUEO POR TIEMPO (ANTI DOBLE CLICK REAL) */
-const now = Date.now()
-if(now - lastAction.current < 1500) return
-lastAction.current = now
-
-if(loading) return
+if(loading || ejecutando.current) return
 
 if(!motivoCambio){
 alert("Ingrese motivo")
 return
 }
 
+ejecutando.current = true
 setLoading(true)
 
 try{
 
 const usuario = localStorage.getItem("nombre")
-
-/* 🔥 VALIDACIÓN FUERTE CONTRA DUPLICADOS */
 
 const {data:ultimo} = await supabase
 .from("historial_operativo")
@@ -170,16 +166,18 @@ const {data:ultimo} = await supabase
 
 const last = ultimo?.[0]
 
-/* 🚫 SI YA EXISTE UNO IGUAL RECIENTE */
+/* 🔥 EVITA DUPLICADO REAL */
 if(last){
 
-const diff = new Date().getTime() - new Date(last.fecha_inicio).getTime()
+const ahora = new Date().getTime()
+const ultima = new Date(last.fecha_inicio).getTime()
 
 if(
 last.estado === estadoPendiente &&
-diff < 3000
+(ahora - ultima) < 2000
 ){
 setLoading(false)
+ejecutando.current = false
 return
 }
 }
@@ -228,6 +226,7 @@ alert("Error en cambio de estado")
 }
 
 setLoading(false)
+ejecutando.current = false
 }
 
 /* EDITAR */
@@ -319,7 +318,7 @@ return(
 <button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
 
-{/* RESTO EXACTAMENTE IGUAL */}
+{/* TODO LO DEMÁS IGUAL */}
 
 </div>
 )
