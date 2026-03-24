@@ -190,7 +190,7 @@ return(
 
 <div style={{padding:30,fontFamily:"Arial"}}>
 
-<h1>🚑 Sistema de Control de Ambulancias</h1>
+<h1>🚑 Sistema de Control de Ambulancias de la Dirección Provincial de Salud del Guayas</h1>
 
 <div style={{marginTop:10, display:"flex", gap:10}}>
 <button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnBlue}>
