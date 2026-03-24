@@ -44,7 +44,6 @@ const { data } = await supabase
 .eq("email", email)
 .single()
 
-/* 🚫 SOLO ADMIN PUEDE ESTAR AQUÍ */
 if(data?.rol !== "admin"){
 
 if(data?.rol === "supervisor"){
@@ -52,18 +51,14 @@ router.push("/supervisor")
 return
 }
 
-/* otros roles */
 router.push("/")
 return
-
 }
 
 }
 
-/* ejecutar validación */
 validarRol()
 
-/* lógica original */
 if(r==="conductor"){
 router.push("/conductor")
 return
@@ -120,6 +115,32 @@ mapa[String(a.id)] = Math.floor(total / (1000*60*60))
 setHorasMap(mapa)
 }
 
+/* 🔥 NUEVO: ELIMINAR AMBULANCIA */
+async function eliminarAmbulancia(id:string){
+
+const confirmar = confirm("¿Eliminar ambulancia? Esta acción no se puede deshacer")
+
+if(!confirmar) return
+
+/* eliminar dependencias primero */
+await supabase.from("historial_operativo").delete().eq("ambulancia_id",id)
+await supabase.from("mantenimientos").delete().eq("ambulancia_id",id)
+
+/* eliminar ambulancia */
+const { error } = await supabase
+.from("ambulancias")
+.delete()
+.eq("id",id)
+
+if(error){
+alert("Error eliminando ambulancia")
+return
+}
+
+alert("Ambulancia eliminada")
+cargar()
+}
+
 /* GUARDAR EDICIÓN */
 async function guardarEdicion(id:string){
 
@@ -147,7 +168,6 @@ const disponibilidad = total>0 ? Math.round((operativas/total)*100) : 0
 const totalHorasFuera = Object.values(horasMap).reduce((a, b) => a + (b || 0), 0)
 const promedioHoras = total ? Math.round(totalHorasFuera / total) : 0
 
-/* TIPOS */
 const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
 const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
 
@@ -163,7 +183,6 @@ const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
 const alfaNoPct = alfa.length ? Math.round((alfaNoOp/alfa.length)*100) : 0
 const bravoNoPct = bravo.length ? Math.round((bravoNoOp/bravo.length)*100) : 0
 
-/* ALERTAS */
 const mttoVencido = ambulancias.filter(a=>{
 if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
 return a.kilometraje_actual >= a.kilometraje_mtto
@@ -323,6 +342,15 @@ Editar
 <button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)}>
 Historial
 </button>
+
+{/* 🔥 BOTÓN ELIMINAR */}
+<button
+onClick={()=>eliminarAmbulancia(a.id)}
+style={{background:"#dc2626",color:"white"}}
+>
+🗑
+</button>
+
 </>
 )}
 
