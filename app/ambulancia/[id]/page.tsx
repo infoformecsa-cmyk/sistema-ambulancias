@@ -25,13 +25,18 @@ const [loading,setLoading] = useState(false)
 const [foto,setFoto] = useState<File | null>(null)
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-/* 🔥 ADMIN FIX REAL */
+/* 🔥 ADMIN MEJORADO */
 const [esAdmin,setEsAdmin] = useState(false)
 const [editando,setEditando] = useState<any>(null)
 
+/* 🔥 FIX ADMIN ROBUSTO */
 useEffect(()=>{
-const correo = localStorage.getItem("correo")
-if(correo === "admin@ambulancias.ec"){
+const correo =
+localStorage.getItem("correo") ||
+localStorage.getItem("email") ||
+localStorage.getItem("user")
+
+if(correo?.includes("admin@ambulancias.ec")){
 setEsAdmin(true)
 }
 },[])
@@ -203,7 +208,7 @@ alert("Error en cambio de estado")
 setLoading(false)
 }
 
-/* 🔥 EDITAR ADMIN */
+/* 🔥 EDITAR ADMIN CORREGIDO */
 
 async function guardarEdicion(){
 
@@ -212,7 +217,7 @@ await supabase
 .update({
 estado:editando.estado,
 motivo:editando.motivo,
-fecha_inicio:new Date(editando.fecha_inicio).toISOString()
+fecha_inicio: new Date(editando.fecha_inicio).toISOString()
 })
 .eq("id",editando.id)
 
@@ -251,7 +256,6 @@ if(diff <= 0) return "0 h"
 
 const horas = Math.floor(diff / (1000*60*60))
 const dias = Math.floor(horas / 24)
-
 const horasRest = horas % 24
 
 if(dias > 0) return `${dias}d ${horasRest}h`
@@ -366,7 +370,7 @@ onClick={()=>setFotoVista(h.foto_url)}
 
 </table>
 
-{/* MODAL EDITAR */}
+{/* 🔥 MODAL EDITAR CORREGIDO */}
 {editando && (
 <div style={modalBg}>
 <div style={modalBox}>
@@ -381,10 +385,14 @@ onChange={(e)=>setEditando({...editando,fecha_inicio:e.target.value})}
 
 <br/><br/>
 
-<input
+<select
 value={editando.estado}
 onChange={(e)=>setEditando({...editando,estado:e.target.value})}
-/>
+>
+<option value="operativa">Operativa</option>
+<option value="mantenimiento">Mantenimiento</option>
+<option value="no operativa">No operativa</option>
+</select>
 
 <br/><br/>
 
@@ -413,7 +421,7 @@ onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
 )
 }
 
-/* ESTILOS */
+/* ESTILOS (SIN CAMBIOS) */
 
 const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
 const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
