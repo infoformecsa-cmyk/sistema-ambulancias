@@ -25,11 +25,11 @@ const [loading,setLoading] = useState(false)
 const [foto,setFoto] = useState<File | null>(null)
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-/* 🔥 ADMIN MEJORADO */
+/* ADMIN */
 const [esAdmin,setEsAdmin] = useState(false)
 const [editando,setEditando] = useState<any>(null)
 
-/* 🔥 FIX ADMIN ROBUSTO */
+/* ADMIN FIX */
 useEffect(()=>{
 const correo =
 localStorage.getItem("correo") ||
@@ -208,7 +208,7 @@ alert("Error en cambio de estado")
 setLoading(false)
 }
 
-/* 🔥 EDITAR ADMIN CORREGIDO */
+/* EDITAR */
 
 async function guardarEdicion(){
 
@@ -217,7 +217,7 @@ await supabase
 .update({
 estado:editando.estado,
 motivo:editando.motivo,
-fecha_inicio: new Date(editando.fecha_inicio).toISOString()
+fecha_inicio:new Date(editando.fecha_inicio).toISOString()
 })
 .eq("id",editando.id)
 
@@ -242,8 +242,6 @@ return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
 }
 return <div style={alertGreen}>✅ OPERATIVA</div>
 }
-
-/* TIEMPO */
 
 function calcularTiempo(i:string,f:string|null){
 
@@ -370,7 +368,37 @@ onClick={()=>setFotoVista(h.foto_url)}
 
 </table>
 
-{/* 🔥 MODAL EDITAR CORREGIDO */}
+{/* MODAL CAMBIO ESTADO */}
+{mostrarModal && (
+<div style={modalBg}>
+<div style={modalBox}>
+<h3>Motivo del cambio</h3>
+
+<textarea
+value={motivoCambio}
+onChange={(e)=>setMotivoCambio(e.target.value)}
+style={{width:"100%",height:100}}
+/>
+
+<br/><br/>
+
+<input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
+
+<br/><br/>
+
+<button onClick={confirmarCambioEstado}>
+{loading ? "Guardando..." : "Confirmar"}
+</button>
+
+<button onClick={()=>setMostrarModal(false)} style={{marginLeft:10}}>
+Cancelar
+</button>
+
+</div>
+</div>
+)}
+
+{/* MODAL EDITAR */}
 {editando && (
 <div style={modalBg}>
 <div style={modalBox}>
@@ -421,7 +449,7 @@ onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
 )
 }
 
-/* ESTILOS (SIN CAMBIOS) */
+/* ESTILOS (IGUAL) */
 
 const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
 const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
