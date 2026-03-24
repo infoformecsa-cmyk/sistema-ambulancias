@@ -14,20 +14,15 @@ const id = params?.id as string
 const [ambulancia,setAmbulancia] = useState<any>(null)
 const [historial,setHistorial] = useState<any[]>([])
 
-const [nuevoKm,setNuevoKm] = useState("")
-const [kmMtto,setKmMtto] = useState("")
-
 const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
 const [foto,setFoto] = useState<File | null>(null)
-
-/* VISOR */
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-/* 🔥 ADMIN EDIT */
+/* ADMIN EDIT */
 const [editando,setEditando] = useState<any>(null)
 const esAdmin = typeof window !== "undefined" && localStorage.getItem("correo") === "admin@ambulancias.ec"
 
@@ -61,32 +56,6 @@ const {data} = await supabase
 .order("fecha_inicio",{ascending:false})
 
 setHistorial(data || [])
-}
-
-/* KM */
-
-async function actualizarKilometraje(){
-if(!nuevoKm) return
-
-await supabase
-.from("ambulancias")
-.update({ kilometraje_actual: Number(nuevoKm) })
-.eq("id",id)
-
-setNuevoKm("")
-cargarAmbulancia()
-}
-
-async function guardarMtto(){
-if(!kmMtto) return
-
-await supabase
-.from("ambulancias")
-.update({ kilometraje_mtto: Number(kmMtto) })
-.eq("id",id)
-
-setKmMtto("")
-cargarAmbulancia()
 }
 
 /* FOTO */
@@ -203,7 +172,7 @@ setEditando(null)
 cargarHistorial()
 }
 
-/* ⏱ TIEMPO CORRECTO */
+/* ⏱ TIEMPO */
 
 function calcularTiempo(i:string,f:string|null){
 
@@ -226,6 +195,24 @@ const minRest = minutos % 60
 if(dias > 0) return `${dias}d ${horasRest}h`
 if(horas > 0) return `${horas}h ${minRest}m`
 return `${minRest}m`
+}
+
+/* 🔥 RESTAURADAS */
+
+function estadoColor(){
+if(ambulancia.estado === "operativa") return "#16a34a"
+if(ambulancia.estado === "mantenimiento") return "#f59e0b"
+return "#dc2626"
+}
+
+function renderAlerta(){
+if(ambulancia.estado === "no operativa"){
+return <div style={alertRed}>🚨 FUERA DE SERVICIO</div>
+}
+if(ambulancia.estado === "mantenimiento"){
+return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
+}
+return <div style={alertGreen}>✅ OPERATIVA</div>
 }
 
 async function eliminarEvento(idEvento:string){
@@ -367,7 +354,8 @@ onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
 )
 }
 
-/* ESTILOS (SE MANTIENEN IGUAL) */
+/* ESTILOS */
+
 const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
 const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
 const btnRed: CSSProperties = {background:"#dc2626",color:"white",padding:10,borderRadius:6}
@@ -377,7 +365,8 @@ const alertYellow: CSSProperties = {background:"#fef9c3",padding:12,borderRadius
 const alertRed: CSSProperties = {background:"#fee2e2",padding:12,borderRadius:6}
 
 const modalBg: CSSProperties = {
-position:"fixed",top:0,left:0,width:"100%",height:"100%",
+position:"fixed",
+top:0,left:0,width:"100%",height:"100%",
 background:"rgba(0,0,0,0.5)",
 display:"flex",justifyContent:"center",alignItems:"center"
 }
@@ -387,7 +376,8 @@ background:"white",padding:20,width:400,borderRadius:10
 }
 
 const visorBg: CSSProperties = {
-position:"fixed",top:0,left:0,width:"100%",height:"100%",
+position:"fixed",
+top:0,left:0,width:"100%",height:"100%",
 background:"rgba(0,0,0,0.8)",
 display:"flex",justifyContent:"center",alignItems:"center",
 zIndex:9999
