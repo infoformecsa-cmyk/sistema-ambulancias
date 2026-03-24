@@ -14,6 +14,9 @@ const id = params?.id as string
 const [ambulancia,setAmbulancia] = useState<any>(null)
 const [historial,setHistorial] = useState<any[]>([])
 
+const [nuevoKm,setNuevoKm] = useState("")
+const [kmMtto,setKmMtto] = useState("")
+
 const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
@@ -22,14 +25,28 @@ const [loading,setLoading] = useState(false)
 const [foto,setFoto] = useState<File | null>(null)
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-/* ADMIN EDIT */
+/* 🔥 ADMIN FIX REAL */
+const [esAdmin,setEsAdmin] = useState(false)
 const [editando,setEditando] = useState<any>(null)
-const esAdmin = typeof window !== "undefined" && localStorage.getItem("correo") === "admin@ambulancias.ec"
+
+useEffect(()=>{
+const correo = localStorage.getItem("correo")
+if(correo === "admin@ambulancias.ec"){
+setEsAdmin(true)
+}
+},[])
 
 useEffect(()=>{
 if(!id) return
 cargarTodo()
 },[id])
+
+useEffect(()=>{
+const interval = setInterval(()=>{
+setHistorial(prev => [...prev])
+},60000)
+return ()=>clearInterval(interval)
+},[])
 
 async function cargarTodo(){
 await Promise.all([
@@ -58,6 +75,32 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
+/* KM */
+
+async function actualizarKilometraje(){
+if(!nuevoKm) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_actual: Number(nuevoKm) })
+.eq("id",id)
+
+setNuevoKm("")
+cargarAmbulancia()
+}
+
+async function guardarMtto(){
+if(!kmMtto) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_mtto: Number(kmMtto) })
+.eq("id",id)
+
+setKmMtto("")
+cargarAmbulancia()
+}
+
 /* FOTO */
 
 async function subirFoto(): Promise<string | null>{
@@ -68,7 +111,7 @@ const nombre = `ambulancia_${id}_${Date.now()}`
 
 const { error } = await supabase.storage
 .from("ambulancias")
-.upload(nombre, foto, { upsert:true })
+.upload(nombre, foto, { upsert: true })
 
 if(error){
 alert("Error subiendo imagen")
@@ -92,6 +135,12 @@ setMostrarModal(true)
 async function confirmarCambioEstado(){
 
 if(loading) return
+
+if(!motivoCambio){
+alert("Ingrese motivo")
+return
+}
+
 setLoading(true)
 
 try{
@@ -107,7 +156,6 @@ const {data:ultimo} = await supabase
 
 const last = ultimo?.[0]
 
-/* 🔒 ANTI DUPLICADO */
 if(last && !last.fecha_fin && last.estado === estadoPendiente){
 setLoading(false)
 return
@@ -155,7 +203,7 @@ alert("Error en cambio de estado")
 setLoading(false)
 }
 
-/* ✏️ EDITAR */
+/* 🔥 EDITAR ADMIN */
 
 async function guardarEdicion(){
 
@@ -164,7 +212,7 @@ await supabase
 .update({
 estado:editando.estado,
 motivo:editando.motivo,
-fecha_inicio:editando.fecha_inicio
+fecha_inicio:new Date(editando.fecha_inicio).toISOString()
 })
 .eq("id",editando.id)
 
@@ -172,32 +220,7 @@ setEditando(null)
 cargarHistorial()
 }
 
-/* ⏱ TIEMPO */
-
-function calcularTiempo(i:string,f:string|null){
-
-if(!i) return "-"
-
-const inicio = new Date(i)
-const fin = f ? new Date(f) : new Date()
-
-const diff = fin.getTime() - inicio.getTime()
-
-if(diff <= 0) return "0 h"
-
-const minutos = Math.floor(diff / (1000*60))
-const horas = Math.floor(minutos / 60)
-const dias = Math.floor(horas / 24)
-
-const horasRest = horas % 24
-const minRest = minutos % 60
-
-if(dias > 0) return `${dias}d ${horasRest}h`
-if(horas > 0) return `${horas}h ${minRest}m`
-return `${minRest}m`
-}
-
-/* 🔥 RESTAURADAS */
+/* VISUAL */
 
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#16a34a"
@@ -213,6 +236,26 @@ if(ambulancia.estado === "mantenimiento"){
 return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
 }
 return <div style={alertGreen}>✅ OPERATIVA</div>
+}
+
+/* TIEMPO */
+
+function calcularTiempo(i:string,f:string|null){
+
+const inicio = new Date(i)
+const fin = f ? new Date(f) : new Date()
+
+const diff = fin.getTime() - inicio.getTime()
+
+if(diff <= 0) return "0 h"
+
+const horas = Math.floor(diff / (1000*60*60))
+const dias = Math.floor(horas / 24)
+
+const horasRest = horas % 24
+
+if(dias > 0) return `${dias}d ${horasRest}h`
+return `${horas} h`
 }
 
 async function eliminarEvento(idEvento:string){
@@ -252,6 +295,22 @@ return(
 <button onClick={()=>abrirCambioEstado("mantenimiento")} style={btnYellow}>Mantenimiento</button>
 <button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
+
+<hr/>
+
+<h2>Registro Diario</h2>
+
+<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
+<button onClick={actualizarKilometraje}>Actualizar</button>
+
+<hr/>
+
+<h2>Mantenimiento Preventivo</h2>
+
+<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
+
+<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
+<button onClick={guardarMtto}>Guardar</button>
 
 <hr/>
 
@@ -307,7 +366,7 @@ onClick={()=>setFotoVista(h.foto_url)}
 
 </table>
 
-{/* EDIT MODAL */}
+{/* MODAL EDITAR */}
 {editando && (
 <div style={modalBg}>
 <div style={modalBox}>
@@ -316,7 +375,7 @@ onClick={()=>setFotoVista(h.foto_url)}
 
 <input
 type="datetime-local"
-value={editando.fecha_inicio?.slice(0,16)}
+value={new Date(editando.fecha_inicio).toISOString().slice(0,16)}
 onChange={(e)=>setEditando({...editando,fecha_inicio:e.target.value})}
 />
 
