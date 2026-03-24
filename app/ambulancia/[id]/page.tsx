@@ -25,8 +25,8 @@ const [loading,setLoading] = useState(false)
 const [foto,setFoto] = useState<File | null>(null)
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 
-/* 🔥 FIX REAL ANTI DUPLICADO */
-const ejecutando = useRef(false)
+/* 🔥 BLOQUEO ANTI DUPLICADO */
+const bloqueado = useRef(false)
 
 /* ADMIN */
 const [esAdmin,setEsAdmin] = useState(false)
@@ -132,30 +132,48 @@ const { data } = supabase.storage
 return data.publicUrl
 }
 
-/* BOTONES (NO TOCAR) */
+/* CAMBIO ESTADO */
 
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
 
-/* 🔥 FIX AQUÍ (SIN TOCAR LO DEMÁS) */
-
 async function confirmarCambioEstado(){
 
-if(loading || ejecutando.current) return
+if(loading || bloqueado.current) return
+
+bloqueado.current = true
+setLoading(true)
 
 if(!motivoCambio){
 alert("Ingrese motivo")
+setLoading(false)
+bloqueado.current = false
 return
 }
-
-ejecutando.current = true
-setLoading(true)
 
 try{
 
 const usuario = localStorage.getItem("nombre")
+
+/* 🔥 ANTI DUPLICADO EN BD (2 segundos) */
+const hace2seg = new Date(Date.now() - 2000).toISOString()
+
+const { data:reciente } = await supabase
+.from("historial_operativo")
+.select("id")
+.eq("ambulancia_id", id)
+.eq("estado", estadoPendiente)
+.gte("fecha_inicio", hace2seg)
+
+if(reciente && reciente.length > 0){
+setLoading(false)
+bloqueado.current = false
+return
+}
+
+/* CONTINÚA NORMAL */
 
 const {data:ultimo} = await supabase
 .from("historial_operativo")
@@ -166,23 +184,12 @@ const {data:ultimo} = await supabase
 
 const last = ultimo?.[0]
 
-/* 🔥 EVITA DUPLICADO REAL */
-if(last){
-
-const ahora = new Date().getTime()
-const ultima = new Date(last.fecha_inicio).getTime()
-
-if(
-last.estado === estadoPendiente &&
-(ahora - ultima) < 2000
-){
+if(last && !last.fecha_fin && last.estado === estadoPendiente){
 setLoading(false)
-ejecutando.current = false
+bloqueado.current = false
 return
 }
-}
 
-/* CERRAR ANTERIOR */
 if(last && !last.fecha_fin){
 await supabase
 .from("historial_operativo")
@@ -190,10 +197,8 @@ await supabase
 .eq("id", last.id)
 }
 
-/* FOTO */
 const foto_url = await subirFoto()
 
-/* INSERT */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -205,7 +210,6 @@ usuario,
 foto_url
 })
 
-/* UPDATE PRINCIPAL */
 await supabase
 .from("ambulancias")
 .update({
@@ -226,7 +230,7 @@ alert("Error en cambio de estado")
 }
 
 setLoading(false)
-ejecutando.current = false
+bloqueado.current = false
 }
 
 /* EDITAR */
@@ -318,7 +322,72 @@ return(
 <button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
 
-{/* TODO LO DEMÁS IGUAL */}
+<hr/>
+
+<h2>Registro Diario</h2>
+
+<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
+<button onClick={actualizarKilometraje}>Actualizar</button>
+
+<hr/>
+
+<h2>Mantenimiento Preventivo</h2>
+
+<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
+
+<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
+<button onClick={guardarMtto}>Guardar</button>
+
+<hr/>
+
+<h2>Historial Operativo</h2>
+
+<table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead style={{background:"#f3f4f6"}}>
+<tr>
+<th>Fecha</th>
+<th>Estado</th>
+<th>Motivo</th>
+<th>Tiempo</th>
+<th>Foto</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+
+{historial.map(h=>(
+<tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
+
+<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
+<td>{h.estado}</td>
+<td>{h.motivo}</td>
+<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+
+<td>
+{h.foto_url && (
+<img
+src={h.foto_url}
+style={{width:60,height:60,objectFit:"cover",borderRadius:6,cursor:"pointer"}}
+onClick={()=>setFotoVista(h.foto_url)}
+/>
+)}
+</td>
+
+<td style={{display:"flex",gap:5}}>
+{esAdmin && <button onClick={()=>setEditando({...h})}>✏️</button>}
+<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
+</td>
+
+</tr>
+))}
+
+</tbody>
+
+</table>
+
+{/* MODALES IGUALES */}
 
 </div>
 )
