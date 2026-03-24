@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
+import type { CSSProperties } from "react"
 
 const supabase = createClient(
 process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,80 +14,145 @@ export default function Mecanica(){
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [historial,setHistorial] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState("")
+
 const [descripcion,setDescripcion] = useState("")
 const [kilometraje,setKilometraje] = useState("")
 const [tipo,setTipo] = useState("Preventivo")
 const [cargando,setCargando] = useState(false)
 
-/* ================================
-CARGAR AMBULANCIAS
-================================ */
+/* 🔥 NUEVO */
+const [estado,setEstado] = useState("operativa")
+const [motivo,setMotivo] = useState("")
+const [foto,setFoto] = useState<File | null>(null)
 
+/* 🔥 NUEVA AMBULANCIA */
+const [nueva,setNueva] = useState({
+codigo:"",
+placa:"",
+tipo:"ALFA",
+km:"",
+mtto:""
+})
+
+/* ============================= */
 useEffect(()=>{
 cargarAmbulancias()
 },[])
 
+/* ============================= */
 const cargarAmbulancias = async () => {
 
-console.log("Cargando ambulancias...")
-
-const { data, error } = await supabase
+const { data } = await supabase
 .from("ambulancias")
 .select("*")
 .order("codigo_operativo",{ascending:true})
 
-if(error){
-console.error("Error cargando ambulancias:",error)
-return
+setAmbulancias(data || [])
 }
 
-if(data){
-setAmbulancias(data)
-}
-
-}
-
-/* ================================
-CARGAR HISTORIAL
-================================ */
-
+/* ============================= */
 const cargarHistorial = async (id:string)=>{
 
-const {data,error} = await supabase
+const {data} = await supabase
 .from("mantenimientos")
 .select("*")
 .eq("ambulancia_id",id)
 .order("fecha",{ascending:false})
 
-if(error){
-console.error("Error cargando historial:",error)
+setHistorial(data || [])
+}
+
+/* ============================= */
+const seleccionarAmbulancia = (id:string)=>{
+setAmbulancia(id)
+if(id) cargarHistorial(id)
+}
+
+/* ============================= */
+/* 🔥 CREAR AMBULANCIA */
+const crearAmbulancia = async ()=>{
+
+if(!nueva.codigo || !nueva.placa){
+alert("Complete datos")
 return
 }
 
-if(data){
-setHistorial(data)
-}
+await supabase.from("ambulancias").insert({
+codigo_operativo:nueva.codigo,
+placa:nueva.placa,
+tipo:nueva.tipo,
+estado:"operativa",
+kilometraje_actual:Number(nueva.km),
+kilometraje_mtto:Number(nueva.mtto)
+})
+
+alert("Ambulancia creada")
+cargarAmbulancias()
 
 }
 
-/* ================================
-CAMBIO DE AMBULANCIA
-================================ */
+/* ============================= */
+/* 🔥 SUBIR FOTO */
+async function subirFoto(): Promise<string | null>{
 
-const seleccionarAmbulancia = (id:string)=>{
+if(!foto) return null
 
-setAmbulancia(id)
+const nombre = `mecanica_${Date.now()}`
 
-if(id){
-cargarHistorial(id)
+const { error } = await supabase.storage
+.from("ambulancias")
+.upload(nombre, foto)
+
+if(error){
+alert("Error subiendo imagen")
+return null
 }
 
+const { data } = supabase.storage
+.from("ambulancias")
+.getPublicUrl(nombre)
+
+return data.publicUrl
 }
 
-/* ================================
-REGISTRAR MANTENIMIENTO
-================================ */
+/* ============================= */
+/* 🔥 CAMBIO DE ESTADO */
+const cambiarEstado = async ()=>{
 
+if(!ambulancia){
+alert("Seleccione ambulancia")
+return
+}
+
+if(!motivo){
+alert("Ingrese motivo")
+return
+}
+
+const foto_url = await subirFoto()
+
+await supabase.from("historial_operativo").insert({
+ambulancia_id:ambulancia,
+estado,
+motivo,
+fecha_inicio:new Date().toISOString(),
+foto_url
+})
+
+await supabase.from("ambulancias").update({
+estado,
+motivo_no_operativo:estado === "operativa" ? null : motivo
+}).eq("id",ambulancia)
+
+alert("Estado actualizado")
+
+setMotivo("")
+setFoto(null)
+
+}
+
+/* ============================= */
+/* REGISTRO MANTENIMIENTO */
 const registrarMantenimiento = async ()=>{
 
 if(!ambulancia){
@@ -101,13 +167,11 @@ return
 
 setCargando(true)
 
-const {error} = await supabase
-.from("mantenimientos")
-.insert([
+await supabase.from("mantenimientos").insert([
 {
 ambulancia_id:ambulancia,
-tipo:tipo,
-descripcion:descripcion,
+tipo,
+descripcion,
 kilometraje:kilometraje ? Number(kilometraje) : null,
 fecha:new Date()
 }
@@ -115,163 +179,142 @@ fecha:new Date()
 
 setCargando(false)
 
-if(error){
-console.error(error)
-alert("Error registrando mantenimiento")
-return
-}
-
 setDescripcion("")
 setKilometraje("")
 
-alert("Mantenimiento registrado")
-
 cargarHistorial(ambulancia)
 
+alert("Mantenimiento registrado")
 }
 
-/* ================================
-INTERFAZ
-================================ */
+/* ============================= */
+/* INTERFAZ */
+/* ============================= */
 
 return(
 
 <div style={{padding:"40px"}}>
 
 <h1>SSM Guayas – APH</h1>
-
 <h2>Módulo Mecánico</h2>
 
-<hr style={{margin:"20px 0"}}/>
+<hr/>
+
+{/* 🔥 NUEVA AMBULANCIA */}
+
+<h3>Nueva Ambulancia</h3>
+
+<input placeholder="Código"
+onChange={(e)=>setNueva({...nueva,codigo:e.target.value})} />
+
+<input placeholder="Placa"
+onChange={(e)=>setNueva({...nueva,placa:e.target.value})} />
+
+<input type="number" placeholder="KM"
+onChange={(e)=>setNueva({...nueva,km:e.target.value})} />
+
+<input type="number" placeholder="Próx mantenimiento"
+onChange={(e)=>setNueva({...nueva,mtto:e.target.value})} />
+
+<br/><br/>
+
+<button onClick={crearAmbulancia}>
+Crear Ambulancia
+</button>
+
+<hr/>
 
 <h3>Registrar mantenimiento</h3>
-
-{/* SELECT AMBULANCIA */}
-
-<div style={{marginBottom:"20px"}}>
 
 <select
 value={ambulancia}
 onChange={(e)=>seleccionarAmbulancia(e.target.value)}
 >
-
 <option value="">Seleccionar ambulancia</option>
-
-{ambulancias?.length > 0 && ambulancias.map((a:any)=>(
+{ambulancias.map((a:any)=>(
 <option key={a.id} value={a.id}>
 {a.codigo_operativo}
 </option>
 ))}
-
 </select>
 
+<br/><br/>
+
+{/* 🔥 BOTONES ESTADO */}
+
+<div style={{display:"flex",gap:10}}>
+<button onClick={()=>setEstado("operativa")} style={btnGreen}>Operativa</button>
+<button onClick={()=>setEstado("mantenimiento")} style={btnYellow}>Mantenimiento</button>
+<button onClick={()=>setEstado("no operativa")} style={btnRed}>Fuera servicio</button>
 </div>
 
-{/* TIPO */}
+<br/>
 
-<div style={{marginBottom:"20px"}}>
+<textarea
+placeholder="Motivo del estado"
+value={motivo}
+onChange={(e)=>setMotivo(e.target.value)}
+/>
 
-<select
-value={tipo}
-onChange={(e)=>setTipo(e.target.value)}
->
+<br/>
 
-<option value="Preventivo">Preventivo</option>
-<option value="Correctivo">Correctivo</option>
+<input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
 
+<br/><br/>
+
+<button onClick={cambiarEstado}>
+Cambiar estado
+</button>
+
+<hr/>
+
+{/* MANTENIMIENTO */}
+
+<select value={tipo} onChange={(e)=>setTipo(e.target.value)}>
+<option>Preventivo</option>
+<option>Correctivo</option>
 </select>
-
-</div>
-
-{/* KILOMETRAJE */}
-
-<div style={{marginBottom:"20px"}}>
 
 <input
 type="number"
-placeholder="Kilometraje actual"
+placeholder="Kilometraje"
 value={kilometraje}
 onChange={(e)=>setKilometraje(e.target.value)}
 />
 
-</div>
-
-{/* DESCRIPCIÓN */}
-
-<div style={{marginBottom:"20px"}}>
-
 <textarea
-placeholder="Descripción del mantenimiento"
+placeholder="Descripción"
 value={descripcion}
 onChange={(e)=>setDescripcion(e.target.value)}
-style={{width:"400px",height:"120px"}}
 />
 
-</div>
+<br/>
 
-<button
-onClick={registrarMantenimiento}
-disabled={cargando}
->
-{cargando ? "Registrando..." : "Registrar mantenimiento"}
+<button onClick={registrarMantenimiento}>
+{cargando ? "Guardando..." : "Registrar mantenimiento"}
 </button>
 
-{/* ================================
-HISTORIAL MECÁNICO
-================================ */}
+{/* HISTORIAL */}
 
 {ambulancia && (
-
-<div style={{marginTop:"50px"}}>
-
-<h3>Historial mecánico</h3>
-
-<table border={1} cellPadding={10} style={{marginTop:"20px"}}>
-
-<thead>
-
-<tr>
-<th>Fecha</th>
-<th>Tipo</th>
-<th>Kilometraje</th>
-<th>Descripción</th>
-</tr>
-
-</thead>
-
+<table border={1} style={{marginTop:20}}>
 <tbody>
-
-{historial?.length > 0 ? historial.map((m:any)=>(
+{historial.map((m:any)=>(
 <tr key={m.id}>
-
-<td>
-{new Date(m.fecha).toLocaleDateString()}
-</td>
-
 <td>{m.tipo}</td>
-
-<td>{m.kilometraje ?? "-"}</td>
-
 <td>{m.descripcion}</td>
-
 </tr>
-))
-:
-<tr>
-<td colSpan={4}>Sin registros</td>
-</tr>
-}
-
+))}
 </tbody>
-
 </table>
-
-</div>
-
 )}
 
 </div>
-
 )
-
 }
+
+/* ESTILOS */
+
+const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
+const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
+const btnRed: CSSProperties = {background:"#dc2626",color:"white",padding:10,borderRadius:6}
