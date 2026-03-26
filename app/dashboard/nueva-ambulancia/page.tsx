@@ -10,104 +10,142 @@ const router = useRouter()
 
 const [codigo,setCodigo] = useState("")
 const [placa,setPlaca] = useState("")
+const [marca,setMarca] = useState("") // 👈 NUEVO
 const [tipo,setTipo] = useState("ALFA")
+
 const [loading,setLoading] = useState(false)
+
+/* ========================= */
+/* GUARDAR */
+/* ========================= */
 
 async function guardar(){
 
 if(!codigo || !placa){
-alert("Complete todos los campos")
+alert("Complete los campos obligatorios")
 return
 }
 
 setLoading(true)
 
-try{
-
-const {error} = await supabase
+const { error } = await supabase
 .from("ambulancias")
 .insert({
-codigo_operativo:codigo,
-placa,
-tipo,
-estado:"operativa",
-kilometraje_actual:0
+codigo_operativo: codigo,
+placa: placa,
+marca: marca, // 👈 NUEVO
+tipo: tipo,
+estado: "operativa"
 })
 
+setLoading(false)
+
 if(error){
-console.log(error)
 alert("Error al guardar")
 return
 }
 
-alert("Ambulancia creada correctamente")
-
+alert("✅ Ambulancia creada correctamente")
 router.push("/dashboard")
-
-}catch(e){
-console.log(e)
-alert("Error inesperado")
 }
 
-setLoading(false)
-}
+/* ========================= */
+/* UI */
+/* ========================= */
 
 return(
 
-<div style={{padding:40,fontFamily:"Arial",maxWidth:500}}>
+<div style={{padding:30,fontFamily:"Arial"}}>
 
 <h1>➕ Nueva Ambulancia</h1>
+
+<br/>
 
 <input
 placeholder="Código operativo (Ej: ALFA 1)"
 value={codigo}
 onChange={(e)=>setCodigo(e.target.value)}
-style={{width:"100%",marginBottom:10,padding:8}}
+style={input}
 />
+
+<br/>
 
 <input
 placeholder="Placa (Ej: MEA-1234)"
 value={placa}
 onChange={(e)=>setPlaca(e.target.value)}
-style={{width:"100%",marginBottom:10,padding:8}}
+style={input}
 />
 
-<select 
-value={tipo} 
+<br/>
+
+{/* 🔥 NUEVO CAMPO */}
+<input
+placeholder="Marca (Ej: Toyota, Nissan, Chevrolet)"
+value={marca}
+onChange={(e)=>setMarca(e.target.value)}
+style={input}
+/>
+
+<br/>
+
+<select
+value={tipo}
 onChange={(e)=>setTipo(e.target.value)}
-style={{width:"100%",marginBottom:10,padding:8}}
+style={input}
 >
 <option value="ALFA">ALFA</option>
 <option value="BRAVO">BRAVO</option>
 </select>
 
-<br/>
+<br/><br/>
 
-<button 
+<button
 onClick={guardar}
-style={{
-background:"#16a34a",
-color:"white",
-padding:"10px 15px",
-borderRadius:6
-}}
+style={btnGuardar}
 disabled={loading}
 >
 {loading ? "Guardando..." : "Guardar"}
 </button>
 
-<button 
+<button
 onClick={()=>router.push("/dashboard")}
-style={{
-marginLeft:10,
-padding:"10px 15px"
-}}
+style={btnCancelar}
 >
 Cancelar
 </button>
 
 </div>
-
 )
+}
 
+/* ========================= */
+/* ESTILOS */
+/* ========================= */
+
+const input = {
+display:"block",
+marginBottom:"10px",
+width:"300px",
+padding:"8px",
+border:"1px solid #ccc",
+borderRadius:"4px"
+}
+
+const btnGuardar = {
+background:"#16a34a",
+color:"white",
+padding:"8px 16px",
+border:"none",
+borderRadius:"4px",
+marginRight:"10px",
+cursor:"pointer"
+}
+
+const btnCancelar = {
+background:"#ccc",
+padding:"8px 16px",
+border:"none",
+borderRadius:"4px",
+cursor:"pointer"
 }
