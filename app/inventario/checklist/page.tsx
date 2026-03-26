@@ -1,0 +1,167 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
+
+export default function Checklist(){
+
+const [ambulancias,setAmbulancias] = useState<any[]>([])
+const [items,setItems] = useState<any[]>([])
+
+const [ambulancia,setAmbulancia] = useState("")
+
+const [responsable,setResponsable] = useState({
+nombre:"",
+apellido:""
+})
+
+const [datos,setDatos] = useState<any>({})
+
+useEffect(()=>{
+cargar()
+},[])
+
+async function cargar(){
+
+const {data:amb} = await supabase.from("ambulancias").select("*")
+const {data:inv} = await supabase.from("inventario_items").select("*")
+
+setAmbulancias(amb || [])
+setItems(inv || [])
+}
+
+/* ACTUALIZAR DATOS */
+function actualizar(id:string, campo:string, valor:any){
+
+setDatos(prev => ({
+...prev,
+[id]: {
+...prev[id],
+[campo]: valor
+}
+}))
+
+}
+
+/* GUARDAR */
+async function guardar(){
+
+if(!ambulancia){
+alert("Seleccione ambulancia")
+return
+}
+
+if(!responsable.nombre){
+alert("Ingrese responsable")
+return
+}
+
+for(const item of items){
+
+const d = datos[item.id]
+
+if(!d) continue
+
+await supabase.from("inventario_checklist").insert({
+ambulancia_id:ambulancia,
+item_id:item.id,
+tiene:d.tiene || false,
+cantidad:Number(d.cantidad || 0),
+fecha_caducidad:d.fecha || null,
+nombre_responsable:responsable.nombre,
+apellido_responsable:responsable.apellido
+})
+
+}
+
+alert("Checklist guardado")
+
+setDatos({})
+}
+
+/* UI */
+
+return(
+
+<div style={{padding:30,fontFamily:"Arial"}}>
+
+<h1>📋 Checklist Ambulancia</h1>
+
+<select onChange={(e)=>setAmbulancia(e.target.value)}>
+<option value="">Seleccione ambulancia</option>
+{ambulancias.map(a=>(
+<option key={a.id} value={a.id}>
+{a.codigo_operativo}
+</option>
+))}
+</select>
+
+<br/><br/>
+
+<input
+placeholder="Nombre"
+onChange={(e)=>setResponsable({...responsable,nombre:e.target.value})}
+/>
+
+<input
+placeholder="Apellido"
+onChange={(e)=>setResponsable({...responsable,apellido:e.target.value})}
+/>
+
+<hr/>
+
+<table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead style={{background:"#f3f4f6"}}>
+<tr>
+<th>Item</th>
+<th>Tiene</th>
+<th>Cantidad</th>
+<th>Caducidad</th>
+</tr>
+</thead>
+
+<tbody>
+
+{items.map(i=>(
+<tr key={i.id} style={{borderBottom:"1px solid #ddd"}}>
+
+<td>{i.nombre}</td>
+
+<td>
+<input
+type="checkbox"
+onChange={(e)=>actualizar(i.id,"tiene",e.target.checked)}
+/>
+</td>
+
+<td>
+<input
+type="number"
+onChange={(e)=>actualizar(i.id,"cantidad",e.target.value)}
+/>
+</td>
+
+<td>
+<input
+type="date"
+onChange={(e)=>actualizar(i.id,"fecha",e.target.value)}
+/>
+</td>
+
+</tr>
+))}
+
+</tbody>
+
+</table>
+
+<br/>
+
+<button onClick={guardar}>
+Guardar Checklist
+</button>
+
+</div>
+)
+}
