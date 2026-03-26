@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
-/* 🔥 TIPADO CORRECTO */
 type DatosType = Record<string, {
 tiene?: boolean
 cantidad?: number
@@ -22,7 +21,6 @@ nombre:"",
 apellido:""
 })
 
-/* 🔥 FIX TYPE */
 const [datos,setDatos] = useState<DatosType>({})
 
 useEffect(()=>{
@@ -38,7 +36,27 @@ setAmbulancias(amb || [])
 setItems(inv || [])
 }
 
-/* ACTUALIZAR DATOS */
+/* ========================= */
+/* 🔥 SEMÁFORO */
+/* ========================= */
+function getSemaforo(fecha?: string){
+
+if(!fecha) return "⚪"
+
+const hoy = new Date()
+const cad = new Date(fecha)
+
+const diff = cad.getTime() - hoy.getTime()
+const dias = diff / (1000*60*60*24)
+
+if(dias <= 0) return "🔴"
+if(dias <= 30) return "🟡"
+return "🟢"
+}
+
+/* ========================= */
+/* ACTUALIZAR */
+/* ========================= */
 function actualizar(id:string, campo:string, valor:any){
 
 setDatos((prev: DatosType) => ({
@@ -51,7 +69,9 @@ setDatos((prev: DatosType) => ({
 
 }
 
+/* ========================= */
 /* GUARDAR */
+/* ========================= */
 async function guardar(){
 
 if(!ambulancia){
@@ -67,7 +87,6 @@ return
 for(const item of items){
 
 const d = datos[item.id]
-
 if(!d) continue
 
 await supabase.from("inventario_checklist").insert({
@@ -87,7 +106,9 @@ alert("Checklist guardado")
 setDatos({})
 }
 
+/* ========================= */
 /* UI */
+/* ========================= */
 
 return(
 
@@ -122,17 +143,27 @@ onChange={(e)=>setResponsable({...responsable,apellido:e.target.value})}
 
 <thead style={{background:"#f3f4f6"}}>
 <tr>
+<th>Ambulancia</th>
 <th>Item</th>
 <th>Tiene</th>
 <th>Cantidad</th>
 <th>Caducidad</th>
+<th>Estado</th>
 </tr>
 </thead>
 
 <tbody>
 
-{items.map(i=>(
+{items.map(i=>{
+
+const d = datos[i.id]
+
+return(
 <tr key={i.id} style={{borderBottom:"1px solid #ddd"}}>
+
+<td>
+{ambulancias.find(a=>a.id==ambulancia)?.codigo_operativo || "-"}
+</td>
 
 <td>{i.nombre}</td>
 
@@ -157,8 +188,13 @@ onChange={(e)=>actualizar(i.id,"fecha",e.target.value)}
 />
 </td>
 
+<td style={{fontSize:20}}>
+{getSemaforo(d?.fecha)}
+</td>
+
 </tr>
-))}
+)
+})}
 
 </tbody>
 
