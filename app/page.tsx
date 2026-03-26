@@ -39,14 +39,22 @@ email: correo,
 password
 })
 
+if(authError){
+console.log("Auth error:", authError.message)
+}
+
 if(authData?.user){
 
-/* 🔥 buscar perfil (si existe) */
-const { data:perfil } = await supabase
+/* 🔥 buscar perfil */
+const { data:perfil, error:perfilError } = await supabase
 .from("profiles")
 .select("*")
 .eq("id", authData.user.id)
 .single()
+
+if(perfilError){
+console.log("Perfil error:", perfilError.message)
+}
 
 /* guardar sesión */
 localStorage.setItem("usuario_id",authData.user.id)
@@ -54,14 +62,18 @@ localStorage.setItem("email",correo)
 localStorage.setItem("rol",perfil?.rol || "usuario")
 localStorage.setItem("nombre",perfil?.nombre || "Usuario")
 
-/* redirección por rol */
+/* ========================= */
+/* 🔥 REDIRECCIÓN CORRECTA */
+/* ========================= */
+
 if(perfil?.rol === "admin"){
 router.replace("/dashboard")
 return
 }
 
+/* 🔥 AQUÍ ESTÁ EL CAMBIO IMPORTANTE */
 if(perfil?.rol === "inventario"){
-router.replace("/inventario/checklist")
+router.replace("/inventario/admin")
 return
 }
 
@@ -81,7 +93,7 @@ return
 }
 
 /* ========================= */
-/* 🔁 2. LOGIN ANTIGUO (RESPALDO) */
+/* 🔁 2. LOGIN ANTIGUO */
 /* ========================= */
 
 const {data,error:dbError} = await supabase
@@ -112,7 +124,7 @@ localStorage.setItem("rol",data.rol)
 localStorage.setItem("nombre",data.nombre)
 localStorage.setItem("email",data.email)
 
-/* redirección por rol */
+/* redirección */
 if(data.rol === "admin"){
 router.replace("/dashboard")
 return
