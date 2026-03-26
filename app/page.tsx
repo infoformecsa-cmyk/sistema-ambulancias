@@ -14,12 +14,12 @@ const [error,setError] = useState("")
 const [loading,setLoading] = useState(false)
 
 /* evitar cache de sesión vieja */
-
 useEffect(()=>{
 
 localStorage.removeItem("usuario_id")
 localStorage.removeItem("rol")
 localStorage.removeItem("nombre")
+localStorage.removeItem("email")
 
 },[])
 
@@ -28,9 +28,61 @@ async function login(){
 setError("")
 setLoading(true)
 
-/* normalizar email */
-
 const correo = email.trim().toLowerCase()
+
+/* ========================= */
+/* 🔥 1. LOGIN REAL SUPABASE */
+/* ========================= */
+
+const { data:authData, error:authError } = await supabase.auth.signInWithPassword({
+email: correo,
+password
+})
+
+if(authData?.user){
+
+/* 🔥 buscar perfil (si existe) */
+const { data:perfil } = await supabase
+.from("profiles")
+.select("*")
+.eq("id", authData.user.id)
+.single()
+
+/* guardar sesión */
+localStorage.setItem("usuario_id",authData.user.id)
+localStorage.setItem("email",correo)
+localStorage.setItem("rol",perfil?.rol || "usuario")
+localStorage.setItem("nombre",perfil?.nombre || "Usuario")
+
+/* redirección por rol */
+if(perfil?.rol === "admin"){
+router.replace("/dashboard")
+return
+}
+
+if(perfil?.rol === "inventario"){
+router.replace("/inventario/checklist")
+return
+}
+
+if(perfil?.rol === "mecanico"){
+router.replace("/mecanica")
+return
+}
+
+if(perfil?.rol === "conductor"){
+router.replace("/conductor")
+return
+}
+
+/* fallback */
+router.replace("/dashboard")
+return
+}
+
+/* ========================= */
+/* 🔁 2. LOGIN ANTIGUO (RESPALDO) */
+/* ========================= */
 
 const {data,error:dbError} = await supabase
 .from("usuarios")
@@ -55,16 +107,12 @@ return
 }
 
 /* guardar sesión */
-
 localStorage.setItem("usuario_id",data.id)
 localStorage.setItem("rol",data.rol)
 localStorage.setItem("nombre",data.nombre)
-
-/* 🔥 NUEVO: guardar email */
 localStorage.setItem("email",data.email)
 
-/* 🔥 NUEVO: redirección por rol */
-
+/* redirección por rol */
 if(data.rol === "admin"){
 router.replace("/dashboard")
 return
@@ -85,10 +133,14 @@ router.replace("/conductor")
 return
 }
 
-/* fallback (por si acaso) */
+/* fallback */
 router.replace("/dashboard")
 
 }
+
+/* ========================= */
+/* UI */
+/* ========================= */
 
 return(
 
