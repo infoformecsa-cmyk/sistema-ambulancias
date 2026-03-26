@@ -137,7 +137,7 @@ alert("Ambulancia eliminada")
 cargar()
 }
 
-/* 🔥 ACTUALIZADO */
+/* 🔥 SOLO AQUÍ AGREGAMOS MARCA */
 async function guardarEdicion(id:string){
 
 await supabase
@@ -165,6 +165,32 @@ const disponibilidad = total>0 ? Math.round((operativas/total)*100) : 0
 const totalHorasFuera = Object.values(horasMap).reduce((a, b) => a + (b || 0), 0)
 const promedioHoras = total ? Math.round(totalHorasFuera / total) : 0
 
+const alfa = ambulancias.filter(a=>a.tipo==="ALFA")
+const bravo = ambulancias.filter(a=>a.tipo==="BRAVO")
+
+const alfaOp = alfa.filter(a=>a.estado==="operativa").length
+const alfaNoOp = alfa.length - alfaOp
+
+const bravoOp = bravo.filter(a=>a.estado==="operativa").length
+const bravoNoOp = bravo.length - bravoOp
+
+const alfaPct = alfa.length ? Math.round((alfaOp/alfa.length)*100) : 0
+const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
+
+const alfaNoPct = alfa.length ? Math.round((alfaNoOp/alfa.length)*100) : 0
+const bravoNoPct = bravo.length ? Math.round((bravoNoOp/bravo.length)*100) : 0
+
+const mttoVencido = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+return a.kilometraje_actual >= a.kilometraje_mtto
+})
+
+const mttoProximo = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return faltan <= 400 && faltan > 0
+})
+
 function cerrarSesion(){
 localStorage.clear()
 router.push("/")
@@ -180,11 +206,50 @@ return(
 
 <div style={{padding:30,fontFamily:"Arial"}}>
 
-<h1>🚑 Sistema de Control de Ambulancias</h1>
+<h1>🚑 Sistema de Control de Ambulancias de la Dirección Provincial de Salud del Guayas</h1>
+
+<div style={{marginTop:10, display:"flex", gap:10}}>
+<button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnBlue}>
+➕ Nueva Ambulancia
+</button>
+
+<button onClick={()=>router.push("/dashboard/informe-flota")} style={btnGreen}>
+📊 Informe MSP
+</button>
+</div>
 
 <p><b>{nombre}</b> | {rol}</p>
 
 <button onClick={cerrarSesion}>Cerrar sesión</button>
+
+<hr/>
+
+{/* ALERTAS */}
+{alertas.length>0 && (
+<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Fallas críticas</h3>
+{alertas.map(a=>(
+<div key={a.id}><b>ID:</b> {a.ambulancia_id} - {a.descripcion}</div>
+))}
+</div>
+)}
+
+{mttoVencido.length>0 && (
+<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Mantenimiento vencido</h3>
+{mttoVencido.map(a=>(<div key={a.id}>{a.codigo_operativo}</div>))}
+</div>
+)}
+
+{mttoProximo.length>0 && (
+<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>⚠️ Mantenimiento próximo</h3>
+{mttoProximo.map(a=>{
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
+})}
+</div>
+)}
 
 <hr/>
 
@@ -287,6 +352,13 @@ style={{background:"#dc2626",color:"white"}}
 
 </div>
 )
+}
+
+const card = {
+padding:20,
+border:"1px solid #ddd",
+borderRadius:10,
+minWidth:140
 }
 
 const btnBlue = {background:"#2563eb",color:"white",padding:10,borderRadius:6}
