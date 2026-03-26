@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
+/* 🔥 TIPADO CORRECTO */
+type DatosType = Record<string, {
+tiene?: boolean
+cantidad?: number
+fecha?: string
+}>
+
 export default function Checklist(){
 
 const [ambulancias,setAmbulancias] = useState<any[]>([])
@@ -15,7 +22,8 @@ nombre:"",
 apellido:""
 })
 
-const [datos,setDatos] = useState<any>({})
+/* 🔥 FIX TYPE */
+const [datos,setDatos] = useState<DatosType>({})
 
 useEffect(()=>{
 cargar()
@@ -33,7 +41,7 @@ setItems(inv || [])
 /* ACTUALIZAR DATOS */
 function actualizar(id:string, campo:string, valor:any){
 
-setDatos(prev => ({
+setDatos((prev: DatosType) => ({
 ...prev,
 [id]: {
 ...prev[id],
