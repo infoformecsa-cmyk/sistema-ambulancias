@@ -30,6 +30,7 @@ router.push("/")
 return
 }
 
+/* 🔥 VALIDACIÓN REAL POR BD */
 async function validarRol(){
 
 if(!email){
@@ -114,20 +115,31 @@ mapa[String(a.id)] = Math.floor(total / (1000*60*60))
 setHorasMap(mapa)
 }
 
+/* 🔥 NUEVO: ELIMINAR AMBULANCIA */
 async function eliminarAmbulancia(id:string){
 
-const confirmar = confirm("¿Eliminar ambulancia?")
+const confirmar = confirm("¿Eliminar ambulancia? Esta acción no se puede deshacer")
 
 if(!confirmar) return
 
 await supabase.from("historial_operativo").delete().eq("ambulancia_id",id)
 await supabase.from("mantenimientos").delete().eq("ambulancia_id",id)
 
-await supabase.from("ambulancias").delete().eq("id",id)
+const { error } = await supabase
+.from("ambulancias")
+.delete()
+.eq("id",id)
 
+if(error){
+alert("Error eliminando ambulancia")
+return
+}
+
+alert("Ambulancia eliminada")
 cargar()
 }
 
+/* 🔥 GUARDAR EDICIÓN (CON MARCA) */
 async function guardarEdicion(id:string){
 
 await supabase
@@ -135,7 +147,7 @@ await supabase
 .update({
 codigo_operativo: editData.codigo_operativo,
 placa: editData.placa,
-marca: editData.marca,
+marca: editData.marca, // 👈 NUEVO
 tipo: editData.tipo
 })
 .eq("id",id)
@@ -170,6 +182,17 @@ const bravoPct = bravo.length ? Math.round((bravoOp/bravo.length)*100) : 0
 const alfaNoPct = alfa.length ? Math.round((alfaNoOp/alfa.length)*100) : 0
 const bravoNoPct = bravo.length ? Math.round((bravoNoOp/bravo.length)*100) : 0
 
+const mttoVencido = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+return a.kilometraje_actual >= a.kilometraje_mtto
+})
+
+const mttoProximo = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto || !a.kilometraje_actual) return false
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return faltan <= 400 && faltan > 0
+})
+
 function cerrarSesion(){
 localStorage.clear()
 router.push("/")
@@ -185,7 +208,17 @@ return(
 
 <div style={{padding:30,fontFamily:"Arial"}}>
 
-<h1>🚑 Sistema de Control de Ambulancias</h1>
+<h1>🚑 Sistema de Control de Ambulancias de la Dirección Provincial de Salud del Guayas</h1>
+
+<div style={{marginTop:10, display:"flex", gap:10}}>
+<button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnBlue}>
+➕ Nueva Ambulancia
+</button>
+
+<button onClick={()=>router.push("/dashboard/informe-flota")} style={btnGreen}>
+📊 Informe MSP
+</button>
+</div>
 
 <p><b>{nombre}</b> | {rol}</p>
 
@@ -193,7 +226,35 @@ return(
 
 <hr/>
 
-{/* 🔥 KPI RESTAURADO */}
+{/* ALERTAS */}
+{alertas.length>0 && (
+<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Fallas críticas</h3>
+{alertas.map(a=>(
+<div key={a.id}><b>ID:</b> {a.ambulancia_id} - {a.descripcion}</div>
+))}
+</div>
+)}
+
+{mttoVencido.length>0 && (
+<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Mantenimiento vencido</h3>
+{mttoVencido.map(a=>(<div key={a.id}>{a.codigo_operativo}</div>))}
+</div>
+)}
+
+{mttoProximo.length>0 && (
+<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>⚠️ Mantenimiento próximo</h3>
+{mttoProximo.map(a=>{
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
+})}
+</div>
+)}
+
+<hr/>
+
 <h2>📊 Estado General</h2>
 
 <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
@@ -236,16 +297,68 @@ return(
 
 <td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
 
-<td>{a.codigo_operativo}</td>
-<td>{a.placa}</td>
-<td>{a.marca || "-"}</td>
-<td>{a.tipo}</td>
+<td>
+{editando === a.id
+? <input value={editData.codigo_operativo} onChange={(e)=>setEditData({...editData,codigo_operativo:e.target.value})}/>
+: a.codigo_operativo}
+</td>
+
+<td>
+{editando === a.id
+? <input value={editData.placa} onChange={(e)=>setEditData({...editData,placa:e.target.value})}/>
+: a.placa}
+</td>
+
+<td>
+{editando === a.id
+? <input value={editData.marca || ""} onChange={(e)=>setEditData({...editData,marca:e.target.value})}/>
+: a.marca || "-"}
+</td>
+
+<td>
+{editando === a.id
+? <select value={editData.tipo} onChange={(e)=>setEditData({...editData,tipo:e.target.value})}>
+<option value="ALFA">ALFA</option>
+<option value="BRAVO">BRAVO</option>
+</select>
+: a.tipo}
+</td>
 
 <td>{a.kilometraje_actual || 0}</td>
 <td>{horasMap[String(a.id)] || 0} h</td>
 
 <td>
+
+{editando === a.id ? (
+<>
+<button onClick={()=>guardarEdicion(a.id)}>💾</button>
+<button onClick={()=>setEditando(null)}>❌</button>
+</>
+) : (
+<>
 <button onClick={()=>router.push(`/ambulancia/${a.id}`)}>Ficha</button>
+
+<button onClick={()=>{
+setEditando(a.id)
+setEditData(a)
+}}>
+Editar
+</button>
+
+<button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)}>
+Historial
+</button>
+
+<button
+onClick={()=>eliminarAmbulancia(a.id)}
+style={{background:"#dc2626",color:"white"}}
+>
+🗑
+</button>
+
+</>
+)}
+
 </td>
 
 </tr>
@@ -266,3 +379,6 @@ border:"1px solid #ddd",
 borderRadius:10,
 minWidth:140
 }
+
+const btnBlue = {background:"#2563eb",color:"white",padding:10,borderRadius:6}
+const btnGreen = {background:"#0f766e",color:"white",padding:10,borderRadius:6}
