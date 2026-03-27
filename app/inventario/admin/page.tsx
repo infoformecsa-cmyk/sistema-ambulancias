@@ -22,7 +22,6 @@ cargar()
 /* ========================= */
 async function cargar(){
 
-/* 🔥 1. traer checklist SIN relaciones */
 const { data, error } = await supabase
 .from("inventario_checklist")
 .select("*")
@@ -34,17 +33,14 @@ setLoading(false)
 return
 }
 
-/* 🔥 2. traer ambulancias */
 const { data: ambs } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-/* 🔥 3. traer items */
 const { data: items } = await supabase
 .from("inventario_items")
 .select("id,nombre,cantidad_base")
 
-/* 🔥 4. mapear */
 const ambMap:any = {}
 const itemMap:any = {}
 
@@ -56,7 +52,6 @@ items?.forEach(i=>{
 itemMap[i.id] = i
 })
 
-/* 🔥 5. unir datos */
 const dataFinal = (data || []).map((r:any)=>({
 ...r,
 ambulancia_codigo: ambMap[r.ambulancia_id] || "Sin código",
@@ -68,8 +63,6 @@ setData(dataFinal)
 setLoading(false)
 }
 
-/* ========================= */
-/* 🔥 ELIMINAR */
 /* ========================= */
 async function eliminar(id:string){
 
@@ -84,8 +77,6 @@ await supabase
 cargar()
 }
 
-/* ========================= */
-/* ✏️ EDITAR */
 /* ========================= */
 async function guardarEdicion(id:string){
 
@@ -102,8 +93,6 @@ setEditando(null)
 cargar()
 }
 
-/* ========================= */
-/* 🔐 CERRAR SESIÓN */
 /* ========================= */
 function cerrarSesion(){
 localStorage.clear()
@@ -154,6 +143,19 @@ const total = data.length || 1
 const salud = Math.max(0, 100 - Math.round((faltantes + vencidos)/total*100))
 
 /* ========================= */
+/* AGRUPAR POR AMBULANCIA */
+/* ========================= */
+
+const agrupado: Record<string, any[]> = {}
+
+data.forEach(r=>{
+if(!agrupado[r.ambulancia_codigo]){
+agrupado[r.ambulancia_codigo] = []
+}
+agrupado[r.ambulancia_codigo].push(r)
+})
+
+/* ========================= */
 /* UI */
 /* ========================= */
 
@@ -202,7 +204,42 @@ Cerrar sesión
 
 <hr/>
 
-/* TABLA */
+<h2>🚑 Ambulancias</h2>
+
+{/* 🔥 LISTA AGRUPADA */}
+{Object.entries(agrupado).map(([amb, registros])=>(
+
+<div key={amb} style={{
+border:"1px solid #ddd",
+borderRadius:10,
+padding:15,
+marginBottom:15
+}}>
+
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+
+<h3>{amb}</h3>
+
+<button
+onClick={()=>router.push(`/inventario/ambulancia/${amb}`)}
+style={btnVer}
+>
+Ver checklist
+</button>
+
+</div>
+
+<p style={{color:"#6b7280"}}>
+{registros.length} registros
+</p>
+
+</div>
+
+))}
+
+<hr/>
+
+{/* TABLA ORIGINAL (NO SE TOCA) */}
 <h2>📋 Registros</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -225,7 +262,6 @@ Cerrar sesión
 <tr key={r.id} style={{borderBottom:"1px solid #ddd"}}>
 
 <td style={td}>{r.ambulancia_codigo}</td>
-
 <td style={td}>{r.item_nombre}</td>
 
 <td style={td}>
@@ -280,7 +316,6 @@ Eliminar
 
 <hr/>
 
-/* RANKING */
 <h2>🚨 Ambulancias con más problemas</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -341,4 +376,12 @@ padding:"10px 15px",
 borderRadius:6,
 border:"none",
 marginBottom:10
+}
+
+const btnVer = {
+background:"#2563eb",
+color:"white",
+padding:"6px 12px",
+borderRadius:6,
+border:"none"
 }
