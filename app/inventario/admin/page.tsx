@@ -2,29 +2,25 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
-type Alerta = {
-  id: string
-  cantidad: number
-  estado: string
-  item: string
-  ambulancia: string
-}
+export default function DashboardInventario(){
 
-export default function Page(){
+const router = useRouter()
 
-const [alertas,setAlertas] = useState<Alerta[]>([])
-const [cargando,setCargando] = useState(true)
+const [data,setData] = useState<any[]>([])
+const [loading,setLoading] = useState(true)
+
+const [editando,setEditando] = useState<string | null>(null)
+const [editData,setEditData] = useState<any>({})
 
 /* ========================= */
 useEffect(()=>{
-cargarAlertas()
+cargar()
 },[])
 
 /* ========================= */
-async function cargarAlertas(){
-
-try{
+async function cargar(){
 
 const { data, error } = await supabase
 .from("inventario_checklist")
@@ -40,64 +36,101 @@ ambulancias(codigo_operativo)
 
 if(error){
 console.error(error)
-setCargando(false)
+setLoading(false)
 return
 }
 
-if(!data){
-setCargando(false)
-return
+setData(data || [])
+setLoading(false)
 }
 
-/* 🔥 PROCESAR ALERTAS */
+/* ========================= */
+/* 🔥 ELIMINAR */
+/* ========================= */
+async function eliminar(id:string){
+
+const ok = confirm("¿Eliminar registro?")
+
+if(!ok) return
+
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("id",id)
+
+cargar()
+}
+
+/* ========================= */
+/* ✏️ EDITAR */
+/* ========================= */
+async function guardarEdicion(id:string){
+
+await supabase
+.from("inventario_checklist")
+.update({
+cantidad: editData.cantidad,
+tiene: editData.tiene,
+fecha_caducidad: editData.fecha_caducidad
+})
+.eq("id",id)
+
+setEditando(null)
+cargar()
+}
+
+/* ========================= */
+/* 🔐 CERRAR SESIÓN */
+/* ========================= */
+function cerrarSesion(){
+
+localStorage.clear()
+router.push("/")
+
+}
+
+/* ========================= */
+/* PROCESAMIENTO */
+/* ========================= */
+
 const hoy = new Date()
 
-const resultado: Alerta[] = data.map((r:any)=>{
+let vencidos = 0
+let proximos = 0
+let faltantes = 0
 
-const fecha = r.fecha_caducidad ? new Date(r.fecha_caducidad) : null
-const diff = fecha ? (fecha.getTime() - hoy.getTime())/(1000*60*60*24) : null
+const porAmbulancia: Record<string, number> = {}
 
-let estado = "ok"
+data.forEach((r:any)=>{
 
-if(!r.tiene || r.cantidad < (r.inventario_items?.cantidad_base || 0)){
-estado = "faltante"
+const base = r.inventario_items?.cantidad_base || 0
+const amb = r.ambulancias?.codigo_operativo || "Sin código"
+
+if(!r.tiene || r.cantidad < base){
+faltantes++
+porAmbulancia[amb] = (porAmbulancia[amb] || 0) + 1
 }
 
-if(diff !== null){
-if(diff <= 0) estado = "vencido"
-else if(diff <= 30) estado = "proximo"
-}
+if(r.fecha_caducidad){
+const diff = (new Date(r.fecha_caducidad).getTime() - hoy.getTime())/(1000*60*60*24)
 
-return {
-id: r.id,
-cantidad: r.cantidad || 0,
-estado,
-item: r.inventario_items?.nombre || "-",
-ambulancia: r.ambulancias?.codigo_operativo || "-"
+if(diff <= 0){
+vencidos++
+porAmbulancia[amb] = (porAmbulancia[amb] || 0) + 1
+}
+else if(diff <= 30){
+proximos++
+}
 }
 
 })
 
-setAlertas(resultado)
+const ranking = Object.entries(porAmbulancia)
+.sort((a,b)=>b[1]-a[1])
+.slice(0,5)
 
-}catch(e){
-console.error("Error cargando alertas:", e)
-}
-
-setCargando(false)
-}
-
-/* ========================= */
-/* COLOR ALERTA */
-/* ========================= */
-function colorEstado(e:string){
-
-if(e==="vencido") return "#dc2626"
-if(e==="proximo") return "#f59e0b"
-if(e==="faltante") return "#b91c1c"
-return "#16a34a"
-
-}
+const total = data.length || 1
+const salud = Math.max(0, 100 - Math.round((faltantes + vencidos)/total*100))
 
 /* ========================= */
 /* UI */
@@ -107,53 +140,143 @@ return(
 
 <div style={{padding:30,fontFamily:"Arial"}}>
 
-<h1>🚨 Panel de Alertas de Inventario</h1>
+<h1>📊 Dashboard Gerencial de Inventario</h1>
 
-<p style={{color:"#6b7280"}}>
-Control de medicamentos, insumos y equipos por ambulancia
-</p>
+<p><b>Panel operativo de control</b></p>
+
+<button onClick={cerrarSesion} style={btnLogout}>
+Cerrar sesión
+</button>
 
 <hr/>
 
-{cargando && <p>Cargando...</p>}
+{loading && <p>Cargando...</p>}
 
-{!cargando && alertas.length === 0 && (
-<p>No hay alertas registradas</p>
-)}
+{/* KPI */}
+<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
 
-{!cargando && alertas.length > 0 && (
+<div style={card}>
+<h3>Estado general</h3>
+<h1 style={{color:salud>80?"#16a34a":salud>50?"#f59e0b":"#dc2626"}}>
+{salud}%
+</h1>
+</div>
 
-<table style={{width:"100%",borderCollapse:"collapse",marginTop:20}}>
+<div style={card}>
+<h3>🔴 Vencidos</h3>
+<h2>{vencidos}</h2>
+</div>
+
+<div style={card}>
+<h3>🟡 Próximos</h3>
+<h2>{proximos}</h2>
+</div>
+
+<div style={card}>
+<h3>⚠️ Faltantes</h3>
+<h2>{faltantes}</h2>
+</div>
+
+</div>
+
+<hr/>
+
+{/* TABLA EDITABLE */}
+<h2>📋 Registros</h2>
+
+<table style={{width:"100%",borderCollapse:"collapse"}}>
 
 <thead style={{background:"#111827",color:"white"}}>
 <tr>
 <th style={th}>Ambulancia</th>
 <th style={th}>Item</th>
 <th style={th}>Cantidad</th>
-<th style={th}>Estado</th>
+<th style={th}>Tiene</th>
+<th style={th}>Caducidad</th>
+<th style={th}>Acciones</th>
 </tr>
 </thead>
 
 <tbody>
 
-{alertas.map((a)=>(
-<tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
+{data.map(r=>(
 
-<td style={td}>{a.ambulancia}</td>
-<td style={td}>{a.item}</td>
-<td style={td}>{a.cantidad}</td>
+<tr key={r.id} style={{borderBottom:"1px solid #ddd"}}>
+
+<td style={td}>{r.ambulancias?.codigo_operativo}</td>
+
+<td style={td}>{r.inventario_items?.nombre}</td>
 
 <td style={td}>
-<span style={{
-background:colorEstado(a.estado),
-color:"white",
-padding:"5px 10px",
-borderRadius:6
-}}>
-{a.estado}
-</span>
+{editando===r.id
+? <input type="number" value={editData.cantidad} onChange={(e)=>setEditData({...editData,cantidad:e.target.value})}/>
+: r.cantidad}
 </td>
 
+<td style={td}>
+{editando===r.id
+? <input type="checkbox" checked={editData.tiene} onChange={(e)=>setEditData({...editData,tiene:e.target.checked})}/>
+: (r.tiene ? "✔️" : "❌")}
+</td>
+
+<td style={td}>
+{editando===r.id
+? <input type="date" value={editData.fecha_caducidad || ""} onChange={(e)=>setEditData({...editData,fecha_caducidad:e.target.value})}/>
+: (r.fecha_caducidad || "-")}
+</td>
+
+<td style={td}>
+
+{editando===r.id ? (
+<>
+<button onClick={()=>guardarEdicion(r.id)}>💾</button>
+<button onClick={()=>setEditando(null)}>❌</button>
+</>
+) : (
+<>
+<button onClick={()=>{
+setEditando(r.id)
+setEditData(r)
+}}>
+Editar
+</button>
+
+<button onClick={()=>eliminar(r.id)} style={btnDelete}>
+Eliminar
+</button>
+</>
+)}
+
+</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
+
+<hr/>
+
+{/* RANKING */}
+<h2>🚨 Ambulancias con más problemas</h2>
+
+<table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead style={{background:"#111827",color:"white"}}>
+<tr>
+<th style={th}>Ambulancia</th>
+<th style={th}>Incidencias</th>
+</tr>
+</thead>
+
+<tbody>
+
+{ranking.map(([amb,cant])=>(
+<tr key={amb}>
+<td style={td}>{amb}</td>
+<td style={td}>{cant}</td>
 </tr>
 ))}
 
@@ -161,21 +284,40 @@ borderRadius:6
 
 </table>
 
-)}
-
 </div>
 )
 }
 
 /* ========================= */
-/* ESTILOS */
-/* ========================= */
-
-const th: React.CSSProperties = {
-padding:10,
-textAlign:"left"
+const card = {
+padding:20,
+border:"1px solid #ddd",
+borderRadius:10,
+minWidth:180
 }
 
-const td: React.CSSProperties = {
+const th = {
+padding:10,
+textAlign:"left" as const
+}
+
+const td = {
 padding:10
+}
+
+const btnDelete = {
+background:"#dc2626",
+color:"white",
+padding:"5px 10px",
+border:"none",
+borderRadius:5
+}
+
+const btnLogout = {
+background:"#111827",
+color:"white",
+padding:"10px 15px",
+borderRadius:6,
+border:"none",
+marginBottom:10
 }
