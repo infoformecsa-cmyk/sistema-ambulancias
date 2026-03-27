@@ -22,16 +22,10 @@ cargar()
 /* ========================= */
 async function cargar(){
 
+/* 🔥 1. traer checklist SIN relaciones */
 const { data, error } = await supabase
 .from("inventario_checklist")
-.select(`
-id,
-cantidad,
-tiene,
-fecha_caducidad,
-inventario_items(nombre,cantidad_base),
-ambulancias(codigo_operativo)
-`)
+.select("*")
 .order("created_at",{ascending:false})
 
 if(error){
@@ -40,7 +34,37 @@ setLoading(false)
 return
 }
 
-setData(data || [])
+/* 🔥 2. traer ambulancias */
+const { data: ambs } = await supabase
+.from("ambulancias")
+.select("id,codigo_operativo")
+
+/* 🔥 3. traer items */
+const { data: items } = await supabase
+.from("inventario_items")
+.select("id,nombre,cantidad_base")
+
+/* 🔥 4. mapear */
+const ambMap:any = {}
+const itemMap:any = {}
+
+ambs?.forEach(a=>{
+ambMap[a.id] = a.codigo_operativo
+})
+
+items?.forEach(i=>{
+itemMap[i.id] = i
+})
+
+/* 🔥 5. unir datos */
+const dataFinal = (data || []).map((r:any)=>({
+...r,
+ambulancia_codigo: ambMap[r.ambulancia_id] || "Sin código",
+item_nombre: itemMap[r.item_id]?.nombre || "Item",
+cantidad_base: itemMap[r.item_id]?.cantidad_base || 0
+}))
+
+setData(dataFinal)
 setLoading(false)
 }
 
@@ -50,7 +74,6 @@ setLoading(false)
 async function eliminar(id:string){
 
 const ok = confirm("¿Eliminar registro?")
-
 if(!ok) return
 
 await supabase
@@ -83,10 +106,8 @@ cargar()
 /* 🔐 CERRAR SESIÓN */
 /* ========================= */
 function cerrarSesion(){
-
 localStorage.clear()
 router.push("/")
-
 }
 
 /* ========================= */
@@ -103,8 +124,8 @@ const porAmbulancia: Record<string, number> = {}
 
 data.forEach((r:any)=>{
 
-const base = r.inventario_items?.cantidad_base || 0
-const amb = r.ambulancias?.codigo_operativo || "Sin código"
+const base = r.cantidad_base || 0
+const amb = r.ambulancia_codigo || "Sin código"
 
 if(!r.tiene || r.cantidad < base){
 faltantes++
@@ -152,7 +173,7 @@ Cerrar sesión
 
 {loading && <p>Cargando...</p>}
 
-{/* KPI */}
+/* KPI */
 <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
 
 <div style={card}>
@@ -181,7 +202,7 @@ Cerrar sesión
 
 <hr/>
 
-{/* TABLA EDITABLE */}
+/* TABLA */
 <h2>📋 Registros</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -203,9 +224,9 @@ Cerrar sesión
 
 <tr key={r.id} style={{borderBottom:"1px solid #ddd"}}>
 
-<td style={td}>{r.ambulancias?.codigo_operativo}</td>
+<td style={td}>{r.ambulancia_codigo}</td>
 
-<td style={td}>{r.inventario_items?.nombre}</td>
+<td style={td}>{r.item_nombre}</td>
 
 <td style={td}>
 {editando===r.id
@@ -259,7 +280,7 @@ Eliminar
 
 <hr/>
 
-{/* RANKING */}
+/* RANKING */
 <h2>🚨 Ambulancias con más problemas</h2>
 
 <table style={{width:"100%",borderCollapse:"collapse"}}>
