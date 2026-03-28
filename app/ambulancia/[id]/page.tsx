@@ -181,7 +181,7 @@ fecha_inicio:new Date().toISOString(),
 usuario,
 foto_url,
 tipo_mantenimiento:null,
-area:null
+area:[] // 🔥 CAMBIO
 })
 
 await supabase
@@ -274,8 +274,6 @@ await supabase.from("historial_operativo").delete().eq("id",idEvento)
 cargarHistorial()
 }
 
-/* ========================= */
-
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
@@ -342,7 +340,7 @@ return(
 <td>{new Date(h.fecha_inicio).toLocaleString()}</td>
 <td>{h.estado}</td>
 <td>{h.tipo_mantenimiento || "-"}</td>
-<td>{h.area || "-"}</td>
+<td>{Array.isArray(h.area) ? h.area.join(", ") : "-"}</td>
 <td>{h.motivo}</td>
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
 
@@ -353,7 +351,7 @@ return(
 </td>
 
 <td>
-<button onClick={()=>setEditando({...h})}>✏️</button>
+<button onClick={()=>setEditando({...h, area:h.area || []})}>✏️</button>
 <button onClick={()=>eliminarEvento(h.id)}>🗑</button>
 </td>
 
@@ -388,13 +386,27 @@ onChange={(e)=>setEditando({...editando,tipo_mantenimiento:e.target.value})}>
 <option value="preventivo">Preventivo</option>
 </select>
 
-<select value={editando.area || ""}
-onChange={(e)=>setEditando({...editando,area:e.target.value})}>
-<option value="">Área</option>
-<option value="mecanico">Mecánico</option>
-<option value="electrico">Eléctrico</option>
-<option value="ac">A/C</option>
-</select>
+{/* 🔥 MULTI ÁREA */}
+<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+{["mecanico","electrico","ac"].map(a=>(
+<label key={a}>
+<input
+type="checkbox"
+checked={editando.area?.includes(a)}
+onChange={(e)=>{
+let nuevas = editando.area || []
+if(e.target.checked){
+nuevas = [...nuevas, a]
+}else{
+nuevas = nuevas.filter((x:string)=>x !== a)
+}
+setEditando({...editando, area:nuevas})
+}}
+/>
+{a}
+</label>
+))}
+</div>
 
 <textarea value={editando.motivo}
 onChange={(e)=>setEditando({...editando,motivo:e.target.value})}/>
