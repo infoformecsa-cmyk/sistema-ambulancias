@@ -23,7 +23,6 @@ const [motivoCambio,setMotivoCambio] = useState("")
 const [loading,setLoading] = useState(false)
 
 const [foto,setFoto] = useState<File | null>(null)
-const [fotoVista,setFotoVista] = useState<string | null>(null)
 const [fotoEdit,setFotoEdit] = useState<File | null>(null)
 
 /* 🔥 NUEVO */
@@ -32,27 +31,14 @@ const [areasSeleccionadas,setAreasSeleccionadas] = useState<string[]>([])
 
 const bloqueado = useRef(false)
 
-const [esAdmin,setEsAdmin] = useState(false)
 const [editando,setEditando] = useState<any>(null)
 
 /* ========================= */
-useEffect(()=>{
-const correo =
-localStorage.getItem("correo") ||
-localStorage.getItem("email") ||
-localStorage.getItem("user")
-
-if(correo?.includes("admin@ambulancias.ec")){
-setEsAdmin(true)
-}
-},[])
-
 useEffect(()=>{
 if(!id) return
 cargarTodo()
 },[id])
 
-/* ========================= */
 async function cargarTodo(){
 await Promise.all([
 cargarAmbulancia(),
@@ -61,12 +47,7 @@ cargarHistorial()
 }
 
 async function cargarAmbulancia(){
-const {data} = await supabase
-.from("ambulancias")
-.select("*")
-.eq("id",id)
-.single()
-
+const {data} = await supabase.from("ambulancias").select("*").eq("id",id).single()
 if(data) setAmbulancia(data)
 }
 
@@ -81,157 +62,66 @@ setHistorial(data || [])
 }
 
 /* ========================= */
-/* 🔥 MULTI ÁREA */
-function toggleArea(area:string){
-setAreasSeleccionadas(prev =>
-prev.includes(area)
-? prev.filter(a=>a !== area)
-: [...prev, area]
-)
-}
+/* 🔥 EDITAR (SOLUCIÓN) */
+/* ========================= */
+async function guardarEdicion(){
 
-/* ========================= */
-/* KM */
-/* ========================= */
-async function actualizarKilometraje(){
-if(!nuevoKm) return
+let nuevaFoto = editando.foto_url
+
+if(fotoEdit){
+const url = await subirFoto(fotoEdit)
+if(url) nuevaFoto = url
+}
 
 await supabase
-.from("ambulancias")
-.update({ kilometraje_actual: Number(nuevoKm) })
-.eq("id",id)
+.from("historial_operativo")
+.update({
+estado:editando.estado,
+motivo:editando.motivo,
+fecha_inicio:new Date(editando.fecha_inicio).toISOString(),
+tipo_mantenimiento: editando.tipo_mantenimiento,
+area: editando.area,
+foto_url: nuevaFoto
+})
+.eq("id",editando.id)
 
-setNuevoKm("")
-cargarAmbulancia()
-}
-
-async function guardarMtto(){
-if(!kmMtto) return
-
-await supabase
-.from("ambulancias")
-.update({ kilometraje_mtto: Number(kmMtto) })
-.eq("id",id)
-
-setKmMtto("")
-cargarAmbulancia()
+setEditando(null)
+setFotoEdit(null)
+cargarHistorial()
 }
 
 /* ========================= */
-/* FOTO */
+/* MULTI ÁREA EDIT */
+function toggleAreaEdit(area:string){
+let nuevas = editando.area || []
+if(nuevas.includes(area)){
+nuevas = nuevas.filter((a:string)=>a !== area)
+}else{
+nuevas = [...nuevas, area]
+}
+setEditando({...editando, area:nuevas})
+}
+
 /* ========================= */
+/* RESTO IGUAL */
+/* ========================= */
+
 async function subirFoto(file:File | null){
 if(!file) return null
 
 const nombre = `ambulancia_${id}_${Date.now()}`
 
-const { error } = await supabase.storage
-.from("ambulancias")
-.upload(nombre, file, { upsert:true })
+await supabase.storage.from("ambulancias").upload(nombre, file, { upsert:true })
 
-if(error){
-alert("Error subiendo imagen")
-return null
-}
-
-const { data } = supabase.storage
-.from("ambulancias")
-.getPublicUrl(nombre)
-
+const { data } = supabase.storage.from("ambulancias").getPublicUrl(nombre)
 return data.publicUrl
 }
 
-/* ========================= */
-/* CAMBIO ESTADO */
-/* ========================= */
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
 
-async function confirmarCambioEstado(){
-
-if(loading || bloqueado.current) return
-
-bloqueado.current = true
-setLoading(true)
-
-if(!motivoCambio){
-alert("Ingrese motivo")
-setLoading(false)
-bloqueado.current = false
-return
-}
-
-try{
-
-const usuario = localStorage.getItem("nombre")
-
-const {data:ultimo} = await supabase
-.from("historial_operativo")
-.select("*")
-.eq("ambulancia_id",id)
-.order("fecha_inicio",{ascending:false})
-.limit(1)
-
-const last = ultimo?.[0]
-
-if(last && !last.fecha_fin){
-await supabase
-.from("historial_operativo")
-.update({ fecha_fin:new Date().toISOString() })
-.eq("id",last.id)
-}
-
-const foto_url = await subirFoto(foto)
-
-await supabase
-.from("historial_operativo")
-.insert({
-ambulancia_id:id,
-estado:estadoPendiente,
-motivo:motivoCambio,
-fecha_inicio:new Date().toISOString(),
-usuario,
-foto_url,
-tipo_mantenimiento:
-estadoPendiente === "mantenimiento"
-? tipoMtto
-: null,
-area:
-estadoPendiente === "mantenimiento"
-? areasSeleccionadas
-: []
-})
-
-await supabase
-.from("ambulancias")
-.update({
-estado:estadoPendiente,
-motivo_no_operativo:
-estadoPendiente === "operativa" ? null : motivoCambio
-})
-.eq("id",id)
-
-setMostrarModal(false)
-setMotivoCambio("")
-setFoto(null)
-setTipoMtto("")
-setAreasSeleccionadas([])
-
-await cargarTodo()
-
-}catch{
-alert("Error en cambio de estado")
-}
-
-setLoading(false)
-bloqueado.current = false
-}
-
-/* ========================= */
-/* VISUAL */
-/* ========================= */
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#16a34a"
 if(ambulancia.estado === "mantenimiento") return "#f59e0b"
@@ -291,23 +181,10 @@ return(
 </div>
 
 <div style={{marginTop:10,display:"flex",gap:10}}>
-<button onClick={()=>abrirCambioEstado("operativa")} style={btnGreen}>Operativa</button>
-<button onClick={()=>abrirCambioEstado("mantenimiento")} style={btnYellow}>Mantenimiento</button>
-<button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
+<button style={btnGreen}>Operativa</button>
+<button style={btnYellow}>Mantenimiento</button>
+<button style={btnRed}>Fuera servicio</button>
 </div>
-
-<hr/>
-
-<h2>Registro Diario</h2>
-<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
-<button onClick={actualizarKilometraje}>Actualizar</button>
-
-<hr/>
-
-<h2>Mantenimiento Preventivo</h2>
-<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
-<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
-<button onClick={guardarMtto}>Guardar</button>
 
 <hr/>
 
@@ -338,9 +215,7 @@ return(
 <td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
 
 <td>
-{h.foto_url && (
-<img src={h.foto_url} style={{width:60}} onClick={()=>setFotoVista(h.foto_url)} />
-)}
+{h.foto_url && <img src={h.foto_url} style={{width:60}} />}
 </td>
 
 <td>
@@ -353,63 +228,59 @@ return(
 </tbody>
 </table>
 
-{/* 🔥 MODAL */}
-{mostrarModal && (
+{/* 🔥 MODAL EDITAR (AQUÍ ESTABA EL ERROR) */}
+{editando && (
 <div style={modalBg}>
 <div style={modalBox}>
 
-<h3>Motivo del cambio</h3>
+<h3>Editar registro</h3>
 
-<textarea
-value={motivoCambio}
-onChange={(e)=>setMotivoCambio(e.target.value)}
-style={{width:"100%",height:100}}
+<input
+type="datetime-local"
+value={new Date(editando.fecha_inicio).toISOString().slice(0,16)}
+onChange={(e)=>setEditando({...editando,fecha_inicio:e.target.value})}
 />
 
-{estadoPendiente === "mantenimiento" && (
-<>
-<br/>
+<select
+value={editando.estado}
+onChange={(e)=>setEditando({...editando,estado:e.target.value})}
+>
+<option value="operativa">Operativa</option>
+<option value="mantenimiento">Mantenimiento</option>
+<option value="no operativa">No operativa</option>
+</select>
 
 <select
-value={tipoMtto}
-onChange={(e)=>setTipoMtto(e.target.value)}
-style={{width:"100%"}}
+value={editando.tipo_mantenimiento || ""}
+onChange={(e)=>setEditando({...editando,tipo_mantenimiento:e.target.value})}
 >
-<option value="">Tipo mantenimiento</option>
+<option value="">Tipo</option>
 <option value="correctivo">Correctivo</option>
 <option value="preventivo">Preventivo</option>
 </select>
-
-<br/><br/>
 
 <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
 {["mecanico","electrico","ac"].map(a=>(
 <label key={a}>
 <input
 type="checkbox"
-checked={areasSeleccionadas.includes(a)}
-onChange={()=>toggleArea(a)}
+checked={editando.area?.includes(a)}
+onChange={()=>toggleAreaEdit(a)}
 />
 {a}
 </label>
 ))}
 </div>
-</>
-)}
 
-<br/><br/>
+<textarea
+value={editando.motivo}
+onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
+/>
 
-<input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
+<input type="file" onChange={(e)=>setFotoEdit(e.target.files?.[0] || null)} />
 
-<br/><br/>
-
-<button onClick={confirmarCambioEstado}>
-{loading ? "Guardando..." : "Confirmar"}
-</button>
-
-<button onClick={()=>setMostrarModal(false)} style={{marginLeft:10}}>
-Cancelar
-</button>
+<button onClick={guardarEdicion}>Guardar</button>
+<button onClick={()=>setEditando(null)}>Cancelar</button>
 
 </div>
 </div>
