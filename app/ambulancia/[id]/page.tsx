@@ -31,6 +31,7 @@ const bloqueado = useRef(false)
 const [esAdmin,setEsAdmin] = useState(false)
 const [editando,setEditando] = useState<any>(null)
 
+/* ========================= */
 useEffect(()=>{
 const correo =
 localStorage.getItem("correo") ||
@@ -47,13 +48,7 @@ if(!id) return
 cargarTodo()
 },[id])
 
-useEffect(()=>{
-const interval = setInterval(()=>{
-setHistorial(prev => [...prev])
-},60000)
-return ()=>clearInterval(interval)
-},[])
-
+/* ========================= */
 async function cargarTodo(){
 await Promise.all([
 cargarAmbulancia(),
@@ -81,14 +76,44 @@ const {data} = await supabase
 setHistorial(data || [])
 }
 
+/* ========================= */
+/* KM */
+/* ========================= */
+async function actualizarKilometraje(){
+if(!nuevoKm) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_actual: Number(nuevoKm) })
+.eq("id",id)
+
+setNuevoKm("")
+cargarAmbulancia()
+}
+
+async function guardarMtto(){
+if(!kmMtto) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_mtto: Number(kmMtto) })
+.eq("id",id)
+
+setKmMtto("")
+cargarAmbulancia()
+}
+
+/* ========================= */
 /* FOTO */
-async function subirFoto(file:File | null): Promise<string | null>{
+/* ========================= */
+async function subirFoto(file:File | null){
 if(!file) return null
 
 const nombre = `ambulancia_${id}_${Date.now()}`
+
 const { error } = await supabase.storage
 .from("ambulancias")
-.upload(nombre, file, { upsert: true })
+.upload(nombre, file, { upsert:true })
 
 if(error){
 alert("Error subiendo imagen")
@@ -102,7 +127,89 @@ const { data } = supabase.storage
 return data.publicUrl
 }
 
-/* EDITAR ADMIN */
+/* ========================= */
+/* CAMBIO ESTADO */
+/* ========================= */
+function abrirCambioEstado(estado:string){
+setEstadoPendiente(estado)
+setMostrarModal(true)
+}
+
+async function confirmarCambioEstado(){
+
+if(loading || bloqueado.current) return
+
+bloqueado.current = true
+setLoading(true)
+
+if(!motivoCambio){
+alert("Ingrese motivo")
+setLoading(false)
+bloqueado.current = false
+return
+}
+
+try{
+
+const usuario = localStorage.getItem("nombre")
+
+const {data:ultimo} = await supabase
+.from("historial_operativo")
+.select("*")
+.eq("ambulancia_id",id)
+.order("fecha_inicio",{ascending:false})
+.limit(1)
+
+const last = ultimo?.[0]
+
+if(last && !last.fecha_fin){
+await supabase
+.from("historial_operativo")
+.update({ fecha_fin:new Date().toISOString() })
+.eq("id",last.id)
+}
+
+const foto_url = await subirFoto(foto)
+
+await supabase
+.from("historial_operativo")
+.insert({
+ambulancia_id:id,
+estado:estadoPendiente,
+motivo:motivoCambio,
+fecha_inicio:new Date().toISOString(),
+usuario,
+foto_url,
+tipo_mantenimiento:null,
+area:null
+})
+
+await supabase
+.from("ambulancias")
+.update({
+estado:estadoPendiente,
+motivo_no_operativo:
+estadoPendiente === "operativa" ? null : motivoCambio
+})
+.eq("id",id)
+
+setMostrarModal(false)
+setMotivoCambio("")
+setFoto(null)
+
+await cargarTodo()
+
+}catch{
+alert("Error en cambio de estado")
+}
+
+setLoading(false)
+bloqueado.current = false
+}
+
+/* ========================= */
+/* EDITAR */
+/* ========================= */
 async function guardarEdicion(){
 
 let nuevaFoto = editando.foto_url
@@ -129,8 +236,9 @@ setFotoEdit(null)
 cargarHistorial()
 }
 
+/* ========================= */
 /* VISUAL */
-
+/* ========================= */
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#16a34a"
 if(ambulancia.estado === "mantenimiento") return "#f59e0b"
@@ -166,6 +274,8 @@ await supabase.from("historial_operativo").delete().eq("id",idEvento)
 cargarHistorial()
 }
 
+/* ========================= */
+
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
@@ -173,10 +283,8 @@ return(
 
 <h1>🚑 Ficha Mecánica</h1>
 
-<div style={{background:"#e5f3ff",padding:15,borderRadius:10,marginBottom:10}}>
-<h2 style={{margin:0}}>
-{ambulancia.codigo_operativo} | {ambulancia.placa}
-</h2>
+<div style={{background:"#e5f3ff",padding:15,borderRadius:10}}>
+<h2>{ambulancia.codigo_operativo} | {ambulancia.placa}</h2>
 </div>
 
 <button onClick={()=>router.push("/dashboard")}>← Volver</button>
@@ -191,12 +299,31 @@ return(
 {renderAlerta()}
 </div>
 
+<div style={{marginTop:10,display:"flex",gap:10}}>
+<button onClick={()=>abrirCambioEstado("operativa")} style={btnGreen}>Operativa</button>
+<button onClick={()=>abrirCambioEstado("mantenimiento")} style={btnYellow}>Mantenimiento</button>
+<button onClick={()=>abrirCambioEstado("no operativa")} style={btnRed}>Fuera servicio</button>
+</div>
+
+<hr/>
+
+<h2>Registro Diario</h2>
+<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
+<button onClick={actualizarKilometraje}>Actualizar</button>
+
+<hr/>
+
+<h2>Mantenimiento Preventivo</h2>
+<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
+<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
+<button onClick={guardarMtto}>Guardar</button>
+
 <hr/>
 
 <h2>Historial Operativo</h2>
 
-<table style={{width:"100%",borderCollapse:"collapse"}}>
-<thead style={{background:"#f3f4f6"}}>
+<table style={{width:"100%"}}>
+<thead>
 <tr>
 <th>Fecha</th>
 <th>Estado</th>
@@ -211,7 +338,7 @@ return(
 
 <tbody>
 {historial.map(h=>(
-<tr key={h.id} style={{borderBottom:"1px solid #ddd"}}>
+<tr key={h.id}>
 <td>{new Date(h.fecha_inicio).toLocaleString()}</td>
 <td>{h.estado}</td>
 <td>{h.tipo_mantenimiento || "-"}</td>
@@ -221,16 +348,12 @@ return(
 
 <td>
 {h.foto_url && (
-<img
-src={h.foto_url}
-style={{width:60,height:60,objectFit:"cover",borderRadius:6,cursor:"pointer"}}
-onClick={()=>setFotoVista(h.foto_url)}
-/>
+<img src={h.foto_url} style={{width:60}} onClick={()=>setFotoVista(h.foto_url)} />
 )}
 </td>
 
-<td style={{display:"flex",gap:5}}>
-{esAdmin && <button onClick={()=>setEditando({...h})}>✏️</button>}
+<td>
+<button onClick={()=>setEditando({...h})}>✏️</button>
 <button onClick={()=>eliminarEvento(h.id)}>🗑</button>
 </td>
 
@@ -243,68 +366,45 @@ onClick={()=>setFotoVista(h.foto_url)}
 {editando && (
 <div style={modalBg}>
 <div style={modalBox}>
+
 <h3>Editar registro</h3>
 
-<label>Fecha</label>
-<input
-type="datetime-local"
+<input type="datetime-local"
 value={new Date(editando.fecha_inicio).toISOString().slice(0,16)}
 onChange={(e)=>setEditando({...editando,fecha_inicio:e.target.value})}
 />
 
-<label>Estado</label>
-<select
-value={editando.estado}
-onChange={(e)=>setEditando({...editando,estado:e.target.value})}
->
+<select value={editando.estado}
+onChange={(e)=>setEditando({...editando,estado:e.target.value})}>
 <option value="operativa">Operativa</option>
 <option value="mantenimiento">Mantenimiento</option>
 <option value="no operativa">No operativa</option>
 </select>
 
-<label>Tipo</label>
-<select
-value={editando.tipo_mantenimiento || ""}
-onChange={(e)=>setEditando({...editando,tipo_mantenimiento:e.target.value})}
->
-<option value="">Seleccionar</option>
+<select value={editando.tipo_mantenimiento || ""}
+onChange={(e)=>setEditando({...editando,tipo_mantenimiento:e.target.value})}>
+<option value="">Tipo</option>
 <option value="correctivo">Correctivo</option>
 <option value="preventivo">Preventivo</option>
 </select>
 
-<label>Área</label>
-<select
-value={editando.area || ""}
-onChange={(e)=>setEditando({...editando,area:e.target.value})}
->
-<option value="">Seleccionar</option>
+<select value={editando.area || ""}
+onChange={(e)=>setEditando({...editando,area:e.target.value})}>
+<option value="">Área</option>
 <option value="mecanico">Mecánico</option>
 <option value="electrico">Eléctrico</option>
 <option value="ac">A/C</option>
 </select>
 
-<label>Motivo</label>
-<textarea
-value={editando.motivo}
-onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
-/>
+<textarea value={editando.motivo}
+onChange={(e)=>setEditando({...editando,motivo:e.target.value})}/>
 
-<label>Foto</label>
 <input type="file" onChange={(e)=>setFotoEdit(e.target.files?.[0] || null)} />
 
-<br/>
-
 <button onClick={guardarEdicion}>Guardar</button>
-<button onClick={()=>setEditando(null)} style={{marginLeft:10}}>Cancelar</button>
+<button onClick={()=>setEditando(null)}>Cancelar</button>
 
 </div>
-</div>
-)}
-
-{/* VISOR */}
-{fotoVista && (
-<div style={visorBg} onClick={()=>setFotoVista(null)}>
-<img src={fotoVista} style={visorImg}/>
 </div>
 )}
 
@@ -312,14 +412,14 @@ onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
 )
 }
 
-/* ESTILOS */
-const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
-const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
-const btnRed: CSSProperties = {background:"#dc2626",color:"white",padding:10,borderRadius:6}
+/* estilos */
+const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10}
+const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10}
+const btnRed: CSSProperties = {background:"#dc2626",color:"white",padding:10}
 
-const alertGreen: CSSProperties = {background:"#dcfce7",padding:12,borderRadius:6}
-const alertYellow: CSSProperties = {background:"#fef9c3",padding:12,borderRadius:6}
-const alertRed: CSSProperties = {background:"#fee2e2",padding:12,borderRadius:6}
+const alertGreen: CSSProperties = {background:"#dcfce7",padding:10}
+const alertYellow: CSSProperties = {background:"#fef9c3",padding:10}
+const alertRed: CSSProperties = {background:"#fee2e2",padding:10}
 
 const modalBg: CSSProperties = {
 position:"fixed",
@@ -329,17 +429,5 @@ display:"flex",justifyContent:"center",alignItems:"center"
 }
 
 const modalBox: CSSProperties = {
-background:"white",padding:20,width:400,borderRadius:10
-}
-
-const visorBg: CSSProperties = {
-position:"fixed",
-top:0,left:0,width:"100%",height:"100%",
-background:"rgba(0,0,0,0.8)",
-display:"flex",justifyContent:"center",alignItems:"center",
-zIndex:9999
-}
-
-const visorImg: CSSProperties = {
-maxWidth:"90%",maxHeight:"90%",borderRadius:10
+background:"white",padding:20,borderRadius:10
 }
