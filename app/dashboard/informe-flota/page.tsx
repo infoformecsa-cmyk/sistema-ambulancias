@@ -86,6 +86,53 @@ return a
 return area
 }
 
+/* ========================= */
+/* 🔥 NUEVO: INDICADORES MSP */
+/* ========================= */
+
+let tiempoFueraServicioHoras = 0
+
+const statsPorAmbulancia: Record<string, any> = {}
+
+historial.forEach((h:any)=>{
+
+const amb = h.ambulancia_id
+
+if(!statsPorAmbulancia[amb]){
+statsPorAmbulancia[amb] = {
+total:0,
+correctivo:0,
+preventivo:0
+}
+}
+
+statsPorAmbulancia[amb].total++
+
+if(h.tipo_mantenimiento === "correctivo"){
+statsPorAmbulancia[amb].correctivo++
+}
+
+if(h.tipo_mantenimiento === "preventivo"){
+statsPorAmbulancia[amb].preventivo++
+}
+
+if(h.estado !== "operativa"){
+const inicio = new Date(h.fecha_inicio)
+const fin = h.fecha_fin ? new Date(h.fecha_fin) : new Date()
+
+const horas = (fin.getTime() - inicio.getTime()) / (1000*60*60)
+
+if(horas > 0) tiempoFueraServicioHoras += horas
+}
+
+})
+
+function formatearTiempo(horas:number){
+const dias = Math.floor(horas / 24)
+const horasRest = Math.floor(horas % 24)
+return `${dias} días ${horasRest} horas`
+}
+
 return(
 
 <div style={{padding:40,fontFamily:"Arial",background:"white",maxWidth:1000,margin:"auto"}}>
@@ -102,10 +149,7 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 {/* BOTONES */}
 <div style={{marginBottom:20, display:"flex", gap:10}}>
 
-<button 
-onClick={()=>router.push("/dashboard")}
-style={btnBack}
->
+<button onClick={()=>router.push("/dashboard")} style={btnBack}>
 ← Volver
 </button>
 
@@ -129,6 +173,42 @@ style={btnBack}
 <tr><td>Disponibilidad</td><td>{disponibilidad}%</td></tr>
 </tbody>
 </table>
+
+<hr/>
+
+{/* 🔥 NUEVO BLOQUE MSP */}
+<h3>Indicadores Técnicos MSP</h3>
+
+<div style={{display:"flex",flexWrap:"wrap",gap:20}}>
+
+<div style={card}>
+<h4>Tiempo fuera de servicio</h4>
+<p>{formatearTiempo(tiempoFueraServicioHoras)}</p>
+</div>
+
+<div style={card}>
+<h4>Mantenimiento por ambulancia</h4>
+
+{Object.entries(statsPorAmbulancia).map(([id,stat]:any)=>{
+
+const amb = ambulancias.find(a=>String(a.id)===String(id))
+
+const total = stat.total || 1
+const pCorrectivo = Math.round((stat.correctivo / total) * 100)
+const pPreventivo = Math.round((stat.preventivo / total) * 100)
+
+return(
+<p key={id} style={{fontSize:13}}>
+<b>{amb?.codigo_operativo || id}</b> → {stat.total} intervenciones <br/>
+🔧 Correctivo: {stat.correctivo} ({pCorrectivo}%) <br/>
+🛠 Preventivo: {stat.preventivo} ({pPreventivo}%)
+</p>
+)
+})}
+
+</div>
+
+</div>
 
 <hr/>
 
@@ -170,8 +250,8 @@ return(
 <tr style={{fontSize:12,color:"#555"}}>
 <th>Fecha</th>
 <th>Estado</th>
-<th>Tipo</th> {/* NUEVO */}
-<th>Área</th> {/* NUEVO */}
+<th>Tipo</th>
+<th>Área</th>
 <th>Motivo</th>
 <th>Tiempo</th>
 <th>Foto</th>
@@ -182,43 +262,16 @@ return(
 
 {eventos.map(h=>(
 <tr key={h.id}>
-
-<td style={{fontSize:12}}>
-{new Date(h.fecha_inicio).toLocaleString("es-EC")}
-</td>
-
-<td style={{color:colorEstado(h.estado),fontSize:12}}>
-{h.estado}
-</td>
-
-<td style={{fontSize:12}}>
-{h.tipo_mantenimiento || "-"}
-</td>
-
-<td style={{fontSize:12}}>
-{formatearArea(h.area)}
-</td>
-
-<td style={{fontSize:12}}>
-{h.motivo || "-"}
-</td>
-
-<td style={{fontSize:12}}>
-{calcularTiempo(h.fecha_inicio,h.fecha_fin)}
-</td>
+<td style={{fontSize:12}}>{new Date(h.fecha_inicio).toLocaleString("es-EC")}</td>
+<td style={{color:colorEstado(h.estado),fontSize:12}}>{h.estado}</td>
+<td style={{fontSize:12}}>{h.tipo_mantenimiento || "-"}</td>
+<td style={{fontSize:12}}>{formatearArea(h.area)}</td>
+<td style={{fontSize:12}}>{h.motivo || "-"}</td>
+<td style={{fontSize:12}}>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
 
 <td>
 {h.foto_url ? (
-<img 
-src={h.foto_url}
-style={{
-width:50,
-height:50,
-objectFit:"cover",
-borderRadius:6,
-border:"1px solid #ddd"
-}}
-/>
+<img src={h.foto_url} style={{width:50,height:50,objectFit:"cover",borderRadius:6,border:"1px solid #ddd"}}/>
 ) : (
 <span style={{fontSize:12,color:"#999"}}>-</span>
 )}
@@ -226,14 +279,6 @@ border:"1px solid #ddd"
 
 </tr>
 ))}
-
-{eventos.length === 0 && (
-<tr>
-<td colSpan={7} style={{color:"#999",fontSize:12}}>
-Sin historial
-</td>
-</tr>
-)}
 
 </tbody>
 </table>
@@ -289,4 +334,12 @@ background:"#374151",
 color:"white",
 padding:10,
 borderRadius:6
+}
+
+const card: React.CSSProperties = {
+border:"1px solid #ddd",
+borderRadius:10,
+padding:15,
+minWidth:250,
+background:"#f9fafb"
 }
