@@ -36,6 +36,18 @@ const {data} = await supabase
 setAmbulancias(data || [])
 }
 
+/* 🔥 NUEVO: ALERTAS */
+const mantenimientoVencido = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto) return false
+return a.kilometraje_actual >= a.kilometraje_mtto
+})
+
+const mantenimientoProximo = ambulancias.filter(a=>{
+if(!a.kilometraje_mtto) return false
+const diff = a.kilometraje_mtto - a.kilometraje_actual
+return diff > 0 && diff <= 500
+})
+
 /* KM */
 async function actualizarKm(id:string){
 
@@ -172,6 +184,28 @@ BRAVO
 </button>
 
 </div>
+
+{/* 🔥 NUEVO: ALERTAS VISUALES */}
+{mantenimientoVencido.length > 0 && (
+<div style={{background:"#fee2e2",padding:15,borderRadius:10,marginBottom:20}}>
+<b>🚨 Mantenimiento vencido</b>
+<br/>
+{mantenimientoVencido.map(a=>(
+<div key={a.id}>{a.codigo_operativo}</div>
+))}
+</div>
+)}
+
+{mantenimientoProximo.length > 0 && (
+<div style={{background:"#fef9c3",padding:15,borderRadius:10,marginBottom:20}}>
+<b>⚠️ Mantenimiento próximo</b>
+<br/>
+{mantenimientoProximo.map(a=>{
+const diff = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {diff} km</div>
+})}
+</div>
+)}
 
 {ambulancias.map(a=>(
 <div key={a.id} style={{
