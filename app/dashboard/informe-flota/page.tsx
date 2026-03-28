@@ -133,7 +133,6 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 
 <hr/>
 
-{/* SOLO ESTE INDICADOR */}
 <h3>Indicadores Técnicos MSP</h3>
 
 <div style={card}>
@@ -153,7 +152,7 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 <th style={th}>Tipo</th>
 <th style={th}>Estado</th>
 <th style={th}>Kilometraje</th>
-<th style={th}>Mantenimiento</th> {/* 🔥 NUEVO */}
+<th style={th}>Mantenimiento</th>
 </tr>
 </thead>
 
@@ -163,13 +162,15 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 
 const eventos = historial.filter(h=>String(h.ambulancia_id) === String(a.id))
 
-/* 🔥 CALCULO POR AMBULANCIA */
-const totalEv = eventos.length || 1
-const correctivo = eventos.filter(e=>e.tipo_mantenimiento==="correctivo").length
-const preventivo = eventos.filter(e=>e.tipo_mantenimiento==="preventivo").length
+/* 🔥 SOLO MANTENIMIENTO */
+const eventosMtto = eventos.filter(e=>e.estado === "mantenimiento")
 
-const pC = Math.round((correctivo/totalEv)*100)
-const pP = Math.round((preventivo/totalEv)*100)
+const totalEv = eventosMtto.length || 0
+const correctivo = eventosMtto.filter(e=>e.tipo_mantenimiento==="correctivo").length
+const preventivo = eventosMtto.filter(e=>e.tipo_mantenimiento==="preventivo").length
+
+const pC = totalEv ? Math.round((correctivo/totalEv)*100) : 0
+const pP = totalEv ? Math.round((preventivo/totalEv)*100) : 0
 
 return(
 <>
