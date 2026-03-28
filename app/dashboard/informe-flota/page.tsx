@@ -45,35 +45,25 @@ function imprimir(){
 window.print()
 }
 
-/* COLOR ESTADO */
 function colorEstado(e:string){
 if(e==="operativa") return "#16a34a"
 if(e==="mantenimiento") return "#f59e0b"
 return "#dc2626"
 }
 
-/* TIEMPO */
 function calcularTiempo(inicio:string, fin:string|null){
-
 const i = new Date(inicio)
 const f = fin ? new Date(fin) : new Date()
-
 if(f < i) return "0 h"
-
 const diff = f.getTime() - i.getTime()
-
 const horas = Math.floor(diff / (1000*60*60))
 const minutos = Math.floor((diff % (1000*60*60)) / (1000*60))
-
 if(horas > 0) return `${horas}h ${minutos}m`
 return `${minutos} min`
 }
 
-/* FORMATEO ÁREA */
 function formatearArea(area:any){
-
 if(!area) return "-"
-
 if(Array.isArray(area)){
 return area.map(a=>{
 if(a==="mecanico") return "Mecánico"
@@ -82,49 +72,19 @@ if(a==="ac") return "A/C"
 return a
 }).join(", ")
 }
-
 return area
 }
 
-/* ========================= */
-/* INDICADORES MSP */
-/* ========================= */
-
+/* 🔥 SOLO TIEMPO FUERA SERVICIO */
 let tiempoFueraServicioHoras = 0
 
-const statsPorAmbulancia: Record<string, any> = {}
-
 historial.forEach((h:any)=>{
-
-const amb = h.ambulancia_id
-
-if(!statsPorAmbulancia[amb]){
-statsPorAmbulancia[amb] = {
-total:0,
-correctivo:0,
-preventivo:0
-}
-}
-
-statsPorAmbulancia[amb].total++
-
-if(h.tipo_mantenimiento === "correctivo"){
-statsPorAmbulancia[amb].correctivo++
-}
-
-if(h.tipo_mantenimiento === "preventivo"){
-statsPorAmbulancia[amb].preventivo++
-}
-
 if(h.estado !== "operativa"){
 const inicio = new Date(h.fecha_inicio)
 const fin = h.fecha_fin ? new Date(h.fecha_fin) : new Date()
-
 const horas = (fin.getTime() - inicio.getTime()) / (1000*60*60)
-
 if(horas > 0) tiempoFueraServicioHoras += horas
 }
-
 })
 
 function formatearTiempo(horas:number){
@@ -159,7 +119,6 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 
 <hr/>
 
-{/* RESUMEN */}
 <h3>Resumen General</h3>
 
 <table style={tabla}>
@@ -174,71 +133,16 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 
 <hr/>
 
-{/* MSP */}
+{/* SOLO ESTE INDICADOR */}
 <h3>Indicadores Técnicos MSP</h3>
-
-<div style={{display:"flex",flexWrap:"wrap",gap:20}}>
 
 <div style={card}>
 <h4>Tiempo fuera de servicio</h4>
 <p>{formatearTiempo(tiempoFueraServicioHoras)}</p>
 </div>
 
-<div style={card}>
-<h4>Mantenimiento por ambulancia</h4>
-
-<div style={{
-display:"grid",
-gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))",
-gap:10,
-marginTop:10
-}}>
-
-{Object.entries(statsPorAmbulancia).map(([id,stat]:any)=>{
-
-const amb = ambulancias.find(a=>String(a.id)===String(id))
-
-const total = stat.total || 1
-const pCorrectivo = Math.round((stat.correctivo / total) * 100)
-const pPreventivo = Math.round((stat.preventivo / total) * 100)
-
-return(
-<div key={id} style={{
-border:"1px solid #e5e7eb",
-borderRadius:8,
-padding:10,
-background:"#fff"
-}}>
-
-<p style={{margin:0,fontWeight:"bold"}}>
-{amb?.codigo_operativo || id}
-</p>
-
-<p style={{margin:0,fontSize:12,color:"#555"}}>
-{stat.total} intervenciones
-</p>
-
-<p style={{margin:0,fontSize:12}}>
-🔧 {stat.correctivo} ({pCorrectivo}%)
-</p>
-
-<p style={{margin:0,fontSize:12}}>
-🛠 {stat.preventivo} ({pPreventivo}%)
-</p>
-
-</div>
-)
-})}
-
-</div>
-
-</div>
-
-</div>
-
 <hr/>
 
-{/* DETALLE */}
 <h3>Detalle de Flota</h3>
 
 <table style={tabla}>
@@ -249,6 +153,7 @@ background:"#fff"
 <th style={th}>Tipo</th>
 <th style={th}>Estado</th>
 <th style={th}>Kilometraje</th>
+<th style={th}>Mantenimiento</th> {/* 🔥 NUEVO */}
 </tr>
 </thead>
 
@@ -258,6 +163,14 @@ background:"#fff"
 
 const eventos = historial.filter(h=>String(h.ambulancia_id) === String(a.id))
 
+/* 🔥 CALCULO POR AMBULANCIA */
+const totalEv = eventos.length || 1
+const correctivo = eventos.filter(e=>e.tipo_mantenimiento==="correctivo").length
+const preventivo = eventos.filter(e=>e.tipo_mantenimiento==="preventivo").length
+
+const pC = Math.round((correctivo/totalEv)*100)
+const pP = Math.round((preventivo/totalEv)*100)
+
 return(
 <>
 <tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
@@ -266,10 +179,17 @@ return(
 <td style={td}>{a.tipo}</td>
 <td style={{...td,color:colorEstado(a.estado)}}>{a.estado}</td>
 <td style={td}>{a.kilometraje_actual || 0}</td>
+
+<td style={{...td,fontSize:12}}>
+<b>{totalEv}</b> intervenciones<br/>
+🔧 {correctivo} ({pC}%)<br/>
+🛠 {preventivo} ({pP}%)
+</td>
+
 </tr>
 
 <tr>
-<td colSpan={5} style={{background:"#f9fafb",padding:10}}>
+<td colSpan={6} style={{background:"#f9fafb",padding:10}}>
 
 <table style={{width:"100%"}}>
 <thead>
@@ -339,8 +259,7 @@ marginTop:10
 
 const th: React.CSSProperties = {
 padding:10,
-border:"1px solid #ddd",
-textAlign:"left"
+border:"1px solid #ddd"
 }
 
 const td: React.CSSProperties = {
