@@ -81,7 +81,7 @@ setHistorial(data || [])
 }
 
 /* ========================= */
-/* 🔥 NUEVO */
+/* 🔥 MULTI ÁREA */
 function toggleArea(area:string){
 setAreasSeleccionadas(prev =>
 prev.includes(area)
@@ -194,8 +194,14 @@ motivo:motivoCambio,
 fecha_inicio:new Date().toISOString(),
 usuario,
 foto_url,
-tipo_mantenimiento: estadoPendiente === "mantenimiento" ? tipoMtto : null,
-area: estadoPendiente === "mantenimiento" ? areasSeleccionadas : []
+tipo_mantenimiento:
+estadoPendiente === "mantenimiento"
+? tipoMtto
+: null,
+area:
+estadoPendiente === "mantenimiento"
+? areasSeleccionadas
+: []
 })
 
 await supabase
@@ -255,6 +261,12 @@ if(dias > 0) return `${dias}d ${horasRest}h`
 return `${horas} h`
 }
 
+async function eliminarEvento(idEvento:string){
+if(!confirm("Eliminar registro?")) return
+await supabase.from("historial_operativo").delete().eq("id",idEvento)
+cargarHistorial()
+}
+
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
@@ -286,6 +298,61 @@ return(
 
 <hr/>
 
+<h2>Registro Diario</h2>
+<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
+<button onClick={actualizarKilometraje}>Actualizar</button>
+
+<hr/>
+
+<h2>Mantenimiento Preventivo</h2>
+<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
+<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
+<button onClick={guardarMtto}>Guardar</button>
+
+<hr/>
+
+<h2>Historial Operativo</h2>
+
+<table style={{width:"100%"}}>
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Estado</th>
+<th>Tipo</th>
+<th>Área</th>
+<th>Motivo</th>
+<th>Tiempo</th>
+<th>Foto</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+{historial.map(h=>(
+<tr key={h.id}>
+<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
+<td>{h.estado}</td>
+<td>{h.tipo_mantenimiento || "-"}</td>
+<td>{Array.isArray(h.area) ? h.area.join(", ") : "-"}</td>
+<td>{h.motivo}</td>
+<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
+
+<td>
+{h.foto_url && (
+<img src={h.foto_url} style={{width:60}} onClick={()=>setFotoVista(h.foto_url)} />
+)}
+</td>
+
+<td>
+<button onClick={()=>setEditando({...h, area:h.area || []})}>✏️</button>
+<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
+</td>
+
+</tr>
+))}
+</tbody>
+</table>
+
 {/* 🔥 MODAL */}
 {mostrarModal && (
 <div style={modalBg}>
@@ -296,23 +363,26 @@ return(
 <textarea
 value={motivoCambio}
 onChange={(e)=>setMotivoCambio(e.target.value)}
-style={{width:"100%",height:80}}
+style={{width:"100%",height:100}}
 />
 
-{/* SOLO MANTENIMIENTO */}
 {estadoPendiente === "mantenimiento" && (
 <>
+<br/>
+
 <select
 value={tipoMtto}
 onChange={(e)=>setTipoMtto(e.target.value)}
-style={{width:"100%",marginTop:10}}
+style={{width:"100%"}}
 >
 <option value="">Tipo mantenimiento</option>
 <option value="correctivo">Correctivo</option>
 <option value="preventivo">Preventivo</option>
 </select>
 
-<div style={{display:"flex",gap:10,marginTop:10}}>
+<br/><br/>
+
+<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
 {["mecanico","electrico","ac"].map(a=>(
 <label key={a}>
 <input
@@ -326,6 +396,8 @@ onChange={()=>toggleArea(a)}
 </div>
 </>
 )}
+
+<br/><br/>
 
 <input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
 
