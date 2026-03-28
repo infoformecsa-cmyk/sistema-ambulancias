@@ -69,7 +69,7 @@ if(horas > 0) return `${horas}h ${minutos}m`
 return `${minutos} min`
 }
 
-/* 🔥 FORMATEO ÁREA MULTIPLE */
+/* FORMATEO ÁREA */
 function formatearArea(area:any){
 
 if(!area) return "-"
@@ -87,7 +87,7 @@ return area
 }
 
 /* ========================= */
-/* 🔥 NUEVO: INDICADORES MSP */
+/* INDICADORES MSP */
 /* ========================= */
 
 let tiempoFueraServicioHoras = 0
@@ -137,7 +137,7 @@ return(
 
 <div style={{padding:40,fontFamily:"Arial",background:"white",maxWidth:1000,margin:"auto"}}>
 
-{/* HEADER MSP */}
+{/* HEADER */}
 <div style={{textAlign:"center",marginBottom:30}}>
 <h1 style={{margin:0}}>DIRECCION PROVINCIAL DE SALUD DEL GUAYAS</h1>
 <h2 style={{margin:0}}>Informe de Estado Operativo de Ambulancias SSM</h2>
@@ -148,7 +148,6 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 
 {/* BOTONES */}
 <div style={{marginBottom:20, display:"flex", gap:10}}>
-
 <button onClick={()=>router.push("/dashboard")} style={btnBack}>
 ← Volver
 </button>
@@ -156,7 +155,6 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 <button onClick={imprimir} style={btnPrint}>
 🖨 Imprimir / Exportar PDF
 </button>
-
 </div>
 
 <hr/>
@@ -176,7 +174,7 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 
 <hr/>
 
-{/* 🔥 NUEVO BLOQUE MSP */}
+{/* MSP */}
 <h3>Indicadores Técnicos MSP</h3>
 
 <div style={{display:"flex",flexWrap:"wrap",gap:20}}>
@@ -189,6 +187,13 @@ Fecha: {new Date().toLocaleDateString("es-EC")}
 <div style={card}>
 <h4>Mantenimiento por ambulancia</h4>
 
+<div style={{
+display:"grid",
+gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))",
+gap:10,
+marginTop:10
+}}>
+
 {Object.entries(statsPorAmbulancia).map(([id,stat]:any)=>{
 
 const amb = ambulancias.find(a=>String(a.id)===String(id))
@@ -198,13 +203,34 @@ const pCorrectivo = Math.round((stat.correctivo / total) * 100)
 const pPreventivo = Math.round((stat.preventivo / total) * 100)
 
 return(
-<p key={id} style={{fontSize:13}}>
-<b>{amb?.codigo_operativo || id}</b> → {stat.total} intervenciones <br/>
-🔧 Correctivo: {stat.correctivo} ({pCorrectivo}%) <br/>
-🛠 Preventivo: {stat.preventivo} ({pPreventivo}%)
+<div key={id} style={{
+border:"1px solid #e5e7eb",
+borderRadius:8,
+padding:10,
+background:"#fff"
+}}>
+
+<p style={{margin:0,fontWeight:"bold"}}>
+{amb?.codigo_operativo || id}
 </p>
+
+<p style={{margin:0,fontSize:12,color:"#555"}}>
+{stat.total} intervenciones
+</p>
+
+<p style={{margin:0,fontSize:12}}>
+🔧 {stat.correctivo} ({pCorrectivo}%)
+</p>
+
+<p style={{margin:0,fontSize:12}}>
+🛠 {stat.preventivo} ({pPreventivo}%)
+</p>
+
+</div>
 )
 })}
+
+</div>
 
 </div>
 
