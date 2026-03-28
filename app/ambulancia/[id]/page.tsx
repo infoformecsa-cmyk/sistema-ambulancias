@@ -47,8 +47,18 @@ if(!id) return
 cargarTodo()
 },[id])
 
+useEffect(()=>{
+const interval = setInterval(()=>{
+setHistorial(prev => [...prev])
+},60000)
+return ()=>clearInterval(interval)
+},[])
+
 async function cargarTodo(){
-await Promise.all([cargarAmbulancia(),cargarHistorial()])
+await Promise.all([
+cargarAmbulancia(),
+cargarHistorial()
+])
 }
 
 async function cargarAmbulancia(){
@@ -72,13 +82,13 @@ setHistorial(data || [])
 }
 
 /* FOTO */
-async function subirFoto(file:File | null){
+async function subirFoto(file:File | null): Promise<string | null>{
 if(!file) return null
 
 const nombre = `ambulancia_${id}_${Date.now()}`
 const { error } = await supabase.storage
 .from("ambulancias")
-.upload(nombre, file, { upsert:true })
+.upload(nombre, file, { upsert: true })
 
 if(error){
 alert("Error subiendo imagen")
@@ -92,7 +102,7 @@ const { data } = supabase.storage
 return data.publicUrl
 }
 
-/* EDITAR */
+/* EDITAR ADMIN */
 async function guardarEdicion(){
 
 let nuevaFoto = editando.foto_url
@@ -119,7 +129,24 @@ setFotoEdit(null)
 cargarHistorial()
 }
 
-/* TIEMPO */
+/* VISUAL */
+
+function estadoColor(){
+if(ambulancia.estado === "operativa") return "#16a34a"
+if(ambulancia.estado === "mantenimiento") return "#f59e0b"
+return "#dc2626"
+}
+
+function renderAlerta(){
+if(ambulancia.estado === "no operativa"){
+return <div style={alertRed}>🚨 FUERA DE SERVICIO</div>
+}
+if(ambulancia.estado === "mantenimiento"){
+return <div style={alertYellow}>🔧 EN MANTENIMIENTO</div>
+}
+return <div style={alertGreen}>✅ OPERATIVA</div>
+}
+
 function calcularTiempo(i:string,f:string|null){
 const inicio = new Date(i)
 const fin = f ? new Date(f) : new Date()
@@ -160,7 +187,8 @@ return(
 
 <div style={{background:"#f3f4f6",padding:15,borderRadius:8}}>
 <p><b>KM:</b> {ambulancia.kilometraje_actual}</p>
-<p><b>Estado:</b> {ambulancia.estado}</p>
+<p><b>Estado:</b> <span style={{color:estadoColor()}}>{ambulancia.estado}</span></p>
+{renderAlerta()}
 </div>
 
 <hr/>
@@ -211,12 +239,11 @@ onClick={()=>setFotoVista(h.foto_url)}
 </tbody>
 </table>
 
-{/* 🔥 MODAL MEJORADO */}
+{/* MODAL EDITAR */}
 {editando && (
 <div style={modalBg}>
 <div style={modalBox}>
-
-<h3>✏️ Editar registro</h3>
+<h3>Editar registro</h3>
 
 <label>Fecha</label>
 <input
@@ -274,29 +301,45 @@ onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
 </div>
 )}
 
+{/* VISOR */}
+{fotoVista && (
+<div style={visorBg} onClick={()=>setFotoVista(null)}>
+<img src={fotoVista} style={visorImg}/>
+</div>
+)}
+
 </div>
 )
 }
 
 /* ESTILOS */
+const btnGreen: CSSProperties = {background:"#16a34a",color:"white",padding:10,borderRadius:6}
+const btnYellow: CSSProperties = {background:"#f59e0b",color:"white",padding:10,borderRadius:6}
+const btnRed: CSSProperties = {background:"#dc2626",color:"white",padding:10,borderRadius:6}
+
+const alertGreen: CSSProperties = {background:"#dcfce7",padding:12,borderRadius:6}
+const alertYellow: CSSProperties = {background:"#fef9c3",padding:12,borderRadius:6}
+const alertRed: CSSProperties = {background:"#fee2e2",padding:12,borderRadius:6}
+
 const modalBg: CSSProperties = {
 position:"fixed",
-top:0,
-left:0,
-width:"100%",
-height:"100%",
+top:0,left:0,width:"100%",height:"100%",
 background:"rgba(0,0,0,0.5)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
+display:"flex",justifyContent:"center",alignItems:"center"
 }
 
 const modalBox: CSSProperties = {
-background:"white",
-padding:20,
-width:420,
-borderRadius:10,
-display:"flex",
-flexDirection:"column",
-gap:10
+background:"white",padding:20,width:400,borderRadius:10
+}
+
+const visorBg: CSSProperties = {
+position:"fixed",
+top:0,left:0,width:"100%",height:"100%",
+background:"rgba(0,0,0,0.8)",
+display:"flex",justifyContent:"center",alignItems:"center",
+zIndex:9999
+}
+
+const visorImg: CSSProperties = {
+maxWidth:"90%",maxHeight:"90%",borderRadius:10
 }
