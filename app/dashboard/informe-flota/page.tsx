@@ -69,14 +69,31 @@ if(horas > 0) return `${horas}h ${minutos}m`
 return `${minutos} min`
 }
 
+/* 🔥 FORMATEO ÁREA MULTIPLE */
+function formatearArea(area:any){
+
+if(!area) return "-"
+
+if(Array.isArray(area)){
+return area.map(a=>{
+if(a==="mecanico") return "Mecánico"
+if(a==="electrico") return "Eléctrico"
+if(a==="ac") return "A/C"
+return a
+}).join(", ")
+}
+
+return area
+}
+
 return(
 
 <div style={{padding:40,fontFamily:"Arial",background:"white",maxWidth:1000,margin:"auto"}}>
 
 {/* HEADER MSP */}
 <div style={{textAlign:"center",marginBottom:30}}>
-<h1 style={{margin:0}}>MINISTERIO DE SALUD PÚBLICA</h1>
-<h2 style={{margin:0}}>Informe de Estado Operativo de Ambulancias</h2>
+<h1 style={{margin:0}}>DIRECCION PROVINCIAL DE SALUD DEL GUAYAS</h1>
+<h2 style={{margin:0}}>Informe de Estado Operativo de Ambulancias SSM</h2>
 <p style={{marginTop:5,color:"#555"}}>
 Fecha: {new Date().toLocaleDateString("es-EC")}
 </p>
@@ -137,7 +154,6 @@ const eventos = historial.filter(h=>String(h.ambulancia_id) === String(a.id))
 
 return(
 <>
-{/* FILA PRINCIPAL */}
 <tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
 <td style={td}>{a.codigo_operativo}</td>
 <td style={td}>{a.placa}</td>
@@ -146,18 +162,19 @@ return(
 <td style={td}>{a.kilometraje_actual || 0}</td>
 </tr>
 
-{/* HISTORIAL */}
 <tr>
 <td colSpan={5} style={{background:"#f9fafb",padding:10}}>
 
 <table style={{width:"100%"}}>
 <thead>
 <tr style={{fontSize:12,color:"#555"}}>
-<th style={{textAlign:"left"}}>Fecha</th>
-<th style={{textAlign:"left"}}>Estado</th>
-<th style={{textAlign:"left"}}>Motivo</th>
-<th style={{textAlign:"left"}}>Tiempo</th>
-<th style={{textAlign:"left"}}>Foto</th>
+<th>Fecha</th>
+<th>Estado</th>
+<th>Tipo</th> {/* NUEVO */}
+<th>Área</th> {/* NUEVO */}
+<th>Motivo</th>
+<th>Tiempo</th>
+<th>Foto</th>
 </tr>
 </thead>
 
@@ -172,6 +189,14 @@ return(
 
 <td style={{color:colorEstado(h.estado),fontSize:12}}>
 {h.estado}
+</td>
+
+<td style={{fontSize:12}}>
+{h.tipo_mantenimiento || "-"}
+</td>
+
+<td style={{fontSize:12}}>
+{formatearArea(h.area)}
 </td>
 
 <td style={{fontSize:12}}>
@@ -204,7 +229,7 @@ border:"1px solid #ddd"
 
 {eventos.length === 0 && (
 <tr>
-<td colSpan={5} style={{color:"#999",fontSize:12}}>
+<td colSpan={7} style={{color:"#999",fontSize:12}}>
 Sin historial
 </td>
 </tr>
@@ -224,7 +249,6 @@ Sin historial
 
 <hr/>
 
-{/* FIRMA */}
 <div style={{marginTop:60,textAlign:"center"}}>
 <p>_____________________________________</p>
 <p style={{margin:0}}>Responsable del Sistema</p>
