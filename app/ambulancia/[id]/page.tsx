@@ -26,6 +26,10 @@ const [foto,setFoto] = useState<File | null>(null)
 const [fotoVista,setFotoVista] = useState<string | null>(null)
 const [fotoEdit,setFotoEdit] = useState<File | null>(null)
 
+/* 🔥 NUEVO */
+const [tipoMtto,setTipoMtto] = useState("")
+const [areasSeleccionadas,setAreasSeleccionadas] = useState<string[]>([])
+
 const bloqueado = useRef(false)
 
 const [esAdmin,setEsAdmin] = useState(false)
@@ -74,6 +78,16 @@ const {data} = await supabase
 .order("fecha_inicio",{ascending:false})
 
 setHistorial(data || [])
+}
+
+/* ========================= */
+/* 🔥 NUEVO */
+function toggleArea(area:string){
+setAreasSeleccionadas(prev =>
+prev.includes(area)
+? prev.filter(a=>a !== area)
+: [...prev, area]
+)
 }
 
 /* ========================= */
@@ -180,8 +194,8 @@ motivo:motivoCambio,
 fecha_inicio:new Date().toISOString(),
 usuario,
 foto_url,
-tipo_mantenimiento:null,
-area:[] // 🔥 CAMBIO
+tipo_mantenimiento: estadoPendiente === "mantenimiento" ? tipoMtto : null,
+area: estadoPendiente === "mantenimiento" ? areasSeleccionadas : []
 })
 
 await supabase
@@ -196,6 +210,8 @@ estadoPendiente === "operativa" ? null : motivoCambio
 setMostrarModal(false)
 setMotivoCambio("")
 setFoto(null)
+setTipoMtto("")
+setAreasSeleccionadas([])
 
 await cargarTodo()
 
@@ -205,35 +221,6 @@ alert("Error en cambio de estado")
 
 setLoading(false)
 bloqueado.current = false
-}
-
-/* ========================= */
-/* EDITAR */
-/* ========================= */
-async function guardarEdicion(){
-
-let nuevaFoto = editando.foto_url
-
-if(fotoEdit){
-const url = await subirFoto(fotoEdit)
-if(url) nuevaFoto = url
-}
-
-await supabase
-.from("historial_operativo")
-.update({
-estado:editando.estado,
-motivo:editando.motivo,
-fecha_inicio:new Date(editando.fecha_inicio).toISOString(),
-tipo_mantenimiento: editando.tipo_mantenimiento,
-area: editando.area,
-foto_url: nuevaFoto
-})
-.eq("id",editando.id)
-
-setEditando(null)
-setFotoEdit(null)
-cargarHistorial()
 }
 
 /* ========================= */
@@ -268,12 +255,6 @@ if(dias > 0) return `${dias}d ${horasRest}h`
 return `${horas} h`
 }
 
-async function eliminarEvento(idEvento:string){
-if(!confirm("Eliminar registro?")) return
-await supabase.from("historial_operativo").delete().eq("id",idEvento)
-cargarHistorial()
-}
-
 if(!ambulancia) return <div style={{padding:40}}>Cargando...</div>
 
 return(
@@ -305,116 +286,58 @@ return(
 
 <hr/>
 
-<h2>Registro Diario</h2>
-<input type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
-<button onClick={actualizarKilometraje}>Actualizar</button>
-
-<hr/>
-
-<h2>Mantenimiento Preventivo</h2>
-<p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
-<input type="number" value={kmMtto} onChange={(e)=>setKmMtto(e.target.value)} />
-<button onClick={guardarMtto}>Guardar</button>
-
-<hr/>
-
-<h2>Historial Operativo</h2>
-
-<table style={{width:"100%"}}>
-<thead>
-<tr>
-<th>Fecha</th>
-<th>Estado</th>
-<th>Tipo</th>
-<th>Área</th>
-<th>Motivo</th>
-<th>Tiempo</th>
-<th>Foto</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-{historial.map(h=>(
-<tr key={h.id}>
-<td>{new Date(h.fecha_inicio).toLocaleString()}</td>
-<td>{h.estado}</td>
-<td>{h.tipo_mantenimiento || "-"}</td>
-<td>{Array.isArray(h.area) ? h.area.join(", ") : "-"}</td>
-<td>{h.motivo}</td>
-<td>{calcularTiempo(h.fecha_inicio,h.fecha_fin)}</td>
-
-<td>
-{h.foto_url && (
-<img src={h.foto_url} style={{width:60}} onClick={()=>setFotoVista(h.foto_url)} />
-)}
-</td>
-
-<td>
-<button onClick={()=>setEditando({...h, area:h.area || []})}>✏️</button>
-<button onClick={()=>eliminarEvento(h.id)}>🗑</button>
-</td>
-
-</tr>
-))}
-</tbody>
-</table>
-
-{/* MODAL EDITAR */}
-{editando && (
+{/* 🔥 MODAL */}
+{mostrarModal && (
 <div style={modalBg}>
 <div style={modalBox}>
 
-<h3>Editar registro</h3>
+<h3>Motivo del cambio</h3>
 
-<input type="datetime-local"
-value={new Date(editando.fecha_inicio).toISOString().slice(0,16)}
-onChange={(e)=>setEditando({...editando,fecha_inicio:e.target.value})}
+<textarea
+value={motivoCambio}
+onChange={(e)=>setMotivoCambio(e.target.value)}
+style={{width:"100%",height:80}}
 />
 
-<select value={editando.estado}
-onChange={(e)=>setEditando({...editando,estado:e.target.value})}>
-<option value="operativa">Operativa</option>
-<option value="mantenimiento">Mantenimiento</option>
-<option value="no operativa">No operativa</option>
-</select>
-
-<select value={editando.tipo_mantenimiento || ""}
-onChange={(e)=>setEditando({...editando,tipo_mantenimiento:e.target.value})}>
-<option value="">Tipo</option>
+{/* SOLO MANTENIMIENTO */}
+{estadoPendiente === "mantenimiento" && (
+<>
+<select
+value={tipoMtto}
+onChange={(e)=>setTipoMtto(e.target.value)}
+style={{width:"100%",marginTop:10}}
+>
+<option value="">Tipo mantenimiento</option>
 <option value="correctivo">Correctivo</option>
 <option value="preventivo">Preventivo</option>
 </select>
 
-{/* 🔥 MULTI ÁREA */}
-<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+<div style={{display:"flex",gap:10,marginTop:10}}>
 {["mecanico","electrico","ac"].map(a=>(
 <label key={a}>
 <input
 type="checkbox"
-checked={editando.area?.includes(a)}
-onChange={(e)=>{
-let nuevas = editando.area || []
-if(e.target.checked){
-nuevas = [...nuevas, a]
-}else{
-nuevas = nuevas.filter((x:string)=>x !== a)
-}
-setEditando({...editando, area:nuevas})
-}}
+checked={areasSeleccionadas.includes(a)}
+onChange={()=>toggleArea(a)}
 />
 {a}
 </label>
 ))}
 </div>
+</>
+)}
 
-<textarea value={editando.motivo}
-onChange={(e)=>setEditando({...editando,motivo:e.target.value})}/>
+<input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
 
-<input type="file" onChange={(e)=>setFotoEdit(e.target.files?.[0] || null)} />
+<br/><br/>
 
-<button onClick={guardarEdicion}>Guardar</button>
-<button onClick={()=>setEditando(null)}>Cancelar</button>
+<button onClick={confirmarCambioEstado}>
+{loading ? "Guardando..." : "Confirmar"}
+</button>
+
+<button onClick={()=>setMostrarModal(false)} style={{marginLeft:10}}>
+Cancelar
+</button>
 
 </div>
 </div>
