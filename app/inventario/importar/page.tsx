@@ -22,56 +22,83 @@ try{
 
 const data = await file.arrayBuffer()
 const workbook = XLSX.read(data)
+
+/* 🔥 USAR PRIMERA HOJA */
 const sheet = workbook.Sheets[workbook.SheetNames[0]]
 
+/* 🔥 CONVERTIR A JSON */
 const json:any[] = XLSX.utils.sheet_to_json(sheet)
 
 console.log("DATA EXCEL:", json)
 
-/* 🔥 LIMPIEZA Y TRANSFORMACIÓN */
+/* 🔥 FUNCIÓN FLEXIBLE PARA LEER CAMPOS */
+function getValue(item:any, keys:string[]){
+for(const k of keys){
+if(item[k] !== undefined && item[k] !== "") return item[k]
+}
+return null
+}
+
+/* 🔥 LIMPIEZA INTELIGENTE */
 const registros = json
 .map((item:any)=>{
 
-const nombre =
-item["Descripción"] ||
-item["DESCRIPCION"] ||
-item["descripcion"] ||
-null
+const nombre = getValue(item,[
+"Descripción del dispositivo médico",
+"DESCRIPCIÓN DEL DISPOSITIVO MÉDICO",
+"Descripcion del dispositivo medico",
+"Descripción",
+"DESCRIPCION",
+"descripcion"
+])
 
-if(!nombre) return null // evita filas vacías
+if(!nombre) return null
 
 return {
-nombre: nombre,
 
-codigo:
-item["Código"] ||
-item["CODIGO"] ||
-item["codigo"] ||
-null,
+nombre,
+
+codigo: getValue(item,[
+"Código",
+"CODIGO",
+"codigo",
+"ITEM",
+"Ítem"
+]),
 
 stock: Number(
-item["Stock"] ||
-item["SALDO ACTUAL"] ||
-item["saldo"] ||
-0
+getValue(item,[
+"SALDO ACTUAL",
+"Stock",
+"stock",
+"Saldo"
+]) || 0
 ),
 
-lote:
-item["Lote"] ||
-item["LOTE"] ||
-null,
+lote: getValue(item,[
+"LOTE",
+"Lote"
+]),
 
-fecha_caducidad:
-item["Caducidad"] ||
-item["FECHA CADUCIDAD"] ||
-item["fecha_caducidad"] ||
-null
+fecha_caducidad: getValue(item,[
+"FECHA CADUCIDAD",
+"Caducidad",
+"fecha_caducidad"
+])
+
 }
 
 })
-.filter(Boolean) // elimina nulls
+.filter(Boolean)
 
 console.log("REGISTROS LIMPIOS:", registros)
+
+/* 🚨 VALIDACIÓN */
+if(registros.length === 0){
+alert("No se detectaron datos válidos en el Excel")
+setLoading(false)
+return
+}
 
 /* 🔥 INSERT MASIVO */
 const { error } = await supabase
