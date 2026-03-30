@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import React from "react"
 import { supabase } from "@/lib/supabaseClient"
 
 /* 🔥 NUEVO: SOPORTE MULTI-LOTE */
@@ -75,11 +76,20 @@ lotes:[...actual,{lote:"",cantidad:0,fecha:""}]
 }))
 }
 
-function actualizarLote(id:string,index:number,campo:string,valor:any){
+/* ✅ FIX TYPESCRIPT + REACT */
+function actualizarLote(
+  id: string,
+  index: number,
+  campo: keyof LoteType,
+  valor: any
+){
 
 const copia = [...(datos[id]?.lotes || [])]
 
-copia[index][campo] = valor
+copia[index] = {
+  ...copia[index],
+  [campo]: valor
+}
 
 setDatos(prev=>({
 ...prev,
@@ -121,7 +131,7 @@ setDatos((prev)=>({
 }
 
 /* ========================= */
-/* 🔥 GUARDAR (AHORA MULTI LOTE) */
+/* 🔥 GUARDAR (MULTI LOTE) */
 /* ========================= */
 async function guardar(){
 
@@ -146,7 +156,6 @@ for(const item of items){
 const d = datos[item.id]
 if(!d) continue
 
-/* 🔥 SI HAY LOTES */
 if(d.lotes && d.lotes.length > 0){
 
 for(const l of d.lotes){
@@ -169,7 +178,6 @@ apellido_responsable:responsable.apellido
 
 }else{
 
-/* 🔥 NORMAL */
 inserts.push(
 supabase.from("inventario_checklist").insert({
 ambulancia_id:ambulancia,
@@ -251,7 +259,8 @@ onChange={(e)=>setResponsable({...responsable,apellido:e.target.value})} style={
 
 {Array.from(new Set(items.map(i=>i.categoria))).map(cat => (
 
-<>
+<React.Fragment key={cat}>
+
 <tr>
 <td colSpan={5} style={{background:colorCategoria(cat),color:"white",padding:10}}>
 {cat.toUpperCase()}
@@ -271,7 +280,7 @@ return(
 <button onClick={()=>agregarLote(i.id)}>➕ Lote</button>
 
 {(d?.lotes || []).map((l,index)=>(
-<div key={index}>
+<div key={`${i.id}-${index}`}>
 
 <input placeholder="Lote"
 onChange={(e)=>actualizarLote(i.id,index,"lote",e.target.value)}/>
@@ -293,7 +302,7 @@ onChange={(e)=>actualizarLote(i.id,index,"cantidad",e.target.value)}/>
 
 })}
 
-</>
+</React.Fragment>
 ))}
 
 </tbody>
@@ -309,7 +318,7 @@ onChange={(e)=>actualizarLote(i.id,index,"cantidad",e.target.value)}/>
 )
 }
 
-/* estilos (se mantienen) */
+/* estilos */
 const container: React.CSSProperties = {padding:20}
 const header: React.CSSProperties = {}
 const panel: React.CSSProperties = {display:"flex",gap:10,flexWrap:"wrap"}
