@@ -72,6 +72,8 @@ setDatos((prev)=>({
 }
 
 /* ========================= */
+/* 🔥 GUARDADO OPTIMIZADO (PARALELO) */
+/* ========================= */
 async function guardar(){
 
 if(!ambulancia){
@@ -86,12 +88,13 @@ return
 
 setGuardando(true)
 
-for(const item of items){
+try{
 
+const inserts = items.map(item=>{
 const d = datos[item.id]
-if(!d) continue
+if(!d) return null
 
-await supabase.from("inventario_checklist").insert({
+return supabase.from("inventario_checklist").insert({
 ambulancia_id:ambulancia,
 item_id:item.id,
 tiene:d.tiene || false,
@@ -100,16 +103,22 @@ fecha_caducidad:d.fecha || null,
 nombre_responsable:responsable.nombre,
 apellido_responsable:responsable.apellido
 })
+}).filter(Boolean)
 
-}
-
-setGuardando(false)
+await Promise.all(inserts as any)
 
 alert("✅ Checklist guardado")
 
 setDatos({})
 setResponsable({nombre:"",apellido:""})
 setAmbulancia("")
+
+}catch(e){
+console.error(e)
+alert("Error guardando")
+}
+
+setGuardando(false)
 }
 
 /* ========================= */
@@ -192,6 +201,7 @@ style={input}
 {Array.from(new Set(items.map(i=>i.categoria))).map(cat => (
 
 <>
+
 <tr>
 <td colSpan={5} style={{
 background:colorCategoria(cat),
@@ -281,10 +291,10 @@ fontWeight:"bold"
 }
 
 /* ========================= */
-/* ESTILOS PRO */
+/* ESTILOS PRO (TIPADOS ✔) */
 /* ========================= */
 
-const container = {
+const container: React.CSSProperties = {
 background:"#0f172a",
 color:"white",
 minHeight:"100vh",
@@ -292,46 +302,46 @@ padding:20,
 fontFamily:"system-ui"
 }
 
-const header = {
+const header: React.CSSProperties = {
 marginBottom:20
 }
 
-const panel = {
+const panel: React.CSSProperties = {
 display:"flex",
 gap:10,
 flexWrap:"wrap",
 marginBottom:20
 }
 
-const tableContainer = {
+const tableContainer: React.CSSProperties = {
 background:"#111827",
 borderRadius:12,
 overflow:"auto",
 maxHeight:"65vh"
 }
 
-const thead = {
-position:"sticky" as const,
+const thead: React.CSSProperties = {
+position:"sticky",
 top:0,
 background:"#1f2937"
 }
 
-const row = {
+const row: React.CSSProperties = {
 borderBottom:"1px solid #1f2937"
 }
 
-const th = {
+const th: React.CSSProperties = {
 padding:10,
 fontSize:12,
-textAlign:"left" as const
+textAlign:"left"
 }
 
-const td = {
+const td: React.CSSProperties = {
 padding:10,
 fontSize:13
 }
 
-const input = {
+const input: React.CSSProperties = {
 padding:10,
 borderRadius:8,
 border:"none",
@@ -339,7 +349,7 @@ background:"#1f2937",
 color:"white"
 }
 
-const inputSmall = {
+const inputSmall: React.CSSProperties = {
 padding:6,
 borderRadius:6,
 border:"none",
@@ -348,7 +358,7 @@ color:"white",
 width:90
 }
 
-const btn = {
+const btn: React.CSSProperties = {
 marginTop:20,
 background:"#22c55e",
 color:"black",
