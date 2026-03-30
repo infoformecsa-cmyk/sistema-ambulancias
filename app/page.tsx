@@ -55,19 +55,25 @@ localStorage.setItem("rol",perfil?.rol || "usuario")
 /* 🔥 REDIRECCIÓN POR ROLES */
 /* ========================= */
 
-/* 🟢 INVENTARIO → SISTEMA NUEVO */
+/* 🟢 INVENTARIO */
 if(perfil?.rol === "inventario"){
-router.replace("/inventario/checklist")
+router.replace("/bitacora/dashboard")
 return
 }
 
-/* 🔵 FLOTA → ADMIN + SUPERVISOR */
-if(perfil?.rol === "admin" || perfil?.rol === "supervisor"){
+/* 🔴 ADMIN (CONTROL TOTAL FLOTA) */
+if(perfil?.rol === "admin"){
 router.replace("/dashboard")
 return
 }
 
-/* 🔧 MECÁNICA */
+/* 🟡 SUPERVISOR (CONTROL LIMITADO) */
+if(perfil?.rol === "supervisor"){
+router.replace("/supervisor")
+return
+}
+
+/* 🔧 MECÁNICO */
 if(perfil?.rol === "mecanico"){
 router.replace("/mecanica")
 return
@@ -117,17 +123,23 @@ localStorage.setItem("email",data.email)
 
 /* 🟢 INVENTARIO */
 if(data.rol === "inventario"){
-router.replace("/inventario/checklist")
+router.replace("/bitacora/dashboard")
 return
 }
 
-/* 🔵 FLOTA (ADMIN + SUPERVISOR) */
-if(data.rol === "admin" || data.rol === "supervisor"){
+/* 🔴 ADMIN */
+if(data.rol === "admin"){
 router.replace("/dashboard")
 return
 }
 
-/* 🔧 MECÁNICA */
+/* 🟡 SUPERVISOR */
+if(data.rol === "supervisor"){
+router.replace("/supervisor")
+return
+}
+
+/* 🔧 MECÁNICO */
 if(data.rol === "mecanico"){
 router.replace("/mecanica")
 return
