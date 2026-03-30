@@ -12,7 +12,7 @@ type LoteType = {
   lote?: string
   cantidad?: number
   fecha?: string
-  nivel?: number   // 🔥 NUEVO (oxígeno)
+  nivel?: number
 }
 
 type DatosType = Record<string, {
@@ -44,6 +44,9 @@ cargar()
 },[])
 
 /* ========================= */
+/* 🔥 CARGA LIMPIA */
+/* ========================= */
+
 async function cargar(){
 
 const {data:amb} = await supabase.from("ambulancias").select("*")
@@ -55,17 +58,51 @@ const {data:inv} = await supabase
 
 setAmbulancias(amb || [])
 
-setItems(
-(inv || []).filter(i =>
-i.nombre &&
-i.nombre.length > 2
-)
-)
+/* 🔥 FILTRO CLÍNICO REAL */
+const categoriasValidas = [
+"canalizacion",
+"curacion",
+"dispositivos",
+"medicamentos",
+"lenceria",
+"respiratorio",
+"oxigeno",
+"trauma"
+]
+
+const limpio = (inv || []).filter(i => {
+
+const nombre = i.nombre?.toLowerCase() || ""
+const categoria = i.categoria?.toLowerCase() || ""
+
+/* validar estructura */
+if(!i.nombre || nombre.length < 3) return false
+
+/* validar categoría */
+if(!categoriasValidas.includes(categoria)) return false
+
+/* ❌ excluir administrativos */
+if(nombre.includes("responsable")) return false
+if(nombre.includes("observacion")) return false
+if(nombre.includes("firma")) return false
+if(nombre.includes("registro")) return false
+
+/* ❌ excluir kits */
+if(nombre.includes("farma/kit")) return false
+
+/* ❌ excluir basura */
+if(nombre.includes("no ingresado")) return false
+
+return true
+
+})
+
+setItems(limpio)
 
 }
 
 /* ========================= */
-/* DETECTAR TIPO */
+/* DETECTORES */
 /* ========================= */
 
 function esOxigeno(nombre:string){
@@ -154,9 +191,9 @@ ambulancia_id:ambulancia,
 item_id:item.id,
 lote:l.lote,
 cantidad:l.cantidad,
-nivel:l.nivel, // 🔥 NUEVO
+nivel:l.nivel,
 fecha_caducidad:l.fecha,
-fecha_registro:new Date(), // 🔥 CONTROL TIEMPO
+fecha_registro:new Date(),
 nombre_responsable:responsable.nombre
 })
 )
@@ -174,7 +211,7 @@ setGuardando(false)
 }
 
 /* ========================= */
-/* FILTRO */
+/* FILTRO BUSQUEDA */
 /* ========================= */
 
 const filtrados = items.filter(i =>
@@ -191,7 +228,6 @@ return(
 
 <h1 style={titulo}>🚑 Checklist Clínico Operativo</h1>
 
-{/* HEADER */}
 <div style={panel}>
 
 <select value={ambulancia} onChange={(e)=>setAmbulancia(e.target.value)} style={input}>
@@ -201,7 +237,8 @@ return(
 ))}
 </select>
 
-<input placeholder="Responsable"
+<input
+placeholder="Responsable"
 value={responsable.nombre}
 onChange={(e)=>setResponsable({...responsable,nombre:e.target.value})}
 style={input}
@@ -216,7 +253,6 @@ style={input}
 
 </div>
 
-{/* LISTA */}
 <div>
 
 {Array.from(new Set(filtrados.map(i=>i.categoria))).map(cat => (
@@ -266,7 +302,6 @@ onChange={(e)=>actualizarLote(i.id,index,"cantidad",e.target.value)}
 style={inputSmall}
 />
 
-{/* 🔥 SOLO OXIGENO */}
 {oxigeno && (
 <input
 type="number"
@@ -301,7 +336,7 @@ style={inputSmall}
 }
 
 /* ========================= */
-/* 🎨 ESTILO */
+/* ESTILO */
 /* ========================= */
 
 const container:React.CSSProperties = {
