@@ -13,14 +13,9 @@ const [password,setPassword] = useState("")
 const [error,setError] = useState("")
 const [loading,setLoading] = useState(false)
 
-/* evitar cache de sesión vieja */
+/* limpiar sesión previa */
 useEffect(()=>{
-
-localStorage.removeItem("usuario_id")
-localStorage.removeItem("rol")
-localStorage.removeItem("nombre")
-localStorage.removeItem("email")
-
+localStorage.clear()
 },[])
 
 async function login(){
@@ -31,7 +26,7 @@ setLoading(true)
 const correo = email.trim().toLowerCase()
 
 /* ========================= */
-/* 🔥 1. LOGIN REAL SUPABASE */
+/* 🔥 LOGIN SUPABASE */
 /* ========================= */
 
 const { data:authData, error:authError } = await supabase.auth.signInWithPassword({
@@ -45,43 +40,40 @@ console.log("Auth error:", authError.message)
 
 if(authData?.user){
 
-/* 🔥 buscar perfil */
-const { data:perfil, error:perfilError } = await supabase
+const { data:perfil } = await supabase
 .from("profiles")
 .select("*")
 .eq("id", authData.user.id)
 .single()
 
-if(perfilError){
-console.log("Perfil error:", perfilError.message)
-}
-
 /* guardar sesión */
 localStorage.setItem("usuario_id",authData.user.id)
 localStorage.setItem("email",correo)
 localStorage.setItem("rol",perfil?.rol || "usuario")
-localStorage.setItem("nombre",perfil?.nombre || "Usuario")
 
 /* ========================= */
-/* 🔥 REDIRECCIÓN CORRECTA */
+/* 🔥 REDIRECCIÓN POR ROLES */
 /* ========================= */
 
-if(perfil?.rol === "admin"){
+/* 🟢 INVENTARIO → SISTEMA NUEVO */
+if(perfil?.rol === "inventario"){
+router.replace("/inventario/checklist")
+return
+}
+
+/* 🔵 FLOTA → ADMIN + SUPERVISOR */
+if(perfil?.rol === "admin" || perfil?.rol === "supervisor"){
 router.replace("/dashboard")
 return
 }
 
-/* 🔥 AQUÍ ESTÁ EL CAMBIO IMPORTANTE */
-if(perfil?.rol === "inventario"){
-router.replace("/inventario/admin")
-return
-}
-
+/* 🔧 MECÁNICA */
 if(perfil?.rol === "mecanico"){
 router.replace("/mecanica")
 return
 }
 
+/* 🚑 CONDUCTOR */
 if(perfil?.rol === "conductor"){
 router.replace("/conductor")
 return
@@ -93,7 +85,7 @@ return
 }
 
 /* ========================= */
-/* 🔁 2. LOGIN ANTIGUO */
+/* 🔁 LOGIN ANTIGUO */
 /* ========================= */
 
 const {data,error:dbError} = await supabase
@@ -103,43 +95,45 @@ const {data,error:dbError} = await supabase
 .single()
 
 if(dbError || !data){
-
 setError("Usuario no encontrado")
 setLoading(false)
 return
-
 }
 
 if(data.password !== password){
-
 setError("Contraseña incorrecta")
 setLoading(false)
 return
-
 }
 
 /* guardar sesión */
 localStorage.setItem("usuario_id",data.id)
 localStorage.setItem("rol",data.rol)
-localStorage.setItem("nombre",data.nombre)
 localStorage.setItem("email",data.email)
 
-/* redirección */
-if(data.rol === "admin"){
+/* ========================= */
+/* 🔥 REDIRECCIÓN POR ROLES */
+/* ========================= */
+
+/* 🟢 INVENTARIO */
+if(data.rol === "inventario"){
+router.replace("/inventario/checklist")
+return
+}
+
+/* 🔵 FLOTA (ADMIN + SUPERVISOR) */
+if(data.rol === "admin" || data.rol === "supervisor"){
 router.replace("/dashboard")
 return
 }
 
-if(data.rol === "supervisor"){
-router.replace("/supervisor")
-return
-}
-
+/* 🔧 MECÁNICA */
 if(data.rol === "mecanico"){
 router.replace("/mecanica")
 return
 }
 
+/* 🚑 CONDUCTOR */
 if(data.rol === "conductor"){
 router.replace("/conductor")
 return
@@ -205,13 +199,7 @@ cursor:"pointer"
 </button>
 
 {error && (
-
-<p style={{color:"red",marginTop:"10px"}}>
-
-{error}
-
-</p>
-
+<p style={{color:"red",marginTop:"10px"}}>{error}</p>
 )}
 
 </div>
