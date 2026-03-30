@@ -44,7 +44,7 @@ cargar()
 },[])
 
 /* ========================= */
-/* 🔥 CARGA LIMPIA */
+/* 🔥 CARGA LIMPIA REAL */
 /* ========================= */
 
 async function cargar(){
@@ -58,7 +58,7 @@ const {data:inv} = await supabase
 
 setAmbulancias(amb || [])
 
-/* 🔥 FILTRO CLÍNICO REAL */
+/* 🔥 FILTRO CLÍNICO ROBUSTO */
 const categoriasValidas = [
 "canalizacion",
 "curacion",
@@ -72,26 +72,33 @@ const categoriasValidas = [
 
 const limpio = (inv || []).filter(i => {
 
-const nombre = i.nombre?.toLowerCase() || ""
-const categoria = i.categoria?.toLowerCase() || ""
+const nombre = (i.nombre || "").toLowerCase().trim()
+const categoria = (i.categoria || "").toLowerCase().trim()
 
-/* validar estructura */
-if(!i.nombre || nombre.length < 3) return false
+/* ❌ inválidos */
+if(!nombre || nombre.length < 3) return false
 
-/* validar categoría */
-if(!categoriasValidas.includes(categoria)) return false
+/* ❌ eliminar TODO lo FARMA */
+if(nombre.includes("farma")) return false
+if(categoria.includes("farma")) return false
 
-/* ❌ excluir administrativos */
+/* ❌ eliminar kits */
+if(nombre.includes("kit")) return false
+
+/* ❌ administrativos */
 if(nombre.includes("responsable")) return false
 if(nombre.includes("observacion")) return false
 if(nombre.includes("firma")) return false
 if(nombre.includes("registro")) return false
+if(nombre.includes("reporte")) return false
 
-/* ❌ excluir kits */
-if(nombre.includes("farma/kit")) return false
-
-/* ❌ excluir basura */
+/* ❌ basura */
 if(nombre.includes("no ingresado")) return false
+
+/* ✅ SOLO categorías clínicas */
+if(!categoriasValidas.some(c => categoria.includes(c))){
+return false
+}
 
 return true
 
