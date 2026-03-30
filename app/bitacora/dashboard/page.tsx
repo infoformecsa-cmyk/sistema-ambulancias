@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import React from "react"
 import { supabase } from "@/lib/supabaseClient"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -190,7 +191,7 @@ padding:12,
 borderRadius:12,
 color:"white",
 boxShadow:"0 0 10px rgba(0,0,0,0.4)"
-}}>
+} as React.CSSProperties}>
 
 <div style={{fontWeight:"bold"}}>
 🚑 {a.nombre}
@@ -258,7 +259,7 @@ style={input}
 <td style={{
 background:colorEstado(item.estado),
 color:"white",
-textAlign:"center"
+textAlign:"center" as const
 }}>
 {item.estado}
 </td>
@@ -301,9 +302,9 @@ onChange={(e)=>setForm({...form,cantidad:e.target.value})}/>
 )
 }
 
-/* 🎨 ESTILOS FUTURISTAS */
+/* 🎨 ESTILOS TIPADOS */
 
-const container = {
+const container: React.CSSProperties = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
@@ -311,21 +312,21 @@ padding:30,
 fontFamily:"system-ui"
 }
 
-const header = {
+const header: React.CSSProperties = {
 display:"flex",
 justifyContent:"space-between",
 alignItems:"center",
 marginBottom:20
 }
 
-const btn = {
+const btn: React.CSSProperties = {
 background:"#22c55e",
 border:"none",
 padding:"10px 15px",
 borderRadius:8
 }
 
-const btnSecondary = {
+const btnSecondary: React.CSSProperties = {
 background:"#1f2937",
 color:"white",
 border:"none",
@@ -333,14 +334,14 @@ padding:"10px 15px",
 borderRadius:8
 }
 
-const kpiGrid = {
+const kpiGrid: React.CSSProperties = {
 display:"grid",
 gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",
 gap:10,
 marginBottom:20
 }
 
-const kpi = (color:string)=>({
+const kpi = (color:string): React.CSSProperties => ({
 background:color,
 padding:15,
 borderRadius:10,
@@ -348,21 +349,21 @@ textAlign:"center",
 fontWeight:"bold"
 })
 
-const alert = {
+const alert: React.CSSProperties = {
 background:"#ef4444",
 padding:15,
 borderRadius:10,
 marginBottom:20
 }
 
-const grid = {
+const grid: React.CSSProperties = {
 display:"grid",
 gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",
 gap:10,
 marginBottom:20
 }
 
-const badge = {
+const badge: React.CSSProperties = {
 marginTop:5,
 fontSize:11,
 background:"rgba(255,255,255,0.2)",
@@ -370,7 +371,7 @@ padding:"3px 6px",
 borderRadius:6
 }
 
-const critBadge = {
+const critBadge: React.CSSProperties = {
 marginTop:5,
 fontSize:10,
 background:"#7f1d1d",
@@ -378,24 +379,24 @@ padding:"2px 6px",
 borderRadius:5
 }
 
-const input = {
+const input: React.CSSProperties = {
 padding:10,
 marginBottom:20,
 borderRadius:6
 }
 
-const table = {
+const table: React.CSSProperties = {
 width:"100%",
 background:"#111827",
 borderRadius:10,
 overflow:"hidden"
 }
 
-const row = {
+const row: React.CSSProperties = {
 borderBottom:"1px solid #1f2937"
 }
 
-const modalBg = {
+const modalBg: React.CSSProperties = {
 position:"fixed",
 top:0,left:0,width:"100%",height:"100%",
 background:"rgba(0,0,0,0.7)",
@@ -404,7 +405,7 @@ justifyContent:"center",
 alignItems:"center"
 }
 
-const modal = {
+const modal: React.CSSProperties = {
 background:"white",
 color:"black",
 padding:20,
