@@ -5,6 +5,29 @@ import React from "react"
 import { supabase } from "@/lib/supabaseClient"
 
 /* ========================= */
+/* 🔥 NORMALIZADOR CLÍNICO */
+/* ========================= */
+
+function normalizarCategoria(cat:string){
+
+const c = (cat || "").toLowerCase().trim()
+
+if(c.includes("lencer")) return "lenceria"
+if(c.includes("esteril")) return "dispositivos"
+if(c.includes("dispositivo")) return "dispositivos"
+if(c.includes("respir")) return "respiratorio"
+if(c.includes("oxigen")) return "oxigeno"
+if(c.includes("canal")) return "canalizacion"
+if(c.includes("medic")) return "medicamentos"
+if(c.includes("trauma")) return "trauma"
+if(c.includes("limpieza")) return "limpieza"
+if(c.includes("desecho")) return "limpieza"
+if(c.includes("proteccion")) return "proteccion"
+
+return "otros"
+}
+
+/* ========================= */
 /* TIPOS */
 /* ========================= */
 
@@ -44,7 +67,7 @@ cargar()
 },[])
 
 /* ========================= */
-/* 🔥 CARGA LIMPIA REAL */
+/* 🔥 CARGA INTELIGENTE */
 /* ========================= */
 
 async function cargar(){
@@ -58,29 +81,30 @@ const {data:inv} = await supabase
 
 setAmbulancias(amb || [])
 
-/* 🔥 FILTRO CLÍNICO ROBUSTO */
 const categoriasValidas = [
-"canalizacion",
-"curacion",
-"dispositivos",
-"medicamentos",
 "lenceria",
+"dispositivos",
 "respiratorio",
 "oxigeno",
-"trauma"
+"canalizacion",
+"medicamentos",
+"trauma",
+"limpieza",
+"proteccion"
 ]
 
 const limpio = (inv || []).filter(i => {
 
 const nombre = (i.nombre || "").toLowerCase().trim()
-const categoria = (i.categoria || "").toLowerCase().trim()
+const categoriaOriginal = i.categoria || ""
+const categoria = normalizarCategoria(categoriaOriginal)
 
 /* ❌ inválidos */
 if(!nombre || nombre.length < 3) return false
 
-/* ❌ eliminar TODO lo FARMA */
+/* ❌ eliminar FARMA */
 if(nombre.includes("farma")) return false
-if(categoria.includes("farma")) return false
+if(categoriaOriginal.toLowerCase().includes("farma")) return false
 
 /* ❌ eliminar kits */
 if(nombre.includes("kit")) return false
@@ -95,10 +119,11 @@ if(nombre.includes("reporte")) return false
 /* ❌ basura */
 if(nombre.includes("no ingresado")) return false
 
-/* ✅ SOLO categorías clínicas */
-if(!categoriasValidas.some(c => categoria.includes(c))){
-return false
-}
+/* ✅ solo categorías válidas */
+if(!categoriasValidas.includes(categoria)) return false
+
+/* 🔥 normalizar categoría */
+i.categoria = categoria
 
 return true
 
