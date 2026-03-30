@@ -15,6 +15,7 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [items,setItems] = useState<any[]>([])
 
 const [ambulancia,setAmbulancia] = useState("")
+const [guardando,setGuardando] = useState(false)
 
 const [responsable,setResponsable] = useState({
   nombre:"",
@@ -22,14 +23,11 @@ const [responsable,setResponsable] = useState({
 })
 
 const [datos,setDatos] = useState<DatosType>({})
-const [guardando,setGuardando] = useState(false)
 
-/* ========================= */
 useEffect(()=>{
   cargar()
 },[])
 
-/* ========================= */
 async function cargar(){
 
 const {data:amb} = await supabase.from("ambulancias").select("*")
@@ -44,11 +42,11 @@ setItems(inv || [])
 }
 
 /* ========================= */
-/* 🔥 SEMÁFORO PRO */
+/* 🔥 SEMÁFORO */
 /* ========================= */
 function getSemaforo(fecha?: string){
 
-if(!fecha) return {color:"#9ca3af",label:"Sin fecha"}
+if(!fecha) return {color:"#6b7280",label:"SIN FECHA"}
 
 const hoy = new Date()
 const cad = new Date(fecha)
@@ -56,28 +54,23 @@ const cad = new Date(fecha)
 const diff = cad.getTime() - hoy.getTime()
 const dias = diff / (1000*60*60*24)
 
-if(dias <= 0) return {color:"#dc2626",label:"Caducado"}
-if(dias <= 30) return {color:"#f59e0b",label:"Próximo"}
-return {color:"#16a34a",label:"Óptimo"}
+if(dias <= 0) return {color:"#ef4444",label:"CADUCADO"}
+if(dias <= 30) return {color:"#f59e0b",label:"PRÓXIMO"}
+return {color:"#22c55e",label:"OK"}
 }
 
-/* ========================= */
-/* ACTUALIZAR */
 /* ========================= */
 function actualizar(id:string, campo:string, valor:any){
 
-setDatos((prev: DatosType) => ({
+setDatos((prev)=>({
 ...prev,
-[id]: {
+[id]:{
 ...prev[id],
-[campo]: valor
+[campo]:valor
 }
 }))
-
 }
 
-/* ========================= */
-/* GUARDAR */
 /* ========================= */
 async function guardar(){
 
@@ -112,7 +105,7 @@ apellido_responsable:responsable.apellido
 
 setGuardando(false)
 
-alert("✅ Checklist guardado correctamente")
+alert("✅ Checklist guardado")
 
 setDatos({})
 setResponsable({nombre:"",apellido:""})
@@ -120,16 +113,14 @@ setAmbulancia("")
 }
 
 /* ========================= */
-/* COLOR POR CATEGORÍA */
-/* ========================= */
 function colorCategoria(cat:string){
 
-if(cat==="medicamentos") return "#7f1d1d"
-if(cat==="respiratorio") return "#1e3a8a"
-if(cat==="trauma") return "#78350f"
-if(cat==="lenceria") return "#6b21a8"
+if(cat==="medicamentos") return "#7c2d12"
+if(cat==="respiratorio") return "#1e40af"
+if(cat==="trauma") return "#92400e"
+if(cat==="lenceria") return "#6d28d9"
 if(cat==="canalizacion") return "#065f46"
-return "#1f2937"
+return "#111827"
 
 }
 
@@ -139,19 +130,19 @@ return "#1f2937"
 
 return(
 
-<div style={{padding:30,fontFamily:"Arial",background:"#f9fafb"}}>
+<div style={container}>
 
-<h1 style={{fontSize:28,fontWeight:"bold"}}>
-🚑 Checklist Digital de Ambulancia
-</h1>
-
-<p style={{color:"#6b7280"}}>
-Control clínico en tiempo real — medicamentos, insumos y equipos
+{/* HEADER */}
+<div style={header}>
+<h1 style={{margin:0}}>🚑 Checklist Ambulancia</h1>
+<p style={{margin:0,color:"#9ca3af"}}>
+Control clínico inteligente
 </p>
+</div>
 
-<hr/>
+{/* PANEL SUPERIOR */}
+<div style={panel}>
 
-{/* SELECT */}
 <select
 value={ambulancia}
 onChange={(e)=>setAmbulancia(e.target.value)}
@@ -165,9 +156,6 @@ style={input}
 ))}
 </select>
 
-<br/><br/>
-
-{/* RESPONSABLE */}
 <input
 placeholder="Nombre"
 value={responsable.nombre}
@@ -182,16 +170,18 @@ onChange={(e)=>setResponsable({...responsable,apellido:e.target.value})}
 style={input}
 />
 
-<hr/>
+</div>
 
-<table style={{width:"100%",borderCollapse:"collapse",marginTop:20}}>
+{/* TABLA */}
+<div style={tableContainer}>
 
-<thead style={{background:"#111827",color:"white"}}>
+<table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead style={thead}>
 <tr>
-<th style={th}>Ambulancia</th>
 <th style={th}>Item</th>
-<th style={th}>Tiene</th>
-<th style={th}>Cantidad</th>
+<th style={th}>✔</th>
+<th style={th}>Cant</th>
 <th style={th}>Caducidad</th>
 <th style={th}>Estado</th>
 </tr>
@@ -199,62 +189,33 @@ style={input}
 
 <tbody>
 
-{/* 🔥 AGRUPACIÓN PRO */}
-
-{Array.from(new Set(items.map(i => i.categoria))).map(cat => (
+{Array.from(new Set(items.map(i=>i.categoria))).map(cat => (
 
 <>
-
-{/* CATEGORIA */}
 <tr>
-<td colSpan={6} style={{
+<td colSpan={5} style={{
 background:colorCategoria(cat),
 color:"white",
-padding:12,
-fontWeight:"bold",
-fontSize:14
+padding:10,
+fontWeight:"bold"
 }}>
 {cat.toUpperCase()}
 </td>
 </tr>
 
-{/* SUBCATEGORIAS */}
-{Array.from(new Set(items.filter(i=>i.categoria===cat).map(i=>i.subcategoria))).map(sub => (
-
-<>
-
-<tr>
-<td colSpan={6} style={{
-background:"#e5e7eb",
-fontWeight:"bold",
-padding:8,
-fontSize:13
-}}>
-{sub}
-</td>
-</tr>
-
-{/* ITEMS */}
-{items
-.filter(i=>i.categoria===cat && i.subcategoria===sub)
-.map(i=>{
+{items.filter(i=>i.categoria===cat).map(i=>{
 
 const d = datos[i.id]
 const sem = getSemaforo(d?.fecha)
 
 return(
-<tr key={i.id} style={{borderBottom:"1px solid #e5e7eb"}}>
-
-<td style={td}>
-{ambulancias.find(a=>a.id==ambulancia)?.codigo_operativo || "-"}
-</td>
+<tr key={i.id} style={row}>
 
 <td style={td}>
 {i.nombre}
-<br/>
-<span style={{fontSize:10,color:"#9ca3af"}}>
+<div style={{fontSize:10,color:"#9ca3af"}}>
 Base: {i.cantidad_base || 0}
-</span>
+</div>
 </td>
 
 <td style={td}>
@@ -262,15 +223,16 @@ Base: {i.cantidad_base || 0}
 type="checkbox"
 checked={d?.tiene || false}
 onChange={(e)=>actualizar(i.id,"tiene",e.target.checked)}
+style={{transform:"scale(1.3)"}}
 />
 </td>
 
 <td style={td}>
 <input
 type="number"
-style={{width:70}}
 value={d?.cantidad || ""}
 onChange={(e)=>actualizar(i.id,"cantidad",e.target.value)}
+style={inputSmall}
 />
 </td>
 
@@ -279,6 +241,7 @@ onChange={(e)=>actualizar(i.id,"cantidad",e.target.value)}
 type="date"
 value={d?.fecha || ""}
 onChange={(e)=>actualizar(i.id,"fecha",e.target.value)}
+style={inputSmall}
 />
 </td>
 
@@ -286,9 +249,10 @@ onChange={(e)=>actualizar(i.id,"fecha",e.target.value)}
 <span style={{
 background:sem.color,
 color:"white",
-padding:"4px 10px",
-borderRadius:6,
-fontSize:12
+padding:"5px 10px",
+borderRadius:20,
+fontSize:11,
+fontWeight:"bold"
 }}>
 {sem.label}
 </span>
@@ -302,20 +266,14 @@ fontSize:12
 </>
 ))}
 
-</>
-))}
-
 </tbody>
-
 </table>
 
-<br/>
+</div>
 
-<button
-onClick={guardar}
-style={btn}
->
-{guardando ? "Guardando..." : "Guardar Checklist"}
+{/* BOTÓN */}
+<button onClick={guardar} style={btn}>
+{guardando ? "Guardando..." : "💾 Guardar Checklist"}
 </button>
 
 </div>
@@ -323,31 +281,81 @@ style={btn}
 }
 
 /* ========================= */
-/* ESTILOS */
+/* ESTILOS PRO */
 /* ========================= */
 
-const input = {
-padding:10,
-marginRight:10,
-border:"1px solid #d1d5db",
-borderRadius:8
+const container = {
+background:"#0f172a",
+color:"white",
+minHeight:"100vh",
+padding:20,
+fontFamily:"system-ui"
+}
+
+const header = {
+marginBottom:20
+}
+
+const panel = {
+display:"flex",
+gap:10,
+flexWrap:"wrap",
+marginBottom:20
+}
+
+const tableContainer = {
+background:"#111827",
+borderRadius:12,
+overflow:"auto",
+maxHeight:"65vh"
+}
+
+const thead = {
+position:"sticky" as const,
+top:0,
+background:"#1f2937"
+}
+
+const row = {
+borderBottom:"1px solid #1f2937"
 }
 
 const th = {
-padding:12,
+padding:10,
+fontSize:12,
 textAlign:"left" as const
 }
 
 const td = {
-padding:10
+padding:10,
+fontSize:13
+}
+
+const input = {
+padding:10,
+borderRadius:8,
+border:"none",
+background:"#1f2937",
+color:"white"
+}
+
+const inputSmall = {
+padding:6,
+borderRadius:6,
+border:"none",
+background:"#1f2937",
+color:"white",
+width:90
 }
 
 const btn = {
-background:"#2563eb",
-color:"white",
+marginTop:20,
+background:"#22c55e",
+color:"black",
 padding:"14px 24px",
 borderRadius:10,
 border:"none",
 cursor:"pointer",
-fontWeight:"bold"
+fontWeight:"bold",
+width:"100%"
 }

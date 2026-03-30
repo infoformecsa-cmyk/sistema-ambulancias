@@ -9,6 +9,14 @@ export default function Importar(){
 const [file,setFile] = useState<File | null>(null)
 const [loading,setLoading] = useState(false)
 
+/* 🔥 CONVERTIR FECHA */
+function excelDateToJSDate(serial:number){
+const utc_days = Math.floor(serial - 25569)
+const utc_value = utc_days * 86400
+const date = new Date(utc_value * 1000)
+return date.toISOString().split("T")[0]
+}
+
 async function procesar(){
 
 if(!file){
@@ -22,98 +30,154 @@ try{
 
 const data = await file.arrayBuffer()
 const workbook = XLSX.read(data)
-
-/* 🔥 USAR PRIMERA HOJA */
 const sheet = workbook.Sheets[workbook.SheetNames[0]]
 
-/* 🔥 CONVERTIR A JSON */
-const json:any[] = XLSX.utils.sheet_to_json(sheet)
+const rows:any[] = XLSX.utils.sheet_to_json(sheet,{header:1})
 
-console.log("DATA EXCEL:", json)
-
-/* 🔥 FUNCIÓN FLEXIBLE PARA LEER CAMPOS */
-function getValue(item:any, keys:string[]){
-for(const k of keys){
-if(item[k] !== undefined && item[k] !== "") return item[k]
-}
-return null
+if(rows.length === 0){
+alert("Excel vacío")
+setLoading(false)
+return
 }
 
-/* 🔥 LIMPIEZA INTELIGENTE */
-const registros = json
-.map((item:any)=>{
+/* 🔥 DETECTAR ENCABEZADO */
+let headerRowIndex = -1
 
-const nombre = getValue(item,[
-"Descripción del dispositivo médico",
-"DESCRIPCIÓN DEL DISPOSITIVO MÉDICO",
-"Descripcion del dispositivo medico",
-"Descripción",
-"DESCRIPCION",
-"descripcion"
-])
+for(let i=0;i<rows.length;i++){
+const row = rows[i].map((c:any)=>String(c).toLowerCase())
 
+if(row.some((c:string)=>
+c.includes("descripcion") ||
+c.includes("dispositivo")
+)){
+headerRowIndex = i
+break
+}
+}
+
+if(headerRowIndex === -1){
+alert("No se encontró fila de encabezados válida")
+setLoading(false)
+return
+}
+
+const headers = rows[headerRowIndex].map((h:any)=>String(h).toLowerCase())
+
+const findIndex = (keywords:string[])=>{
+return headers.findIndex((h:string)=>
+keywords.some(k=>h.includes(k))
+)
+}
+
+const idxNombre = findIndex(["descripcion","dispositivo"])
+const idxStock = findIndex(["stock","saldo"])
+const idxCodigo = findIndex(["codigo"])
+const idxLote = findIndex(["lote"])
+const idxFecha = findIndex(["caducidad","fecha"])
+
+if(idxNombre === -1){
+alert("No se encontró columna descripción")
+setLoading(false)
+return
+}
+
+/* 🔥 PROCESAR */
+const registros = rows.slice(headerRowIndex + 1)
+.map((row:any)=>{
+
+const nombre = row[idxNombre]
 if(!nombre) return null
 
+let fecha = null
+const rawFecha = row[idxFecha]
+
+if(typeof rawFecha === "number"){
+fecha = excelDateToJSDate(rawFecha)
+}else if(typeof rawFecha === "string"){
+fecha = rawFecha
+}
+
 return {
+nombre: String(nombre),
 
-nombre,
+codigo: idxCodigo !== -1 ? row[idxCodigo] : null,
 
-codigo: getValue(item,[
-"Código",
-"CODIGO",
-"codigo",
-"ITEM",
-"Ítem"
-]),
+cantidad: Number(row[idxStock] || 0),
 
-stock: Number(
-getValue(item,[
-"SALDO ACTUAL",
-"Stock",
-"stock",
-"Saldo"
-]) || 0
-),
+lote: idxLote !== -1 ? row[idxLote] : null,
 
-lote: getValue(item,[
-"LOTE",
-"Lote"
-]),
+fecha_caducidad: fecha,
 
-fecha_caducidad: getValue(item,[
-"FECHA CADUCIDAD",
-"Caducidad",
-"fecha_caducidad"
-])
+categoria: "DISPOSITIVOS",
+estado: "activo",
 
+stock_minimo: 0,
+cantidad_base: 0,
+tipo: "DISPOSITIVO",
+ubicacion: "BODEGA"
 }
 
 })
 .filter(Boolean)
 
-console.log("REGISTROS LIMPIOS:", registros)
-
-/* 🚨 VALIDACIÓN */
 if(registros.length === 0){
 alert("No se detectaron datos válidos en el Excel")
 setLoading(false)
 return
 }
 
-/* 🔥 INSERT MASIVO */
+/* 🔥 EVITAR DUPLICADOS */
+
+// Obtener códigos existentes
+const { data: existentes, error: errorConsulta } = await supabase
+.from("inventario_items")
+.select("codigo")
+
+if(errorConsulta){
+console.error("Error consultando existentes:", errorConsulta)
+alert("Error validando duplicados")
+setLoading(false)
+return
+}
+
+// Crear set de códigos existentes
+const codigosExistentes = new Set(
+existentes
+?.map((e:any)=>e.codigo)
+.filter((c:any)=>c !== null)
+)
+
+// Separar nuevos vs duplicados
+const nuevos = registros.filter((r:any)=>
+r.codigo ? !codigosExistentes.has(r.codigo) : true
+)
+
+const duplicados = registros.length - nuevos.length
+
+if(nuevos.length === 0){
+alert(`Todos los registros ya existen (${duplicados} duplicados)`)
+setLoading(false)
+return
+}
+
+/* 🔥 INSERT SOLO NUEVOS */
 const { error } = await supabase
 .from("inventario_items")
-.insert(registros)
+.insert(nuevos)
 
 if(error){
-console.error("ERROR SUPABASE:", error)
-alert("Error al importar")
+console.error("ERROR:", error)
+alert("Error: " + JSON.stringify(error))
 }else{
-alert(`Importación completada 🚑 (${registros.length} registros)`)
+alert(
+`Importación completada 🚑
+Nuevos: ${nuevos.length}
+Duplicados omitidos: ${duplicados}`
+)
 }
 
 }catch(err){
-console.error("ERROR GENERAL:", err)
+console.error(err)
 alert("Error procesando archivo")
 }
 
