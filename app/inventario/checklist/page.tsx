@@ -38,7 +38,17 @@ const {data:inv} = await supabase
 .order("categoria",{ascending:true})
 
 setAmbulancias(amb || [])
-setItems(inv || [])
+
+/* 🔥 FILTRO LIMPIO (AQUÍ ESTÁ LA MEJORA) */
+setItems(
+  (inv || []).filter(i =>
+    i.nombre &&
+    i.nombre.length > 3 &&
+    !i.nombre.toLowerCase().includes("farma") &&
+    !i.nombre.toLowerCase().includes("no ingresado")
+  )
+)
+
 }
 
 /* ========================= */
@@ -198,7 +208,8 @@ style={input}
 
 <tbody>
 
-{Array.from(new Set(items.map(i=>i.categoria))).map(cat => (
+{/* 🔥 SOLO CATEGORÍAS CON ITEMS VÁLIDOS */}
+{Array.from(new Set(items.filter(i=>i.nombre).map(i=>i.categoria))).map(cat => (
 
 <>
 
@@ -213,7 +224,9 @@ fontWeight:"bold"
 </td>
 </tr>
 
-{items.filter(i=>i.categoria===cat).map(i=>{
+{items
+.filter(i=>i.categoria===cat && i.nombre)
+.map(i=>{
 
 const d = datos[i.id]
 const sem = getSemaforo(d?.fecha)
@@ -291,7 +304,7 @@ fontWeight:"bold"
 }
 
 /* ========================= */
-/* ESTILOS PRO (TIPADOS ✔) */
+/* ESTILOS PRO */
 /* ========================= */
 
 const container: React.CSSProperties = {
