@@ -71,6 +71,21 @@ setEditando(null)
 cargar()
 }
 
+/* 🔥 ELIMINAR */
+async function eliminarRegistro(id:string){
+
+const ok = confirm("¿Eliminar este registro?")
+
+if(!ok) return
+
+await supabase
+.from("bitacora_items")
+.delete()
+.eq("id",id)
+
+cargar()
+}
+
 /* PDF */
 function generarPDF(){
 
@@ -152,7 +167,6 @@ return "#22c55e"
 return(
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 <h1>🚑 Centro de Control Médico</h1>
 
@@ -162,7 +176,6 @@ return(
 </div>
 </div>
 
-{/* KPIs */}
 <div style={kpiGrid}>
 <div style={kpi("#ef4444")}>🔴 {criticos}</div>
 <div style={kpi("#f59e0b")}>🟡 {preventivos}</div>
@@ -170,14 +183,12 @@ return(
 <div style={kpi("#374151")}>Total {total}</div>
 </div>
 
-{/* ALERTA */}
 {criticos > 0 && (
 <div style={alert}>
 🚨 ALERTA: {criticos} ítems críticos detectados
 </div>
 )}
 
-{/* AMBULANCIAS */}
 <div style={grid}>
 
 {resumenAmbulancias.map(a=>{
@@ -218,7 +229,6 @@ Consumo: {cons?.total || 0}
 
 </div>
 
-{/* FILTRO */}
 <select
 value={filtro}
 onChange={(e)=>setFiltro(e.target.value)}
@@ -232,7 +242,6 @@ style={input}
 ))}
 </select>
 
-{/* TABLA */}
 <table style={table}>
 
 <thead>
@@ -264,8 +273,26 @@ textAlign:"center" as const
 {item.estado}
 </td>
 
-<td>
-<button onClick={()=>abrirEditar(item)}>✏️</button>
+<td style={{display:"flex",gap:5}}>
+
+<button onClick={()=>abrirEditar(item)}>
+✏️
+</button>
+
+<button
+onClick={()=>eliminarRegistro(item.id)}
+style={{
+background:"#dc2626",
+color:"white",
+border:"none",
+padding:"4px 8px",
+borderRadius:5,
+cursor:"pointer"
+}}
+>
+🗑
+</button>
+
 </td>
 
 </tr>
@@ -275,7 +302,6 @@ textAlign:"center" as const
 
 </table>
 
-{/* MODAL */}
 {editando && (
 <div style={modalBg}>
 <div style={modal}>
@@ -302,7 +328,7 @@ onChange={(e)=>setForm({...form,cantidad:e.target.value})}/>
 )
 }
 
-/* 🎨 ESTILOS TIPADOS */
+/* ESTILOS */
 
 const container: React.CSSProperties = {
 background:"#020617",
