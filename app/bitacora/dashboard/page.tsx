@@ -15,16 +15,22 @@ const [filtro,setFiltro] = useState("todas")
 const [editando,setEditando] = useState<any>(null)
 const [form,setForm] = useState<any>({})
 
+/* 🔥 NUEVO */
+const [ambulanciaSeleccionada,setAmbulanciaSeleccionada] = useState<any>(null)
+const [registros,setRegistros] = useState<any[]>([])
+
 useEffect(()=>{
 cargarAmbulancias()
 cargar()
 },[])
 
+/* ========================= */
 async function cargarAmbulancias(){
 const { data } = await supabase.from("ambulancias").select("id,codigo_operativo")
 setAmbulancias(data || [])
 }
 
+/* ========================= */
 async function cargar(){
 
 const { data } = await supabase.from("bitacora_items").select("*")
@@ -46,6 +52,20 @@ return {...item, estado}
 setData(procesado)
 }
 
+/* ========================= */
+/* 🔥 NUEVO CARGAR DETALLE */
+async function cargarRegistros(id:string){
+
+const { data } = await supabase
+.from("bitacora_items")
+.select("*")
+.eq("ambulancia_id", id)
+
+setRegistros(data || [])
+
+}
+
+/* ========================= */
 /* EDIT */
 function abrirEditar(item:any){
 setEditando(item)
@@ -69,13 +89,18 @@ cantidad:Number(form.cantidad)
 
 setEditando(null)
 cargar()
+
+if(ambulanciaSeleccionada){
+cargarRegistros(ambulanciaSeleccionada.id)
 }
 
-/* 🔥 ELIMINAR */
+}
+
+/* ========================= */
+/* ELIMINAR */
 async function eliminarRegistro(id:string){
 
 const ok = confirm("¿Eliminar este registro?")
-
 if(!ok) return
 
 await supabase
@@ -84,8 +109,20 @@ await supabase
 .eq("id",id)
 
 cargar()
+
+if(ambulanciaSeleccionada){
+cargarRegistros(ambulanciaSeleccionada.id)
 }
 
+}
+
+/* ========================= */
+/* IR A CHECKLIST */
+function abrirChecklist(item:any){
+window.location.href = `/inventario/checklist?ambulancia=${item.ambulancia_id}`
+}
+
+/* ========================= */
 /* PDF */
 function generarPDF(){
 
@@ -108,17 +145,20 @@ i.estado
 doc.save("reporte_bitacora.pdf")
 }
 
+/* ========================= */
 /* SESION */
 function cerrarSesion(){
 localStorage.clear()
 window.location.href = "/"
 }
 
+/* ========================= */
 /* MAPA */
 const mapaAmbulancias = Object.fromEntries(
 ambulancias.map(a => [a.id, a.codigo_operativo])
 )
 
+/* ========================= */
 /* CONSUMO */
 const consumo = ambulancias.map(a=>{
 const items = data.filter(i=>i.ambulancia_id === a.id)
@@ -126,6 +166,7 @@ const total = items.reduce((sum,i)=> sum + (i.cantidad || 0),0)
 return {id:a.id,nombre:a.codigo_operativo,total}
 })
 
+/* ========================= */
 /* RESUMEN */
 const resumenAmbulancias = ambulancias.map(a=>{
 
@@ -147,11 +188,13 @@ criticos
 
 })
 
+/* ========================= */
 /* FILTRO */
 const filtrado = filtro === "todas"
 ? data
 : data.filter(i=>String(i.ambulancia_id) === filtro)
 
+/* ========================= */
 /* KPI */
 const total = filtrado.length
 const criticos = filtrado.filter(i=>i.estado==="CRITICO").length
@@ -164,9 +207,14 @@ if(e==="PREVENTIVO") return "#f59e0b"
 return "#22c55e"
 }
 
+/* ========================= */
+/* UI */
+/* ========================= */
+
 return(
 <div style={container}>
 
+{/* HEADER */}
 <div style={header}>
 <h1>🚑 Centro de Control Médico</h1>
 
@@ -176,6 +224,7 @@ return(
 </div>
 </div>
 
+{/* KPI */}
 <div style={kpiGrid}>
 <div style={kpi("#ef4444")}>🔴 {criticos}</div>
 <div style={kpi("#f59e0b")}>🟡 {preventivos}</div>
@@ -183,26 +232,35 @@ return(
 <div style={kpi("#374151")}>Total {total}</div>
 </div>
 
+{/* ALERTA */}
 {criticos > 0 && (
 <div style={alert}>
 🚨 ALERTA: {criticos} ítems críticos detectados
 </div>
 )}
 
+{/* AMBULANCIAS */}
 <div style={grid}>
-
 {resumenAmbulancias.map(a=>{
 
 const cons = consumo.find(c=>c.id === a.id)
 
 return(
-<div key={a.id} style={{
+<div
+key={a.id}
+onClick={()=>{
+setAmbulanciaSeleccionada(a)
+cargarRegistros(a.id)
+}}
+style={{
 background:colorEstado(a.estado),
 padding:12,
 borderRadius:12,
 color:"white",
+cursor:"pointer",
 boxShadow:"0 0 10px rgba(0,0,0,0.4)"
-} as React.CSSProperties}>
+} as React.CSSProperties}
+>
 
 <div style={{fontWeight:"bold"}}>
 🚑 {a.nombre}
@@ -224,103 +282,44 @@ Consumo: {cons?.total || 0}
 
 </div>
 )
-
 })}
-
 </div>
 
-<select
-value={filtro}
-onChange={(e)=>setFiltro(e.target.value)}
-style={input}
->
-<option value="todas">Todas</option>
-{ambulancias.map(a=>(
-<option key={a.id} value={a.id}>
-{a.codigo_operativo}
-</option>
-))}
-</select>
+{/* 🔥 PANEL DINÁMICO */}
+{ambulanciaSeleccionada && (
+<div style={panelDetalle}>
 
-<table style={table}>
+<h2>🚑 {ambulanciaSeleccionada.nombre}</h2>
 
-<thead>
-<tr>
-<th>Ambulancia</th>
-<th>Nombre</th>
-<th>Tipo</th>
-<th>Lote</th>
-<th>Estado</th>
-<th></th>
-</tr>
-</thead>
+{registros.map((item)=>(
+<div key={item.id} style={rowDetalle}>
 
-<tbody>
+<div style={{flex:2}}>{item.nombre}</div>
+<div style={{flex:1}}>{item.tipo}</div>
+<div style={{flex:1}}>{item.lote || "-"}</div>
 
-{filtrado.map((item,i)=>(
-<tr key={i} style={row}>
-
-<td>{mapaAmbulancias[item.ambulancia_id]}</td>
-<td>{item.nombre}</td>
-<td>{item.tipo}</td>
-<td>{item.lote}</td>
-
-<td style={{
+<div style={{
+flex:1,
 background:colorEstado(item.estado),
 color:"white",
-textAlign:"center" as const
+textAlign:"center"
 }}>
 {item.estado}
-</td>
+</div>
 
-<td style={{display:"flex",gap:5}}>
+<div style={{display:"flex",gap:5}}>
 
-<button onClick={()=>abrirEditar(item)}>
-✏️
-</button>
+<button onClick={()=>abrirEditar(item)}>✏️</button>
 
-<button
-onClick={()=>eliminarRegistro(item.id)}
-style={{
-background:"#dc2626",
-color:"white",
-border:"none",
-padding:"4px 8px",
-borderRadius:5,
-cursor:"pointer"
-}}
->
-🗑
-</button>
+<button onClick={()=>eliminarRegistro(item.id)}>🗑️</button>
 
-</td>
-
-</tr>
-))}
-
-</tbody>
-
-</table>
-
-{editando && (
-<div style={modalBg}>
-<div style={modal}>
-<h3>Editar</h3>
-
-<input value={form.nombre}
-onChange={(e)=>setForm({...form,nombre:e.target.value})}/>
-
-<input value={form.lote}
-onChange={(e)=>setForm({...form,lote:e.target.value})}/>
-
-<input type="number"
-value={form.cantidad}
-onChange={(e)=>setForm({...form,cantidad:e.target.value})}/>
-
-<button onClick={guardarEdicion}>Guardar</button>
-<button onClick={()=>setEditando(null)}>Cancelar</button>
+<button onClick={()=>abrirChecklist(item)}>📋</button>
 
 </div>
+
+</div>
+))}
+
 </div>
 )}
 
@@ -328,7 +327,9 @@ onChange={(e)=>setForm({...form,cantidad:e.target.value})}/>
 )
 }
 
+/* ========================= */
 /* ESTILOS */
+/* ========================= */
 
 const container: React.CSSProperties = {
 background:"#020617",
@@ -405,21 +406,18 @@ padding:"2px 6px",
 borderRadius:5
 }
 
-const input: React.CSSProperties = {
+const panelDetalle: React.CSSProperties = {
+background:"#020617",
+padding:15,
+borderRadius:10
+}
+
+const rowDetalle: React.CSSProperties = {
+display:"flex",
+gap:10,
 padding:10,
-marginBottom:20,
-borderRadius:6
-}
-
-const table: React.CSSProperties = {
-width:"100%",
-background:"#111827",
-borderRadius:10,
-overflow:"hidden"
-}
-
-const row: React.CSSProperties = {
-borderBottom:"1px solid #1f2937"
+borderBottom:"1px solid #1f2937",
+alignItems:"center"
 }
 
 const modalBg: React.CSSProperties = {
