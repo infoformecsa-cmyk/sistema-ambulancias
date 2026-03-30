@@ -10,12 +10,7 @@ export default function Dashboard(){
 
 const [data,setData] = useState<any[]>([])
 const [ambulancias,setAmbulancias] = useState<any[]>([])
-const [filtro,setFiltro] = useState("todas")
 
-const [editando,setEditando] = useState<any>(null)
-const [form,setForm] = useState<any>({})
-
-/* 🔥 NUEVO */
 const [ambulanciaSeleccionada,setAmbulanciaSeleccionada] = useState<any>(null)
 const [registros,setRegistros] = useState<any[]>([])
 
@@ -25,12 +20,14 @@ cargar()
 },[])
 
 /* ========================= */
+/* DATA */
+/* ========================= */
+
 async function cargarAmbulancias(){
 const { data } = await supabase.from("ambulancias").select("id,codigo_operativo")
 setAmbulancias(data || [])
 }
 
-/* ========================= */
 async function cargar(){
 
 const { data } = await supabase.from("bitacora_items").select("*")
@@ -43,8 +40,16 @@ const fecha = new Date(item.updated_at || item.created_at)
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
 
 let estado = "OK"
-if(diff >= 15) estado = "CRITICO"
-else if(diff >= 7) estado = "PREVENTIVO"
+
+if(item.cantidad === 0){
+estado = "FALTANTE"
+}
+else if(diff >= 15){
+estado = "CRITICO"
+}
+else if(diff >= 7){
+estado = "PREVENTIVO"
+}
 
 return {...item, estado}
 })
@@ -53,7 +58,9 @@ setData(procesado)
 }
 
 /* ========================= */
-/* 🔥 NUEVO CARGAR DETALLE */
+/* DETALLE */
+/* ========================= */
+
 async function cargarRegistros(id:string){
 
 const { data } = await supabase
@@ -66,142 +73,77 @@ setRegistros(data || [])
 }
 
 /* ========================= */
-/* EDIT */
-function abrirEditar(item:any){
-setEditando(item)
-setForm({
-nombre:item.nombre,
-lote:item.lote,
-cantidad:item.cantidad
-})
-}
-
-async function guardarEdicion(){
-
-await supabase
-.from("bitacora_items")
-.update({
-nombre:form.nombre,
-lote:form.lote,
-cantidad:Number(form.cantidad)
-})
-.eq("id",editando.id)
-
-setEditando(null)
-cargar()
-
-if(ambulanciaSeleccionada){
-cargarRegistros(ambulanciaSeleccionada.id)
-}
-
-}
-
+/* ACCIONES */
 /* ========================= */
-/* ELIMINAR */
+
 async function eliminarRegistro(id:string){
 
-const ok = confirm("¿Eliminar este registro?")
-if(!ok) return
+if(!confirm("¿Eliminar registro?")) return
 
-await supabase
-.from("bitacora_items")
-.delete()
-.eq("id",id)
+await supabase.from("bitacora_items").delete().eq("id",id)
 
 cargar()
-
 if(ambulanciaSeleccionada){
 cargarRegistros(ambulanciaSeleccionada.id)
 }
 
 }
 
-/* ========================= */
-/* IR A CHECKLIST */
 function abrirChecklist(item:any){
 window.location.href = `/inventario/checklist?ambulancia=${item.ambulancia_id}`
 }
 
 /* ========================= */
-/* PDF */
-function generarPDF(){
-
-const doc = new jsPDF()
-
-doc.text("REPORTE BITACORA AMBULANCIAS", 14, 15)
-
-autoTable(doc,{
-startY:20,
-head:[["Ambulancia","Nombre","Tipo","Lote","Estado"]],
-body:data.map(i=>[
-mapaAmbulancias[i.ambulancia_id] || "-",
-i.nombre,
-i.tipo,
-i.lote || "-",
-i.estado
-])
-})
-
-doc.save("reporte_bitacora.pdf")
-}
-
-/* ========================= */
-/* SESION */
-function cerrarSesion(){
-localStorage.clear()
-window.location.href = "/"
-}
-
-/* ========================= */
 /* MAPA */
+/* ========================= */
+
 const mapaAmbulancias = Object.fromEntries(
 ambulancias.map(a => [a.id, a.codigo_operativo])
 )
 
 /* ========================= */
-/* CONSUMO */
-const consumo = ambulancias.map(a=>{
-const items = data.filter(i=>i.ambulancia_id === a.id)
-const total = items.reduce((sum,i)=> sum + (i.cantidad || 0),0)
-return {id:a.id,nombre:a.codigo_operativo,total}
-})
-
+/* 🚑 INTELIGENCIA CENTRAL */
 /* ========================= */
-/* RESUMEN */
+
 const resumenAmbulancias = ambulancias.map(a=>{
 
 const items = data.filter(i=>i.ambulancia_id === a.id)
 
+const faltantes = items.filter(i=>i.cantidad === 0).length
+const bajos = items.filter(i=>i.cantidad > 0 && i.cantidad <= 2).length
+const criticos = items.filter(i=>i.estado==="CRITICO").length
+const preventivos = items.filter(i=>i.estado==="PREVENTIVO").length
+
 let estado = "OK"
 
-if(items.some(i=>i.estado==="CRITICO")) estado = "CRITICO"
-else if(items.some(i=>i.estado==="PREVENTIVO")) estado = "PREVENTIVO"
-
-const criticos = items.filter(i=>i.estado==="CRITICO").length
+if(faltantes > 0) estado = "FALTANTE"
+else if(criticos > 0) estado = "CRITICO"
+else if(preventivos > 0) estado = "PREVENTIVO"
 
 return {
 id:a.id,
 nombre:a.codigo_operativo,
 estado,
-criticos
+faltantes,
+bajos,
+criticos,
+preventivos
 }
 
 })
 
 /* ========================= */
-/* FILTRO */
-const filtrado = filtro === "todas"
-? data
-: data.filter(i=>String(i.ambulancia_id) === filtro)
+/* 🔥 LISTA GLOBAL */
+/* ========================= */
+
+const faltantesGlobal = data.filter(i =>
+i.cantidad === 0 || i.estado === "CRITICO"
+)
 
 /* ========================= */
-/* KPI */
-const total = filtrado.length
-const criticos = filtrado.filter(i=>i.estado==="CRITICO").length
-const preventivos = filtrado.filter(i=>i.estado==="PREVENTIVO").length
-const ok = filtrado.filter(i=>i.estado==="OK").length
 
 function colorEstado(e:string){
+if(e==="FALTANTE") return "#7f1d1d"
 if(e==="CRITICO") return "#ef4444"
 if(e==="PREVENTIVO") return "#f59e0b"
 return "#22c55e"
@@ -214,38 +156,12 @@ return "#22c55e"
 return(
 <div style={container}>
 
-{/* HEADER */}
-<div style={header}>
-<h1>🚑 Centro de Control Médico</h1>
+<h1>🚑 Centro de Control Médico Inteligente</h1>
 
-<div style={{display:"flex",gap:10}}>
-<button onClick={generarPDF} style={btn}>📄 PDF</button>
-<button onClick={cerrarSesion} style={btnSecondary}>Salir</button>
-</div>
-</div>
-
-{/* KPI */}
-<div style={kpiGrid}>
-<div style={kpi("#ef4444")}>🔴 {criticos}</div>
-<div style={kpi("#f59e0b")}>🟡 {preventivos}</div>
-<div style={kpi("#22c55e")}>🟢 {ok}</div>
-<div style={kpi("#374151")}>Total {total}</div>
-</div>
-
-{/* ALERTA */}
-{criticos > 0 && (
-<div style={alert}>
-🚨 ALERTA: {criticos} ítems críticos detectados
-</div>
-)}
-
-{/* AMBULANCIAS */}
+{/* 🚑 GRID */}
 <div style={grid}>
-{resumenAmbulancias.map(a=>{
 
-const cons = consumo.find(c=>c.id === a.id)
-
-return(
+{resumenAmbulancias.map(a=>(
 <div
 key={a.id}
 onClick={()=>{
@@ -257,42 +173,32 @@ background:colorEstado(a.estado),
 padding:12,
 borderRadius:12,
 color:"white",
-cursor:"pointer",
-boxShadow:"0 0 10px rgba(0,0,0,0.4)"
-} as React.CSSProperties}
+cursor:"pointer"
+}}
 >
 
-<div style={{fontWeight:"bold"}}>
-🚑 {a.nombre}
-</div>
+<div style={{fontWeight:"bold"}}>🚑 {a.nombre}</div>
 
-<div style={{fontSize:12}}>
-{a.estado}
-</div>
+<div style={{fontSize:12}}>{a.estado}</div>
 
-<div style={badge}>
-Consumo: {cons?.total || 0}
-</div>
-
-{a.criticos > 0 && (
-<div style={critBadge}>
-⚠ {a.criticos} críticos
-</div>
-)}
+{a.faltantes > 0 && <div style={badgeRojo}>❌ {a.faltantes}</div>}
+{a.bajos > 0 && <div style={badgeAzul}>🔽 {a.bajos}</div>}
+{a.criticos > 0 && <div style={badgeCritico}>⚠ {a.criticos}</div>}
+{a.preventivos > 0 && <div style={badgeAmarillo}>⏳ {a.preventivos}</div>}
 
 </div>
-)
-})}
+))}
+
 </div>
 
-{/* 🔥 PANEL DINÁMICO */}
+{/* 📋 DETALLE */}
 {ambulanciaSeleccionada && (
-<div style={panelDetalle}>
+<div style={panel}>
 
 <h2>🚑 {ambulanciaSeleccionada.nombre}</h2>
 
 {registros.map((item)=>(
-<div key={item.id} style={rowDetalle}>
+<div key={item.id} style={row}>
 
 <div style={{flex:2}}>{item.nombre}</div>
 <div style={{flex:1}}>{item.tipo}</div>
@@ -301,7 +207,6 @@ Consumo: {cons?.total || 0}
 <div style={{
 flex:1,
 background:colorEstado(item.estado),
-color:"white",
 textAlign:"center"
 }}>
 {item.estado}
@@ -309,10 +214,7 @@ textAlign:"center"
 
 <div style={{display:"flex",gap:5}}>
 
-<button onClick={()=>abrirEditar(item)}>✏️</button>
-
-<button onClick={()=>eliminarRegistro(item.id)}>🗑️</button>
-
+<button onClick={()=>eliminarRegistro(item.id)}>🗑</button>
 <button onClick={()=>abrirChecklist(item)}>📋</button>
 
 </div>
@@ -323,118 +225,79 @@ textAlign:"center"
 </div>
 )}
 
+{/* 🧾 ABASTECIMIENTO */}
+<div style={panel}>
+
+<h2>🧾 Abastecimiento requerido</h2>
+
+{faltantesGlobal.map((i,index)=>(
+<div key={index}>
+🚑 {mapaAmbulancias[i.ambulancia_id]} - {i.nombre}
+</div>
+))}
+
+</div>
+
 </div>
 )
 }
 
 /* ========================= */
-/* ESTILOS */
+/* 🎨 ESTILOS */
 /* ========================= */
 
-const container: React.CSSProperties = {
+const container:React.CSSProperties = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
-padding:30,
-fontFamily:"system-ui"
+padding:30
 }
 
-const header: React.CSSProperties = {
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
-marginBottom:20
-}
-
-const btn: React.CSSProperties = {
-background:"#22c55e",
-border:"none",
-padding:"10px 15px",
-borderRadius:8
-}
-
-const btnSecondary: React.CSSProperties = {
-background:"#1f2937",
-color:"white",
-border:"none",
-padding:"10px 15px",
-borderRadius:8
-}
-
-const kpiGrid: React.CSSProperties = {
-display:"grid",
-gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",
-gap:10,
-marginBottom:20
-}
-
-const kpi = (color:string): React.CSSProperties => ({
-background:color,
-padding:15,
-borderRadius:10,
-textAlign:"center",
-fontWeight:"bold"
-})
-
-const alert: React.CSSProperties = {
-background:"#ef4444",
-padding:15,
-borderRadius:10,
-marginBottom:20
-}
-
-const grid: React.CSSProperties = {
+const grid:React.CSSProperties = {
 display:"grid",
 gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",
 gap:10,
 marginBottom:20
 }
 
-const badge: React.CSSProperties = {
-marginTop:5,
-fontSize:11,
-background:"rgba(255,255,255,0.2)",
-padding:"3px 6px",
-borderRadius:6
-}
-
-const critBadge: React.CSSProperties = {
-marginTop:5,
-fontSize:10,
-background:"#7f1d1d",
-padding:"2px 6px",
-borderRadius:5
-}
-
-const panelDetalle: React.CSSProperties = {
-background:"#020617",
+const panel:React.CSSProperties = {
+background:"#111827",
 padding:15,
-borderRadius:10
+borderRadius:10,
+marginTop:20
 }
 
-const rowDetalle: React.CSSProperties = {
+const row:React.CSSProperties = {
 display:"flex",
 gap:10,
 padding:10,
-borderBottom:"1px solid #1f2937",
-alignItems:"center"
+borderBottom:"1px solid #1f2937"
 }
 
-const modalBg: React.CSSProperties = {
-position:"fixed",
-top:0,left:0,width:"100%",height:"100%",
-background:"rgba(0,0,0,0.7)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
+const badgeRojo:React.CSSProperties = {
+background:"#7f1d1d",
+padding:"2px 6px",
+borderRadius:5,
+marginTop:5
 }
 
-const modal: React.CSSProperties = {
-background:"white",
-color:"black",
-padding:20,
-borderRadius:10,
-display:"flex",
-flexDirection:"column",
-gap:10
+const badgeAzul:React.CSSProperties = {
+background:"#1e3a8a",
+padding:"2px 6px",
+borderRadius:5,
+marginTop:5
+}
+
+const badgeCritico:React.CSSProperties = {
+background:"#dc2626",
+padding:"2px 6px",
+borderRadius:5,
+marginTop:5
+}
+
+const badgeAmarillo:React.CSSProperties = {
+background:"#92400e",
+padding:"2px 6px",
+borderRadius:5,
+marginTop:5
 }
