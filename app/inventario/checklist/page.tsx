@@ -1,205 +1,89 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 import { useEffect, useState } from "react"
-import React from "react"
 import { supabase } from "@/lib/supabaseClient"
 
 /* ========================= */
-/* 🔥 NORMALIZADOR CLÍNICO */
-/* ========================= */
 
-function normalizarCategoria(cat:string){
-
-const c = (cat || "").toLowerCase().trim()
-
-if(c.includes("lencer")) return "lenceria"
-if(c.includes("esteril")) return "dispositivos"
-if(c.includes("dispositivo")) return "dispositivos"
-if(c.includes("respir")) return "respiratorio"
-if(c.includes("oxigen")) return "oxigeno"
-if(c.includes("canal")) return "canalizacion"
-if(c.includes("medic")) return "medicamentos"
-if(c.includes("trauma")) return "trauma"
-if(c.includes("limpieza")) return "limpieza"
-if(c.includes("desecho")) return "limpieza"
-if(c.includes("proteccion")) return "proteccion"
-
-return "otros"
+const COLORES_KIT:any = {
+celeste:"#06b6d4",
+azul:"#3b82f6",
+rojo:"#ef4444",
+amarillo:"#f59e0b"
 }
 
-/* ========================= */
-/* TIPOS */
-/* ========================= */
-
-type LoteType = {
-  lote?: string
-  cantidad?: number
-  fecha?: string
-  nivel?: number
-}
-
-type DatosType = Record<string, {
-  lotes?: LoteType[]
-}>
+const ORDEN = [
+"lenceria","dispositivos","sondas","respiratorio",
+"oxigeno","canalizacion","biomedicos","limpieza",
+"medicamentos","trauma","proteccion"
+]
 
 /* ========================= */
 
 export default function Checklist(){
 
-const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [items,setItems] = useState<any[]>([])
-const [busqueda,setBusqueda] = useState("")
-
-const [expandido,setExpandido] = useState<Record<string,boolean>>({})
+const [kits,setKits] = useState<any[]>([])
+const [ambulancias,setAmbulancias] = useState<any[]>([])
 
 const [ambulancia,setAmbulancia] = useState("")
+const [responsable,setResponsable] = useState("")
+
+const [expandido,setExpandido] = useState<any>({})
+const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
 
-const [responsable,setResponsable] = useState({
-nombre:"",
-apellido:""
-})
-
-const [datos,setDatos] = useState<DatosType>({})
-
-useEffect(()=>{
-cargar()
-},[])
-
-/* ========================= */
-/* 🔥 CARGA INTELIGENTE */
-/* ========================= */
+useEffect(()=>{cargar()},[])
 
 async function cargar(){
 
-const {data:amb} = await supabase.from("ambulancias").select("*")
+const {data,error} = await supabase.from("inventario_items").select("*")
+const {data:amb,error:errorAmb} = await supabase.from("ambulancias").select("*")
 
-const {data:inv} = await supabase
-.from("inventario_items")
-.select("*")
-.order("categoria",{ascending:true})
+if(error) console.error("Error cargando inventario:", error)
+if(errorAmb) console.error("Error cargando ambulancias:", errorAmb)
 
-setAmbulancias(amb || [])
-
-const categoriasValidas = [
-"lenceria",
-"dispositivos",
-"respiratorio",
-"oxigeno",
-"canalizacion",
-"medicamentos",
-"trauma",
-"limpieza",
-"proteccion"
-]
-
-const limpio = (inv || []).filter(i => {
-
-const nombre = (i.nombre || "").toLowerCase().trim()
-const categoriaOriginal = i.categoria || ""
-const categoria = normalizarCategoria(categoriaOriginal)
-
-/* ❌ inválidos */
-if(!nombre || nombre.length < 3) return false
-
-/* ❌ eliminar FARMA */
-if(nombre.includes("farma")) return false
-if(categoriaOriginal.toLowerCase().includes("farma")) return false
-
-/* ❌ eliminar kits */
-if(nombre.includes("kit")) return false
-
-/* ❌ administrativos */
-if(nombre.includes("responsable")) return false
-if(nombre.includes("observacion")) return false
-if(nombre.includes("firma")) return false
-if(nombre.includes("registro")) return false
-if(nombre.includes("reporte")) return false
-
-/* ❌ basura */
-if(nombre.includes("no ingresado")) return false
-
-/* ✅ solo categorías válidas */
-if(!categoriasValidas.includes(categoria)) return false
-
-/* 🔥 normalizar categoría */
-i.categoria = categoria
-
-return true
-
-})
-
-setItems(limpio)
+setItems((data||[]).filter(i=>i.subcategoria!=="kit_parto"))
+setKits((data||[]).filter(i=>i.subcategoria==="kit_parto"))
+setAmbulancias(amb||[])
 
 }
 
 /* ========================= */
-/* DETECTORES */
-/* ========================= */
 
-function esOxigeno(nombre:string){
-return nombre.toLowerCase().includes("oxigeno")
-}
-
-/* ========================= */
-
-function toggleCategoria(cat:string){
-setExpandido(prev=>({
-...prev,
-[cat]: !prev[cat]
-}))
+function toggle(k:string){
+setExpandido((p:any)=>({...p,[k]:!p[k]}))
 }
 
 function agregarLote(id:string){
-
-const actual = datos[id]?.lotes || []
-
-setDatos(prev=>({
-...prev,
-[id]:{
-...prev[id],
-lotes:[...actual,{lote:"",cantidad:0,fecha:"",nivel:0}]
-}
-}))
+const actual = datos[id] || []
+setDatos({...datos,[id]:[...actual,{lote:"",cantidad:0,fecha:""}]})
 }
 
-function actualizarLote(
-id:string,
-index:number,
-campo:keyof LoteType,
-valor:any
-){
-
-const copia = [...(datos[id]?.lotes || [])]
-
-copia[index] = {
-...copia[index],
-[campo]: campo === "cantidad" || campo === "nivel"
-? Number(valor)
-: valor
+function actualizar(id:string,i:number,campo:string,val:any){
+const copia = [...(datos[id]||[])]
+copia[i][campo]=val
+setDatos({...datos,[id]:copia})
 }
 
-setDatos(prev=>({
-...prev,
-[id]:{
-...prev[id],
-lotes:copia
-}
-}))
+function getMin(i:any){
+return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* GUARDAR */
+/* 💾 GUARDAR */
 /* ========================= */
 
 async function guardar(){
 
 if(!ambulancia){
-alert("Seleccione ambulancia")
+alert("Seleccione una ambulancia")
 return
 }
 
-if(!responsable.nombre){
+if(!responsable){
 alert("Ingrese responsable")
 return
 }
@@ -208,25 +92,23 @@ setGuardando(true)
 
 let inserts:any[] = []
 
-for(const item of items){
+for(const itemId in datos){
 
-const d = datos[item.id]
-if(!d?.lotes) continue
+const lotes = datos[itemId]
 
-for(const l of d.lotes){
+for(const l of lotes){
 
-if(!l.lote && !l.fecha && !l.cantidad && !l.nivel) continue
+if(!l.lote && !l.cantidad && !l.fecha) continue
 
 inserts.push(
 supabase.from("inventario_checklist").insert({
 ambulancia_id:ambulancia,
-item_id:item.id,
+item_id:itemId,
 lote:l.lote,
-cantidad:l.cantidad,
-nivel:l.nivel,
-fecha_caducidad:l.fecha,
+cantidad:Number(l.cantidad || 0),
+fecha_caducidad:l.fecha || null,
 fecha_registro:new Date(),
-nombre_responsable:responsable.nombre
+responsable:responsable
 })
 )
 
@@ -234,114 +116,118 @@ nombre_responsable:responsable.nombre
 
 }
 
+try{
 await Promise.all(inserts)
-
 alert("✅ Checklist guardado correctamente")
-
 setDatos({})
-setGuardando(false)
+}catch(err){
+console.error("Error guardando:", err)
+alert("❌ Error al guardar checklist")
 }
 
-/* ========================= */
-/* FILTRO BUSQUEDA */
-/* ========================= */
+setGuardando(false)
 
-const filtrados = items.filter(i =>
-i.nombre.toLowerCase().includes(busqueda.toLowerCase())
-)
+}
 
-/* ========================= */
-/* UI */
 /* ========================= */
 
 return(
 
 <div style={container}>
 
-<h1 style={titulo}>🚑 Checklist Clínico Operativo</h1>
+{/* HEADER */}
+<div style={header}>
+
+<div>
+<h1 style={{margin:0}}>🚑 Checklist Clínico</h1>
+<span style={{color:"#9ca3af"}}>Control operativo en tiempo real</span>
+</div>
 
 <div style={panel}>
 
-<select value={ambulancia} onChange={(e)=>setAmbulancia(e.target.value)} style={input}>
-<option value="">Ambulancia</option>
+<select
+value={ambulancia}
+onChange={(e)=>setAmbulancia(e.target.value)}
+style={input}
+>
+<option value="">Seleccionar ambulancia</option>
 {ambulancias.map(a=>(
-<option key={a.id} value={a.id}>{a.codigo_operativo}</option>
+<option key={a.id} value={a.id}>
+{a.codigo_operativo}
+</option>
 ))}
 </select>
 
 <input
 placeholder="Responsable"
-value={responsable.nombre}
-onChange={(e)=>setResponsable({...responsable,nombre:e.target.value})}
-style={input}
-/>
-
-<input
-placeholder="Buscar..."
-value={busqueda}
-onChange={(e)=>setBusqueda(e.target.value)}
+value={responsable}
+onChange={(e)=>setResponsable(e.target.value)}
 style={input}
 />
 
 </div>
 
-<div>
-
-{Array.from(new Set(filtrados.map(i=>i.categoria))).map(cat => (
-
-<div key={cat} style={card}>
-
-<div style={categoriaHeader} onClick={()=>toggleCategoria(cat)}>
-{cat.toUpperCase()}
 </div>
 
-{expandido[cat] && filtrados
-.filter(i=>i.categoria===cat)
-.map(i=>{
+{/* ========================= */}
+{/* 🧬 KITS */}
+{/* ========================= */}
 
-const d = datos[i.id]
-const oxigeno = esOxigeno(i.nombre)
+<h2 style={section}>🧬 Kits Obstétricos</h2>
+
+<div style={grid}>
+
+{["celeste","azul","amarillo","rojo"].map(color=>{
+
+const grupo = kits.filter(k=>k.kit_color===color)
+if(!grupo.length) return null
+
+const total = grupo.length
+const cargados = grupo.filter(k=>datos[k.id]?.length>0).length
 
 return(
 
-<div key={i.id} style={itemRow}>
+<div key={color} style={{
+background:"#111827",
+borderRadius:12,
+borderLeft:`6px solid ${COLORES_KIT[color]}`
+}}>
 
-<div style={{fontWeight:"bold"}}>
-{i.nombre}
+<div onClick={()=>toggle(color)} style={kitHeader}>
+<span>Clave {color}</span>
+<span>{cargados}/{total}</span>
 </div>
 
-<button style={btnAdd} onClick={()=>agregarLote(i.id)}>
+{expandido[color] && grupo.map(k=>(
+
+<div key={k.id} style={item}>
+
+<div style={rowTop}>
+<span>{k.nombre}</span>
+<span style={badge}>Min {getMin(k)}</span>
+</div>
+
+<button style={btnAdd} onClick={()=>agregarLote(k.id)}>
 + Lote
 </button>
 
-{(d?.lotes || []).map((l,index)=>(
+{(datos[k.id]||[]).map((l:any,i:number)=>(
 
-<div key={index} style={loteRow}>
+<div key={i} style={inputsRow}>
 
 <input placeholder="Lote"
-onChange={(e)=>actualizarLote(i.id,index,"lote",e.target.value)}
-style={inputSmall}
-/>
-
-<input type="date"
-onChange={(e)=>actualizarLote(i.id,index,"fecha",e.target.value)}
-style={inputSmall}
-/>
+onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
 
 <input type="number"
-placeholder="Cant"
-onChange={(e)=>actualizarLote(i.id,index,"cantidad",e.target.value)}
-style={inputSmall}
-/>
+placeholder="Cantidad"
+onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
 
-{oxigeno && (
-<input
-type="number"
-placeholder="% Nivel"
-onChange={(e)=>actualizarLote(i.id,index,"nivel",e.target.value)}
-style={inputSmall}
-/>
-)}
+<input type="date"
+onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
+
+</div>
+
+))}
 
 </div>
 
@@ -355,99 +241,184 @@ style={inputSmall}
 
 </div>
 
+{/* ========================= */}
+{/* 📦 GENERAL */}
+{/* ========================= */}
+
+<h2 style={section}>📦 Checklist General</h2>
+
+{ORDEN.map(cat=>{
+
+const grupo = items.filter(i=>i.categoria===cat)
+if(!grupo.length) return null
+
+return(
+
+<div key={cat} style={card}>
+
+<div style={catHeader} onClick={()=>toggle(cat)}>
+{cat.toUpperCase()}
+</div>
+
+{expandido[cat] && grupo.map(i=>(
+
+<div key={i.id} style={item}>
+
+<div style={rowTop}>
+<span>{i.nombre}</span>
+<span style={badge}>Min {getMin(i)}</span>
+</div>
+
+<button style={btnAdd} onClick={()=>agregarLote(i.id)}>
++ Lote
+</button>
+
+{(datos[i.id]||[]).map((l:any,index:number)=>(
+
+<div key={index} style={inputsRow}>
+
+<input placeholder="Lote"
+onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
+
+<input type="number"
+placeholder="Cantidad"
+onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
+
+<input type="date"
+onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
+
+</div>
+
 ))}
 
 </div>
 
-<button onClick={guardar} style={btnGuardar}>
+))}
+
+</div>
+
+)
+
+})}
+
+{/* ========================= */}
+{/* BOTÓN GUARDAR */}
+{/* ========================= */}
+
+<div style={{marginTop:30}}>
+
+<button
+onClick={guardar}
+style={{
+width:"100%",
+background: guardando ? "#9ca3af" : "#22c55e",
+color:"black",
+padding:"18px",
+border:"none",
+borderRadius:"12px",
+fontWeight:"bold",
+fontSize:"16px",
+cursor:"pointer"
+}}
+>
 {guardando ? "Guardando..." : "💾 Guardar Checklist"}
 </button>
+
+</div>
 
 </div>
 )
 }
 
 /* ========================= */
-/* ESTILO */
+/* ESTILOS */
 /* ========================= */
 
-const container:React.CSSProperties = {
+const container = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
-padding:20,
-fontFamily:"system-ui"
+padding:30
 }
 
-const titulo:React.CSSProperties = {
-marginBottom:20
-}
-
-const panel:React.CSSProperties = {
+const header = {
 display:"flex",
-gap:10,
-flexWrap:"wrap",
-marginBottom:20
+justifyContent:"space-between",
+marginBottom:25
 }
 
-const input:React.CSSProperties = {
+const panel = {
+display:"flex",
+gap:10
+}
+
+const input = {
 padding:10,
 borderRadius:8,
-border:"none",
-background:"#1f2937",
-color:"white"
-}
-
-const inputSmall:React.CSSProperties = {
-padding:6,
-borderRadius:6,
-border:"none",
 background:"#1f2937",
 color:"white",
-width:90
+border:"none"
 }
 
-const card:React.CSSProperties = {
+const section = {
+marginTop:20,
+marginBottom:10
+}
+
+const grid = {
+display:"grid",
+gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",
+gap:15
+}
+
+const kitHeader = {
+padding:12,
+cursor:"pointer",
+display:"flex",
+justifyContent:"space-between"
+}
+
+const card = {
 background:"#111827",
 borderRadius:10,
 marginBottom:10
 }
 
-const categoriaHeader:React.CSSProperties = {
-background:"#374151",
+const catHeader = {
+background:"#1f2937",
 padding:10,
-cursor:"pointer",
-fontWeight:"bold"
+cursor:"pointer"
 }
 
-const itemRow:React.CSSProperties = {
+const item = {
 padding:10,
 borderBottom:"1px solid #1f2937"
 }
 
-const loteRow:React.CSSProperties = {
+const rowTop = {
 display:"flex",
-gap:5,
-marginTop:5,
-flexWrap:"wrap"
+justifyContent:"space-between"
 }
 
-const btnAdd:React.CSSProperties = {
-background:"#2563eb",
-color:"white",
+const inputsRow = {
+display:"flex",
+gap:5,
+marginTop:6
+}
+
+const btnAdd = {
+marginTop:6,
+background:"#22c55e",
 border:"none",
 padding:"5px 10px",
 borderRadius:6,
-marginTop:5
+color:"black",
+cursor:"pointer"
 }
 
-const btnGuardar:React.CSSProperties = {
-marginTop:20,
-background:"#22c55e",
-color:"black",
-padding:14,
-borderRadius:10,
-border:"none",
-width:"100%",
-fontWeight:"bold"
+const badge = {
+background:"#16a34a",
+padding:"2px 6px",
+borderRadius:5,
+fontSize:10
 }
