@@ -45,8 +45,14 @@ const {data:amb,error:errorAmb} = await supabase.from("ambulancias").select("*")
 if(error) console.error("Error cargando inventario:", error)
 if(errorAmb) console.error("Error cargando ambulancias:", errorAmb)
 
-setItems((data||[]).filter(i=>i.subcategoria!=="kit_parto"))
-setKits((data||[]).filter(i=>i.subcategoria==="kit_parto"))
+/* 🔥 NORMALIZACIÓN */
+const limpio = (data || []).map(i => ({
+...i,
+categoria: (i.categoria || "").toLowerCase().trim()
+}))
+
+setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
+setKits(limpio.filter(i=>i.subcategoria==="kit_parto"))
 setAmbulancias(amb||[])
 
 }
@@ -78,7 +84,7 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 
 async function guardar(){
 
-if(!ambulancia || ambulancia === ""){
+if(!ambulancia){
 alert("⚠️ Debe seleccionar una ambulancia")
 return
 }
@@ -101,8 +107,7 @@ for(const l of lotes){
 
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
-/* CHECKLIST */
-const { error: errorChecklist } = await supabase
+const { error } = await supabase
 .from("inventario_checklist")
 .insert({
 ambulancia_id: String(ambulancia),
@@ -114,14 +119,13 @@ fecha_registro: new Date().toISOString(),
 responsable: responsable
 })
 
-if(errorChecklist){
-console.error("ERROR CHECKLIST:", errorChecklist)
+if(error){
+console.error("ERROR CHECKLIST:", error)
 alert("❌ Error guardando checklist")
 setGuardando(false)
 return
 }
 
-/* BITACORA */
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
 nombre: "Checklist actualizado",
@@ -236,7 +240,6 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
 
 <input type="number"
-placeholder="Cantidad"
 onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
 
 <input type="date"
@@ -266,12 +269,8 @@ onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
 
 {ORDEN.map(cat=>{
 
-/* 🔥 FIX CLAVE */
-const grupo = items.filter(i =>
-i.categoria?.toLowerCase().trim() === cat.toLowerCase().trim()
-)
+const grupo = items.filter(i => i.categoria === cat)
 
-/* 🔥 YA NO DESAPARECE */
 return(
 
 <div key={cat} style={card}>
@@ -279,6 +278,12 @@ return(
 <div style={catHeader} onClick={()=>toggle(cat)}>
 {cat.toUpperCase()} ({grupo.length})
 </div>
+
+{expandido[cat] && grupo.length === 0 && (
+<div style={{padding:10, color:"#6b7280"}}>
+Sin ítems
+</div>
+)}
 
 {expandido[cat] && grupo.map(i=>(
 
@@ -301,7 +306,6 @@ return(
 onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
 
 <input type="number"
-placeholder="Cantidad"
 onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
 
 <input type="date"
@@ -320,8 +324,6 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 )
 
 })}
-
-/* BOTÓN */
 
 <div style={{marginTop:30}}>
 
