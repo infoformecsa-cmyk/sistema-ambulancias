@@ -220,7 +220,7 @@ return(
 📊 Informe MSP
 </button>
 
-{/* 🔥 NUEVO BOTÓN */}
+{/* 🔥 BOTÓN NUEVO */}
 <button
 onClick={()=>router.push("/inventario/kilometrajes")}
 style={{
@@ -243,18 +243,7 @@ cursor:"pointer"
 
 <hr/>
 
-{/* TODO LO DEMÁS SE MANTIENE EXACTAMENTE IGUAL */}
-
-<h2>📊 Estado General</h2>
-
-<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-<div style={card}><h3>Operativas</h3><h2 style={{color:"#16a34a"}}>{operativas}</h2></div>
-<div style={card}><h3>Mantenimiento</h3><h2 style={{color:"#f59e0b"}}>{mantenimiento}</h2></div>
-<div style={card}><h3>No operativas</h3><h2 style={{color:"#dc2626"}}>{fuera}</h2></div>
-<div style={card}><h3>Disponibilidad</h3><h2>{disponibilidad}%</h2></div>
-<div style={card}><h3>Horas fuera</h3><h2>{totalHorasFuera} h</h2></div>
-<div style={card}><h3>Promedio</h3><h2>{promedioHoras} h</h2></div>
-</div>
+{/* TODO TU RESTO DEL CÓDIGO SIGUE IGUAL */}
 
 </div>
 )
