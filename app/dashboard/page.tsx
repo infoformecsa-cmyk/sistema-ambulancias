@@ -139,7 +139,7 @@ alert("Ambulancia eliminada")
 cargar()
 }
 
-/* 🔥 GUARDAR EDICIÓN (CON MARCA) */
+/* 🔥 GUARDAR EDICIÓN */
 async function guardarEdicion(id:string){
 
 await supabase
@@ -243,7 +243,148 @@ cursor:"pointer"
 
 <hr/>
 
-{/* TODO TU RESTO DEL CÓDIGO SIGUE IGUAL */}
+{/* ALERTAS */}
+{alertas.length>0 && (
+<div style={{background:"#fee2e2",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Fallas críticas</h3>
+{alertas.map(a=>(
+<div key={a.id}><b>ID:</b> {a.ambulancia_id} - {a.descripcion}</div>
+))}
+</div>
+)}
+
+{mttoVencido.length>0 && (
+<div style={{background:"#fecaca",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>🚨 Mantenimiento vencido</h3>
+{mttoVencido.map(a=>(<div key={a.id}>{a.codigo_operativo}</div>))}
+</div>
+)}
+
+{mttoProximo.length>0 && (
+<div style={{background:"#fef9c3",padding:20,borderRadius:8,marginBottom:20}}>
+<h3>⚠️ Mantenimiento próximo</h3>
+{mttoProximo.map(a=>{
+const faltan = a.kilometraje_mtto - a.kilometraje_actual
+return <div key={a.id}>{a.codigo_operativo} → {faltan} km</div>
+})}
+</div>
+)}
+
+<hr/>
+
+<h2>📊 Estado General</h2>
+
+<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+<div style={card}><h3>Operativas</h3><h2 style={{color:"#16a34a"}}>{operativas}</h2></div>
+<div style={card}><h3>Mantenimiento</h3><h2 style={{color:"#f59e0b"}}>{mantenimiento}</h2></div>
+<div style={card}><h3>No operativas</h3><h2 style={{color:"#dc2626"}}>{fuera}</h2></div>
+<div style={card}><h3>Disponibilidad</h3><h2>{disponibilidad}%</h2></div>
+<div style={card}><h3>Horas fuera</h3><h2>{totalHorasFuera} h</h2></div>
+<div style={card}><h3>Promedio</h3><h2>{promedioHoras} h</h2></div>
+<div style={card}><h3>ALFA Operativas</h3><h2 style={{color:"#16a34a"}}>{alfaOp} ({alfaPct}%)</h2></div>
+<div style={card}><h3>ALFA No operativas</h3><h2 style={{color:"#dc2626"}}>{alfaNoOp} ({alfaNoPct}%)</h2></div>
+<div style={card}><h3>BRAVO Operativas</h3><h2 style={{color:"#16a34a"}}>{bravoOp} ({bravoPct}%)</h2></div>
+<div style={card}><h3>BRAVO No operativas</h3><h2 style={{color:"#dc2626"}}>{bravoNoOp} ({bravoNoPct}%)</h2></div>
+</div>
+
+<hr/>
+
+<h2>📋 Flota</h2>
+
+<table style={{width:"100%",borderCollapse:"collapse"}}>
+
+<thead>
+<tr style={{background:"#f3f4f6"}}>
+<th>Estado</th>
+<th>Código</th>
+<th>Placa</th>
+<th>Marca</th>
+<th>Tipo</th>
+<th>KM</th>
+<th>Horas fuera</th>
+<th>Acciones</th>
+</tr>
+</thead>
+
+<tbody>
+
+{ambulancias.map(a=>(
+
+<tr key={a.id} style={{borderBottom:"1px solid #ddd"}}>
+
+<td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
+
+<td>
+{editando === a.id
+? <input value={editData.codigo_operativo} onChange={(e)=>setEditData({...editData,codigo_operativo:e.target.value})}/>
+: a.codigo_operativo}
+</td>
+
+<td>
+{editando === a.id
+? <input value={editData.placa} onChange={(e)=>setEditData({...editData,placa:e.target.value})}/>
+: a.placa}
+</td>
+
+<td>
+{editando === a.id
+? <input value={editData.marca || ""} onChange={(e)=>setEditData({...editData,marca:e.target.value})}/>
+: a.marca || "-"}
+</td>
+
+<td>
+{editando === a.id
+? <select value={editData.tipo} onChange={(e)=>setEditData({...editData,tipo:e.target.value})}>
+<option value="ALFA">ALFA</option>
+<option value="BRAVO">BRAVO</option>
+</select>
+: a.tipo}
+</td>
+
+<td>{a.kilometraje_actual || 0}</td>
+<td>{horasMap[String(a.id)] || 0} h</td>
+
+<td>
+
+{editando === a.id ? (
+<>
+<button onClick={()=>guardarEdicion(a.id)}>💾</button>
+<button onClick={()=>setEditando(null)}>❌</button>
+</>
+) : (
+<>
+<button onClick={()=>router.push(`/ambulancia/${a.id}`)}>Ficha</button>
+
+<button onClick={()=>{
+setEditando(a.id)
+setEditData(a)
+}}>
+Editar
+</button>
+
+<button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)}>
+Historial
+</button>
+
+<button
+onClick={()=>eliminarAmbulancia(a.id)}
+style={{background:"#dc2626",color:"white"}}
+>
+🗑
+</button>
+
+</>
+)}
+
+</td>
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
 
 </div>
 )
