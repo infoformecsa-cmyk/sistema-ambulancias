@@ -17,58 +17,53 @@ new Date().toISOString().slice(0,10)
 const [data,setData] = useState<any[]>([])
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 
-/* ========================= */
-
 useEffect(()=>{
 cargar()
 },[fecha])
 
 async function cargar(){
 
-try{
-
+/* 🚑 AMBULANCIAS */
 const {data:amb} = await supabase
 .from("ambulancias")
-.select("*")
+.select("id,codigo_operativo")
 
+/* 🔥 CONSULTA CORREGIDA */
 const {data:km,error} = await supabase
-.from("kilometrajes")
+.from("registro_kilometraje") // ✅ TABLA CORRECTA
 .select("*")
-.eq("usuario","supervisor@ambulancias.ec")
-.eq("fecha",fecha)
-.order("hora",{ascending:false})
+.gte("created_at", fecha+"T00:00:00")
+.lte("created_at", fecha+"T23:59:59")
+.order("created_at",{ascending:false})
 
-if(error) throw error
+if(error){
+console.error("ERROR REAL:", error)
+alert("Error cargando kilometrajes")
+return
+}
 
 setData(km || [])
 setAmbulancias(amb || [])
-
-}catch(err){
-console.error("Error:", err)
-alert("Error cargando kilometrajes")
 }
 
-}
-
-/* ========================= */
-
+/* 🚑 NOMBRE */
 function getAmbulancia(id:string){
 const a = ambulancias.find(x=>String(x.id)===String(id))
 return a?.codigo_operativo || id
 }
 
-/* ========================= */
-
 return(
 
-<div style={container}>
-
-{/* HEADER */}
-<div style={header}>
+<div style={{
+padding:30,
+background:"#020617",
+color:"white",
+minHeight:"100vh"
+}}>
 
 <h1>📊 Kilometraje Diario</h1>
 
-<div style={{display:"flex",gap:10}}>
+<div style={{display:"flex",gap:10,marginBottom:20}}>
 
 <input
 type="date"
@@ -77,43 +72,30 @@ onChange={(e)=>setFecha(e.target.value)}
 style={input}
 />
 
-<button
-onClick={()=>setFecha(new Date().toISOString().slice(0,10))}
-style={btn}
->
+<button onClick={()=>setFecha(new Date().toISOString().slice(0,10))} style={btn}>
 HOY
 </button>
 
-<button
-onClick={()=>router.push("/dashboard")}
-style={btnBack}
->
+<button onClick={()=>router.push("/dashboard")} style={btn}>
 ⬅ Volver
 </button>
 
 </div>
 
-</div>
-
-{/* TABLA */}
-
-<div style={tabla}>
-
-<div style={headerTabla}>
-<div>Ambulancia</div>
-<div>Kilometraje</div>
-<div>Hora</div>
-</div>
-
 {data.map((d,i)=>(
 
-<div key={i} style={row}>
+<div key={i} style={{
+background:"#111827",
+padding:10,
+marginBottom:8,
+borderRadius:8,
+display:"flex",
+justifyContent:"space-between"
+}}>
 
 <div>🚑 {getAmbulancia(d.ambulancia_id)}</div>
-
 <div>📏 {d.kilometraje} km</div>
-
-<div>🕒 {new Date(d.hora).toLocaleTimeString()}</div>
+<div>🕒 {new Date(d.created_at).toLocaleTimeString()}</div>
 
 </div>
 
@@ -126,27 +108,7 @@ No hay registros para este día
 )}
 
 </div>
-
-</div>
 )
-}
-
-/* ========================= */
-/* 🎨 ESTILOS */
-/* ========================= */
-
-const container = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const header = {
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
-marginBottom:20
 }
 
 const input = {
@@ -160,44 +122,13 @@ border:"none"
 const btn = {
 background:"#2563eb",
 color:"white",
-border:"none",
 padding:"10px 15px",
-borderRadius:8,
-cursor:"pointer"
-}
-
-const btnBack = {
-background:"#374151",
-color:"white",
 border:"none",
-padding:"10px 15px",
-borderRadius:8,
-cursor:"pointer"
+borderRadius:8
 }
 
-const tabla = {
-background:"#111827",
-borderRadius:10,
-padding:10
-}
-
-const headerTabla = {
-display:"flex",
-justifyContent:"space-between",
-padding:"10px",
-borderBottom:"2px solid #1f2937",
-fontWeight:"bold"
-}
-
-const row = {
-display:"flex",
-justifyContent:"space-between",
-padding:10,
-borderBottom:"1px solid #1f2937"
-}
-
-const empty: React.CSSProperties = {
-textAlign: "center",
-padding: 20,
-color: "#9ca3af"
+const empty = {
+textAlign:"center" as const,
+padding:20,
+color:"#9ca3af"
 }

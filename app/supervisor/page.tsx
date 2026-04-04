@@ -14,7 +14,6 @@ const [grupo,setGrupo] = useState("ALFA")
 
 const [editKm,setEditKm] = useState<Record<string,string>>({})
 
-/* 🔥 PANEL TIPO FICHA */
 const [panel,setPanel] = useState(false)
 const [ambulanciaActiva,setAmbulanciaActiva] = useState<any>(null)
 const [estadoPendiente,setEstadoPendiente] = useState("")
@@ -36,7 +35,7 @@ const {data} = await supabase
 setAmbulancias(data || [])
 }
 
-/* 🔥 NUEVO: ALERTAS */
+/* ALERTAS */
 const mantenimientoVencido = ambulancias.filter(a=>{
 if(!a.kilometraje_mtto) return false
 return a.kilometraje_actual >= a.kilometraje_mtto
@@ -48,22 +47,59 @@ const diff = a.kilometraje_mtto - a.kilometraje_actual
 return diff > 0 && diff <= 500
 })
 
-/* KM */
+/* ========================= */
+/* 🚑 KM CORREGIDO DEFINITIVO */
+/* ========================= */
+
 async function actualizarKm(id:string){
 
 const km = Number(editKm[id])
-if(!km) return
 
-await supabase
+if(!km || km <= 0){
+alert("Ingrese kilometraje válido")
+return
+}
+
+const usuario = localStorage.getItem("email") || "supervisor@ambulancias.ec"
+
+/* 1. ACTUALIZA DASHBOARD */
+const { error: errorUpdate } = await supabase
 .from("ambulancias")
 .update({ kilometraje_actual: km })
 .eq("id",id)
+
+if(errorUpdate){
+console.error("ERROR UPDATE:", errorUpdate)
+alert("Error actualizando kilometraje")
+return
+}
+
+/* 2. GUARDA HISTORIAL (TABLA CORRECTA) */
+const { error: errorInsert } = await supabase
+.from("registro_kilometraje")
+.insert({
+ambulancia_id: id,
+usuario: usuario,
+kilometraje: km
+})
+
+if(errorInsert){
+console.error("ERROR INSERT KM:", errorInsert)
+alert("Error guardando historial de kilometraje")
+return
+}
+
+/* CONFIRMACIÓN */
+alert("✅ Kilometraje registrado correctamente")
 
 setEditKm({...editKm,[id]:""})
 cargar()
 }
 
+/* ========================= */
 /* FOTO */
+/* ========================= */
+
 async function subirFoto(id:string){
 
 if(!foto) return null
@@ -83,14 +119,16 @@ const {data} = supabase.storage
 return data.publicUrl
 }
 
-/* ABRIR PANEL */
+/* ========================= */
+
 function abrirPanel(a:any,estado:string){
 setAmbulanciaActiva(a)
 setEstadoPendiente(estado)
 setPanel(true)
 }
 
-/* CONFIRMAR */
+/* ========================= */
+
 async function confirmarCambio(){
 
 if(!motivo){
@@ -102,7 +140,6 @@ const usuario = localStorage.getItem("nombre")
 
 const foto_url = await subirFoto(ambulanciaActiva.id)
 
-/* cerrar anterior */
 const {data:ultimo} = await supabase
 .from("historial_operativo")
 .select("*")
@@ -119,7 +156,6 @@ await supabase
 .eq("id",last.id)
 }
 
-/* insertar */
 await supabase
 .from("historial_operativo")
 .insert({
@@ -136,7 +172,6 @@ await supabase
 .update({estado:estadoPendiente})
 .eq("id",ambulanciaActiva.id)
 
-/* reset */
 setPanel(false)
 setMotivo("")
 setFoto(null)
@@ -185,7 +220,6 @@ BRAVO
 
 </div>
 
-{/* 🔥 NUEVO: ALERTAS VISUALES */}
 {mantenimientoVencido.length > 0 && (
 <div style={{background:"#fee2e2",padding:15,borderRadius:10,marginBottom:20}}>
 <b>🚨 Mantenimiento vencido</b>
@@ -254,7 +288,6 @@ Fuera
 </div>
 ))}
 
-/* 🔥 PANEL ESTILO FICHA */
 {panel && (
 <div style={panelBg}>
 <div style={panelBox}>
@@ -294,7 +327,7 @@ Cancelar
 )
 }
 
-/* ESTILOS TIPADOS */
+/* ESTILOS */
 
 const btn: CSSProperties = {padding:"8px 16px",borderRadius:20,background:"#e5e7eb",border:"none"}
 const btnActive: CSSProperties = {padding:"8px 16px",borderRadius:20,background:"#2563eb",color:"white",border:"none"}
