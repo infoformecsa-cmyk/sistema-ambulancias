@@ -73,7 +73,7 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 💾 GUARDAR */
+/* 💾 GUARDAR CORREGIDO */
 /* ========================= */
 
 async function guardar(){
@@ -90,7 +90,7 @@ return
 
 setGuardando(true)
 
-let inserts:any[] = []
+try{
 
 for(const itemId in datos){
 
@@ -100,29 +100,45 @@ for(const l of lotes){
 
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
-inserts.push(
-supabase.from("inventario_checklist").insert({
-ambulancia_id:ambulancia,
-item_id:itemId,
-lote:l.lote,
-cantidad:Number(l.cantidad || 0),
-fecha_caducidad:l.fecha || null,
-fecha_registro:new Date(),
-responsable:responsable
+/* 🔥 INSERT REAL (CORREGIDO) */
+const { error } = await supabase
+.from("inventario_checklist")
+.insert({
+ambulancia_id: ambulancia,
+item_id: itemId,
+lote: l.lote,
+cantidad: Number(l.cantidad || 0),
+fecha_caducidad: l.fecha || null,
+fecha_registro: new Date().toISOString(),
+responsable: responsable
 })
-)
+
+if(error){
+console.error("ERROR INSERT CHECKLIST:", error)
+alert("❌ Error guardando checklist")
+setGuardando(false)
+return
+}
+
+/* 🔥 SINCRONIZA CON DASHBOARD */
+await supabase.from("bitacora_items").insert({
+ambulancia_id: ambulancia,
+nombre: "Checklist actualizado",
+tipo: "CHECKLIST",
+cantidad: Number(l.cantidad || 0),
+lote: l.lote || null
+})
 
 }
 
 }
 
-try{
-await Promise.all(inserts)
 alert("✅ Checklist guardado correctamente")
 setDatos({})
+
 }catch(err){
-console.error("Error guardando:", err)
-alert("❌ Error al guardar checklist")
+console.error("ERROR GENERAL:", err)
+alert("❌ Error general al guardar")
 }
 
 setGuardando(false)
@@ -301,9 +317,7 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 
 })}
 
-{/* ========================= */}
-{/* BOTÓN GUARDAR */}
-{/* ========================= */}
+/* BOTÓN */
 
 <div style={{marginTop:30}}>
 
