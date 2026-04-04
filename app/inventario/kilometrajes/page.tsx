@@ -196,8 +196,8 @@ padding:10,
 borderBottom:"1px solid #1f2937"
 }
 
-const empty = {
-textAlign:"center",
-padding:20,
-color:"#9ca3af"
+const empty: React.CSSProperties = {
+textAlign: "center",
+padding: 20,
+color: "#9ca3af"
 }
