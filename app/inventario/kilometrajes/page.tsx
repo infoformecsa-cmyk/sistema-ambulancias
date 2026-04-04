@@ -24,25 +24,53 @@ cargar()
 async function cargar(){
 
 /* 🚑 AMBULANCIAS */
-const {data:amb} = await supabase
+const {data:amb,error:errorAmb} = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-/* 🔥 CONSULTA CORREGIDA */
+if(errorAmb){
+console.error("❌ Error ambulancias:", errorAmb)
+}
+
+/* 🔥 KM */
 const {data:km,error} = await supabase
-.from("registro_kilometraje") // ✅ TABLA CORRECTA
+.from("registro_kilometraje")
 .select("*")
-.gte("created_at", fecha+"T00:00:00")
-.lte("created_at", fecha+"T23:59:59")
 .order("created_at",{ascending:false})
 
 if(error){
-console.error("ERROR REAL:", error)
+console.error("❌ ERROR REAL KM:", error)
 alert("Error cargando kilometrajes")
 return
 }
 
-setData(km || [])
+/* 🔥 FILTRO SEGURO */
+const filtrados = (km || []).filter((item:any)=>{
+
+if(!item.created_at){
+console.warn("⚠️ Registro sin fecha:", item)
+return false
+}
+
+try{
+const fechaItem = new Date(item.created_at)
+.toISOString()
+.slice(0,10)
+
+return fechaItem === fecha
+}catch(e){
+console.warn("⚠️ Error procesando fecha:", item)
+return false
+}
+
+})
+
+/* DEBUG */
+console.log("📊 TOTAL REGISTROS BD:", km?.length)
+console.log("📅 FILTRADOS HOY:", filtrados.length)
+
+/* SET */
+setData(filtrados)
 setAmbulancias(amb || [])
 }
 
@@ -72,16 +100,23 @@ onChange={(e)=>setFecha(e.target.value)}
 style={input}
 />
 
-<button onClick={()=>setFecha(new Date().toISOString().slice(0,10))} style={btn}>
+<button 
+onClick={()=>setFecha(new Date().toISOString().slice(0,10))} 
+style={btn}
+>
 HOY
 </button>
 
-<button onClick={()=>router.push("/dashboard")} style={btn}>
+<button 
+onClick={()=>router.push("/dashboard")} 
+style={btn}
+>
 ⬅ Volver
 </button>
 
 </div>
 
+{/* 🔥 LISTADO */}
 {data.map((d,i)=>(
 
 <div key={i} style={{
@@ -94,13 +129,20 @@ justifyContent:"space-between"
 }}>
 
 <div>🚑 {getAmbulancia(d.ambulancia_id)}</div>
-<div>📏 {d.kilometraje} km</div>
-<div>🕒 {new Date(d.created_at).toLocaleTimeString()}</div>
+
+<div>📏 {Number(d.kilometraje || 0)} km</div>
+
+<div>
+🕒 {d.created_at 
+? new Date(d.created_at).toLocaleTimeString()
+: "--"}
+</div>
 
 </div>
 
 ))}
 
+{/* 🔥 VACÍO */}
 {data.length === 0 && (
 <div style={empty}>
 No hay registros para este día
@@ -111,6 +153,7 @@ No hay registros para este día
 )
 }
 
+/* 🎨 ESTILOS */
 const input = {
 padding:10,
 borderRadius:8,

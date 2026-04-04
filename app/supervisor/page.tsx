@@ -26,11 +26,15 @@ cargar()
 
 async function cargar(){
 
-const {data} = await supabase
+const {data,error} = await supabase
 .from("ambulancias")
 .select("*")
 .eq("tipo",grupo)
 .order("codigo_operativo")
+
+if(error){
+console.error("Error cargando ambulancias:", error)
+}
 
 setAmbulancias(data || [])
 }
@@ -74,20 +78,30 @@ alert("Error actualizando kilometraje")
 return
 }
 
-/* 2. GUARDA HISTORIAL (TABLA CORRECTA) */
+/* 2. GUARDA HISTORIAL (FIX DEFINITIVO) */
 const { error: errorInsert } = await supabase
 .from("registro_kilometraje")
-.insert({
-ambulancia_id: id,
+.insert([
+{
+ambulancia_id: String(id),
 usuario: usuario,
-kilometraje: km
-})
+kilometraje: Number(km),
+created_at: new Date().toISOString()
+}
+])
 
 if(errorInsert){
 console.error("ERROR INSERT KM:", errorInsert)
 alert("Error guardando historial de kilometraje")
 return
 }
+
+/* DEBUG */
+console.log("✅ KM guardado correctamente:", {
+ambulancia_id: id,
+km,
+usuario
+})
 
 /* CONFIRMACIÓN */
 alert("✅ Kilometraje registrado correctamente")
@@ -110,7 +124,10 @@ const {error} = await supabase.storage
 .from("ambulancias")
 .upload(nombre,foto)
 
-if(error) return null
+if(error){
+console.error("Error subiendo foto:", error)
+return null
+}
 
 const {data} = supabase.storage
 .from("ambulancias")
@@ -136,7 +153,7 @@ alert("Ingrese motivo")
 return
 }
 
-const usuario = localStorage.getItem("nombre")
+const usuario = localStorage.getItem("nombre") || "supervisor"
 
 const foto_url = await subirFoto(ambulanciaActiva.id)
 
@@ -216,6 +233,10 @@ ALFA
 
 <button onClick={()=>setGrupo("BRAVO")} style={grupo==="BRAVO"?btnActive:btn}>
 BRAVO
+</button>
+
+<button onClick={()=>router.push("/supervisor/asistencia")}>
+📋 Asistencia Personal
 </button>
 
 </div>
