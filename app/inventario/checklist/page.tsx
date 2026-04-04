@@ -73,7 +73,7 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 💾 GUARDAR CORREGIDO PRO */
+/* 💾 GUARDAR */
 /* ========================= */
 
 async function guardar(){
@@ -95,21 +95,17 @@ try{
 for(const itemId in datos){
 
 const lotes = datos[itemId]
-
 if(!lotes || lotes.length === 0) continue
 
 for(const l of lotes){
 
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
-/* ========================= */
-/* 🔥 INSERT CHECKLIST */
-/* ========================= */
-
+/* CHECKLIST */
 const { error: errorChecklist } = await supabase
 .from("inventario_checklist")
 .insert({
-ambulancia_id: String(ambulancia), // 🔥 FIX CLAVE
+ambulancia_id: String(ambulancia),
 item_id: itemId,
 lote: l.lote || null,
 cantidad: Number(l.cantidad || 0),
@@ -125,23 +121,14 @@ setGuardando(false)
 return
 }
 
-/* ========================= */
-/* 🔥 INSERT DASHBOARD */
-/* ========================= */
-
-const { error: errorBitacora } = await supabase
-.from("bitacora_items")
-.insert({
-ambulancia_id: String(ambulancia), // 🔥 FIX CLAVE
+/* BITACORA */
+await supabase.from("bitacora_items").insert({
+ambulancia_id: String(ambulancia),
 nombre: "Checklist actualizado",
 tipo: "CHECKLIST",
 cantidad: Number(l.cantidad || 0),
 lote: l.lote || null
 })
-
-if(errorBitacora){
-console.error("ERROR BITACORA:", errorBitacora)
-}
 
 }
 
@@ -279,15 +266,18 @@ onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
 
 {ORDEN.map(cat=>{
 
-const grupo = items.filter(i=>i.categoria===cat)
-if(!grupo.length) return null
+/* 🔥 FIX CLAVE */
+const grupo = items.filter(i =>
+i.categoria?.toLowerCase().trim() === cat.toLowerCase().trim()
+)
 
+/* 🔥 YA NO DESAPARECE */
 return(
 
 <div key={cat} style={card}>
 
 <div style={catHeader} onClick={()=>toggle(cat)}>
-{cat.toUpperCase()}
+{cat.toUpperCase()} ({grupo.length})
 </div>
 
 {expandido[cat] && grupo.map(i=>(
@@ -331,7 +321,7 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 
 })}
 
-{/* BOTÓN */}
+/* BOTÓN */
 
 <div style={{marginTop:30}}>
 
