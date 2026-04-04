@@ -100,7 +100,7 @@ for(const l of lotes){
 
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
-/* 🔥 INSERT REAL (CORREGIDO) */
+/* 🔥 INSERT REAL */
 const { error } = await supabase
 .from("inventario_checklist")
 .insert({
@@ -120,7 +120,7 @@ setGuardando(false)
 return
 }
 
-/* 🔥 SINCRONIZA CON DASHBOARD */
+/* 🔥 ENVÍO A DASHBOARD */
 await supabase.from("bitacora_items").insert({
 ambulancia_id: ambulancia,
 nombre: "Checklist actualizado",
@@ -317,7 +317,7 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 
 })}
 
-/* BOTÓN */
+{/* BOTÓN */}
 
 <div style={{marginTop:30}}>
 
