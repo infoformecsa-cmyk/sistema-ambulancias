@@ -73,18 +73,18 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 💾 GUARDAR CORREGIDO */
+/* 💾 GUARDAR CORREGIDO PRO */
 /* ========================= */
 
 async function guardar(){
 
-if(!ambulancia){
-alert("Seleccione una ambulancia")
+if(!ambulancia || ambulancia === ""){
+alert("⚠️ Debe seleccionar una ambulancia")
 return
 }
 
 if(!responsable){
-alert("Ingrese responsable")
+alert("⚠️ Ingrese responsable")
 return
 }
 
@@ -96,38 +96,52 @@ for(const itemId in datos){
 
 const lotes = datos[itemId]
 
+if(!lotes || lotes.length === 0) continue
+
 for(const l of lotes){
 
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
-/* 🔥 INSERT REAL */
-const { error } = await supabase
+/* ========================= */
+/* 🔥 INSERT CHECKLIST */
+/* ========================= */
+
+const { error: errorChecklist } = await supabase
 .from("inventario_checklist")
 .insert({
-ambulancia_id: ambulancia,
+ambulancia_id: String(ambulancia), // 🔥 FIX CLAVE
 item_id: itemId,
-lote: l.lote,
+lote: l.lote || null,
 cantidad: Number(l.cantidad || 0),
 fecha_caducidad: l.fecha || null,
 fecha_registro: new Date().toISOString(),
 responsable: responsable
 })
 
-if(error){
-console.error("ERROR INSERT CHECKLIST:", error)
+if(errorChecklist){
+console.error("ERROR CHECKLIST:", errorChecklist)
 alert("❌ Error guardando checklist")
 setGuardando(false)
 return
 }
 
-/* 🔥 ENVÍO A DASHBOARD */
-await supabase.from("bitacora_items").insert({
-ambulancia_id: ambulancia,
+/* ========================= */
+/* 🔥 INSERT DASHBOARD */
+/* ========================= */
+
+const { error: errorBitacora } = await supabase
+.from("bitacora_items")
+.insert({
+ambulancia_id: String(ambulancia), // 🔥 FIX CLAVE
 nombre: "Checklist actualizado",
 tipo: "CHECKLIST",
 cantidad: Number(l.cantidad || 0),
 lote: l.lote || null
 })
+
+if(errorBitacora){
+console.error("ERROR BITACORA:", errorBitacora)
+}
 
 }
 
