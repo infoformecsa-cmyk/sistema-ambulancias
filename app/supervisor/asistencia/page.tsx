@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -203,30 +204,30 @@ style={input}
 )
 }
 
-/* 🎨 ESTILOS */
+/* 🎨 ESTILOS TIPADOS */
 
-const container = {
+const container: CSSProperties = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
 padding:30
 }
 
-const filtros = {
+const filtros: CSSProperties = {
 display:"flex",
 gap:10,
 marginBottom:20,
 flexWrap:"wrap"
 }
 
-const card = {
+const card: CSSProperties = {
 background:"#111827",
 padding:15,
 borderRadius:10,
 marginBottom:10
 }
 
-const input = {
+const input: CSSProperties = {
 padding:10,
 borderRadius:8,
 background:"#1f2937",
@@ -235,7 +236,7 @@ border:"none",
 marginTop:5
 }
 
-const btn = {
+const btn: CSSProperties = {
 background:"#2563eb",
 color:"white",
 padding:"10px 15px",
@@ -243,7 +244,7 @@ borderRadius:8,
 border:"none"
 }
 
-const btnGuardar = {
+const btnGuardar: CSSProperties = {
 marginTop:20,
 width:"100%",
 background:"#22c55e",
