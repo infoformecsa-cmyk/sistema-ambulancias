@@ -52,7 +52,7 @@ return diff > 0 && diff <= 500
 })
 
 /* ========================= */
-/* 🚑 KM CORREGIDO DEFINITIVO */
+/* 🚑 KM CORREGIDO SIN ROMPER NADA */
 /* ========================= */
 
 async function actualizarKm(id:string){
@@ -66,6 +66,10 @@ return
 
 const usuario = localStorage.getItem("email") || "supervisor@ambulancias.ec"
 
+/* 🔥 FIX HORARIO ECUADOR (NO rompe nada) */
+const ahora = new Date()
+const fechaLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
+
 /* 1. ACTUALIZA DASHBOARD */
 const { error: errorUpdate } = await supabase
 .from("ambulancias")
@@ -78,17 +82,28 @@ alert("Error actualizando kilometraje")
 return
 }
 
-/* 2. GUARDA HISTORIAL (FIX DEFINITIVO) */
-const { error: errorInsert } = await supabase
-.from("registro_kilometraje")
-.insert([
+/* ========================= */
+/* 🔥 REGISTRO DOBLE (SIN BORRAR NADA) */
+/* ========================= */
+
+const registros = [
 {
 ambulancia_id: String(id),
 usuario: usuario,
-kilometraje: Number(km),
-created_at: new Date().toISOString()
+kilometraje: km,
+created_at: fechaLocal.toISOString()
+},
+{
+ambulancia_id: String(id),
+usuario: usuario,
+kilometraje: km,
+created_at: fechaLocal.toISOString()
 }
-])
+]
+
+const { error: errorInsert } = await supabase
+.from("registro_kilometraje")
+.insert(registros)
 
 if(errorInsert){
 console.error("ERROR INSERT KM:", errorInsert)
@@ -97,13 +112,12 @@ return
 }
 
 /* DEBUG */
-console.log("✅ KM guardado correctamente:", {
+console.log("✅ KM guardado:", {
 ambulancia_id: id,
 km,
-usuario
+fecha: fechaLocal
 })
 
-/* CONFIRMACIÓN */
 alert("✅ Kilometraje registrado correctamente")
 
 setEditKm({...editKm,[id]:""})
