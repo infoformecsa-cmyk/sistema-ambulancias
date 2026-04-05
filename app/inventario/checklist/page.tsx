@@ -7,11 +7,17 @@ import { supabase } from "@/lib/supabaseClient"
 
 /* ========================= */
 
+const COLORES_KIT:any = {
+celeste:"#06b6d4",
+azul:"#3b82f6",
+rojo:"#ef4444",
+amarillo:"#f59e0b"
+}
+
 const ORDEN = [
 "lenceria","dispositivos","sondas","respiratorio",
 "oxigeno","canalizacion","biomedicos","limpieza",
-"curaciones",
-"medicamentos","trauma","proteccion"
+"curaciones","medicamentos","trauma","proteccion"
 ]
 
 /* ========================= */
@@ -19,6 +25,7 @@ const ORDEN = [
 export default function Checklist(){
 
 const [items,setItems] = useState<any[]>([])
+const [kits,setKits] = useState<any[]>([])
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 
 const [ambulancia,setAmbulancia] = useState("")
@@ -43,7 +50,8 @@ categoria: (i.categoria || "").toLowerCase().trim(),
 tipo_control: i.tipo_control || "stock"
 }))
 
-setItems(limpio)
+setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
+setKits(limpio.filter(i=>i.subcategoria==="kit_parto"))
 setAmbulancias(amb||[])
 
 }
@@ -95,27 +103,25 @@ try{
 
 for(const itemId in datos){
 
-const item = items.find(i=>i.id === itemId)
+const item = items.find(i=>i.id === itemId) || kits.find(k=>k.id === itemId)
 const lotes = datos[itemId]
 
 if(!lotes || lotes.length === 0) continue
 
 for(const l of lotes){
 
-/* 🔥 CHECK (LIMPIEZA) */
+/* CHECK */
 if(l.estado){
-
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
 nombre: item?.nombre || "check",
 tipo: "CHECK_SIMPLE",
 estado: l.estado
 })
-
 continue
 }
 
-/* 🔥 STOCK */
+/* STOCK */
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
 const { error } = await supabase
@@ -196,6 +202,68 @@ style={input}
 </div>
 
 {/* ========================= */}
+{/* 🧬 KITS OBSTÉTRICOS RESTAURADO */}
+{/* ========================= */}
+
+<h2 style={section}>🧬 Kits Obstétricos</h2>
+
+<div style={grid}>
+
+{["celeste","azul","amarillo","rojo"].map(color=>{
+
+const grupo = kits.filter(k=>k.kit_color===color)
+if(!grupo.length) return null
+
+return(
+
+<div key={color} style={{
+background:"#111827",
+borderRadius:12,
+borderLeft:`6px solid ${COLORES_KIT[color]}`
+}}>
+
+<div onClick={()=>toggle(color)} style={kitHeader}>
+<span>Clave {color}</span>
+</div>
+
+{expandido[color] && grupo.map(k=>(
+
+<div key={k.id} style={item}>
+
+<div style={rowTop}>
+<span>{k.nombre}</span>
+<span style={badge}>Min {getMin(k)}</span>
+</div>
+
+<button style={btnAdd} onClick={()=>agregarLote(k.id)}>
++ Lote
+</button>
+
+{(datos[k.id]||[]).map((l:any,i:number)=>(
+
+<div key={i} style={inputsRow}>
+<input placeholder="Lote" onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
+<input type="number" onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
+<input type="date" onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
+</div>
+
+))}
+
+</div>
+
+))}
+
+</div>
+
+)
+
+})}
+
+</div>
+
+{/* ========================= */}
+{/* 📦 GENERAL */}
+{/* ========================= */}
 
 <h2 style={section}>📦 Checklist General</h2>
 
@@ -211,17 +279,11 @@ return(
 {cat.toUpperCase()} ({grupo.length})
 </div>
 
-{expandido[cat] && grupo.length === 0 && (
-<div style={{padding:10, color:"#6b7280"}}>Sin ítems</div>
-)}
-
 {expandido[cat] && grupo.map(i=>{
 
-/* 🔥 CHECK */
 if(i.tipo_control === "check"){
 return(
 <div key={i.id} style={item}>
-
 <div style={rowTop}>
 <span>{i.nombre}</span>
 <span style={badge}>CHECK</span>
@@ -232,12 +294,10 @@ return(
 <option value="SI">SI</option>
 <option value="NO">NO</option>
 </select>
-
 </div>
 )
 }
 
-/* 🔥 STOCK */
 return(
 
 <div key={i.id} style={item}>
@@ -271,27 +331,12 @@ return(
 
 })}
 
-{/* BOTÓN CORRECTO */}
+{/* BOTÓN */}
 
 <div style={{marginTop:30}}>
-
-<button
-onClick={guardar}
-style={{
-width:"100%",
-background: guardando ? "#9ca3af" : "#22c55e",
-color:"black",
-padding:"18px",
-border:"none",
-borderRadius:"12px",
-fontWeight:"bold",
-fontSize:"16px",
-cursor:"pointer"
-}}
->
+<button onClick={guardar} style={btnGuardar}>
 {guardando ? "Guardando..." : "💾 Guardar Checklist"}
 </button>
-
 </div>
 
 </div>
@@ -299,79 +344,21 @@ cursor:"pointer"
 }
 
 /* ========================= */
+/* ESTILOS */
+/* ========================= */
 
-const container = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const header = {
-display:"flex",
-justifyContent:"space-between",
-marginBottom:25
-}
-
-const panel = {
-display:"flex",
-gap:10
-}
-
-const input = {
-padding:10,
-borderRadius:8,
-background:"#1f2937",
-color:"white",
-border:"none"
-}
-
-const section = {
-marginTop:20,
-marginBottom:10
-}
-
-const card = {
-background:"#111827",
-borderRadius:10,
-marginBottom:10
-}
-
-const catHeader = {
-background:"#1f2937",
-padding:10,
-cursor:"pointer"
-}
-
-const item = {
-padding:10,
-borderBottom:"1px solid #1f2937"
-}
-
-const rowTop = {
-display:"flex",
-justifyContent:"space-between"
-}
-
-const inputsRow = {
-display:"flex",
-gap:5,
-marginTop:6
-}
-
-const btnAdd = {
-marginTop:6,
-background:"#22c55e",
-border:"none",
-padding:"5px 10px",
-borderRadius:6,
-color:"black",
-cursor:"pointer"
-}
-
-const badge = {
-background:"#16a34a",
-padding:"2px 6px",
-borderRadius:5,
-fontSize:10
-}
+const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
+const header = {display:"flex",justifyContent:"space-between",marginBottom:25}
+const panel = {display:"flex",gap:10}
+const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
+const section = {marginTop:20,marginBottom:10}
+const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:15}
+const kitHeader = {padding:12,cursor:"pointer",display:"flex",justifyContent:"space-between"}
+const card = {background:"#111827",borderRadius:10,marginBottom:10}
+const catHeader = {background:"#1f2937",padding:10,cursor:"pointer"}
+const item = {padding:10,borderBottom:"1px solid #1f2937"}
+const rowTop = {display:"flex",justifyContent:"space-between"}
+const inputsRow = {display:"flex",gap:5,marginTop:6}
+const btnAdd = {marginTop:6,background:"#22c55e",border:"none",padding:"5px 10px",borderRadius:6,color:"black",cursor:"pointer"}
+const badge = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
+const btnGuardar = {width:"100%",background:"#22c55e",color:"black",padding:"18px",border:"none",borderRadius:"12px",fontWeight:"bold"}
