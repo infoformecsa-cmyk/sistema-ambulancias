@@ -95,7 +95,7 @@ const { error: errorInsert } = await supabase
 ambulancia_id: String(id),
 usuario: usuario,
 kilometraje: km,
-created_at: new Date().toISOString() // ✅ UTC correcto
+created_at: new Date() // ✅ UTC correcto
 }
 ])
 

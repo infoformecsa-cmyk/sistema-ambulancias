@@ -24,8 +24,11 @@ cargar()
 
 async function cargar(){
 
-const inicio = new Date(fecha + "T00:00:00")
-const fin = new Date(fecha + "T23:59:59")
+const inicio = new Date(fecha)
+inicio.setHours(0,0,0,0)
+
+const fin = new Date(fecha)
+fin.setHours(23,59,59,999)
 
 const { data } = await supabase
 .from("registro_kilometraje")
