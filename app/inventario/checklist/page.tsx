@@ -17,6 +17,7 @@ amarillo:"#f59e0b"
 const ORDEN = [
 "lenceria","dispositivos","sondas","respiratorio",
 "oxigeno","canalizacion","biomedicos","limpieza",
+"curaciones", // 🔥 NUEVO
 "medicamentos","trauma","proteccion"
 ]
 
@@ -45,10 +46,11 @@ const {data:amb,error:errorAmb} = await supabase.from("ambulancias").select("*")
 if(error) console.error("Error cargando inventario:", error)
 if(errorAmb) console.error("Error cargando ambulancias:", errorAmb)
 
-/* 🔥 NORMALIZACIÓN */
+/* NORMALIZACIÓN */
 const limpio = (data || []).map(i => ({
 ...i,
-categoria: (i.categoria || "").toLowerCase().trim()
+categoria: (i.categoria || "").toLowerCase().trim(),
+tipo_control: i.tipo_control || "stock"
 }))
 
 setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
@@ -72,6 +74,10 @@ function actualizar(id:string,i:number,campo:string,val:any){
 const copia = [...(datos[id]||[])]
 copia[i][campo]=val
 setDatos({...datos,[id]:copia})
+}
+
+function setCheck(id:string,val:string){
+setDatos({...datos,[id]:[{estado:val}]})
 }
 
 function getMin(i:any){
@@ -105,6 +111,18 @@ if(!lotes || lotes.length === 0) continue
 
 for(const l of lotes){
 
+/* 🔥 CHECK TIPO LIMPIEZA */
+if(l.estado){
+await supabase.from("bitacora_items").insert({
+ambulancia_id: String(ambulancia),
+nombre: itemId,
+tipo: "CHECK_SIMPLE",
+estado: l.estado
+})
+continue
+}
+
+/* 🔥 STOCK NORMAL */
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
 const { error } = await supabase
@@ -191,77 +209,6 @@ style={input}
 </div>
 
 {/* ========================= */}
-{/* 🧬 KITS */}
-{/* ========================= */}
-
-<h2 style={section}>🧬 Kits Obstétricos</h2>
-
-<div style={grid}>
-
-{["celeste","azul","amarillo","rojo"].map(color=>{
-
-const grupo = kits.filter(k=>k.kit_color===color)
-if(!grupo.length) return null
-
-const total = grupo.length
-const cargados = grupo.filter(k=>datos[k.id]?.length>0).length
-
-return(
-
-<div key={color} style={{
-background:"#111827",
-borderRadius:12,
-borderLeft:`6px solid ${COLORES_KIT[color]}`
-}}>
-
-<div onClick={()=>toggle(color)} style={kitHeader}>
-<span>Clave {color}</span>
-<span>{cargados}/{total}</span>
-</div>
-
-{expandido[color] && grupo.map(k=>(
-
-<div key={k.id} style={item}>
-
-<div style={rowTop}>
-<span>{k.nombre}</span>
-<span style={badge}>Min {getMin(k)}</span>
-</div>
-
-<button style={btnAdd} onClick={()=>agregarLote(k.id)}>
-+ Lote
-</button>
-
-{(datos[k.id]||[]).map((l:any,i:number)=>(
-
-<div key={i} style={inputsRow}>
-
-<input placeholder="Lote"
-onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
-
-<input type="number"
-onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
-
-<input type="date"
-onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
-
-</div>
-
-))}
-
-</div>
-
-))}
-
-</div>
-
-)
-
-})}
-
-</div>
-
-{/* ========================= */}
 {/* 📦 GENERAL */}
 {/* ========================= */}
 
@@ -285,7 +232,33 @@ Sin ítems
 </div>
 )}
 
-{expandido[cat] && grupo.map(i=>(
+{expandido[cat] && grupo.map(i=>{
+
+/* 🔥 CHECK LIMPIEZA */
+if(i.tipo_control === "check"){
+return(
+<div key={i.id} style={item}>
+
+<div style={rowTop}>
+<span>{i.nombre}</span>
+<span style={badge}>CHECK</span>
+</div>
+
+<select
+onChange={(e)=>setCheck(i.id,e.target.value)}
+style={input}
+>
+<option value="">Seleccione</option>
+<option value="SI">SI</option>
+<option value="NO">NO</option>
+</select>
+
+</div>
+)
+}
+
+/* 🔥 STOCK NORMAL */
+return(
 
 <div key={i.id} style={item}>
 
@@ -317,13 +290,17 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 
 </div>
 
-))}
+)
+
+})}
 
 </div>
 
 )
 
 })}
+
+/* BOTÓN */
 
 <div style={{marginTop:30}}>
 
@@ -383,19 +360,6 @@ border:"none"
 const section = {
 marginTop:20,
 marginBottom:10
-}
-
-const grid = {
-display:"grid",
-gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",
-gap:15
-}
-
-const kitHeader = {
-padding:12,
-cursor:"pointer",
-display:"flex",
-justifyContent:"space-between"
 }
 
 const card = {
