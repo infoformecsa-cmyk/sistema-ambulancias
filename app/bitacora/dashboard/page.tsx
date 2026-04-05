@@ -36,12 +36,15 @@ async function cargar(){
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
+.eq("tipo","CHECKLIST") // 🔥 FILTRO CLAVE
 
 const hoy = new Date()
 
 const procesado = (data || []).map(item=>{
 
-const fecha = new Date(item.updated_at || item.created_at)
+// 🔥 FIX DE FECHA
+const fecha = new Date(item.fecha_registro || item.updated_at || item.created_at)
+
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
 
 let estado = "OK"
@@ -72,8 +75,32 @@ const { data } = await supabase
 .from("bitacora_items")
 .select("*")
 .eq("ambulancia_id", id)
+.eq("tipo","CHECKLIST") // 🔥 MISMO FILTRO
 
-setRegistros(data || [])
+const hoy = new Date()
+
+const procesado = (data || []).map(item=>{
+
+const fecha = new Date(item.fecha_registro || item.updated_at || item.created_at)
+
+const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
+
+let estado = "OK"
+
+if(item.cantidad === 0){
+estado = "FALTANTE"
+}
+else if(diff >= 15){
+estado = "CRITICO"
+}
+else if(diff >= 7){
+estado = "PREVENTIVO"
+}
+
+return {...item, estado}
+})
+
+setRegistros(procesado || [])
 
 }
 
