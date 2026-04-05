@@ -13,6 +13,7 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [grupo,setGrupo] = useState("ALFA")
 
 const [editKm,setEditKm] = useState<Record<string,string>>({})
+const [guardandoKm,setGuardandoKm] = useState<Record<string,boolean>>({}) // ✅ NUEVO (NO rompe nada)
 
 const [panel,setPanel] = useState(false)
 const [ambulanciaActiva,setAmbulanciaActiva] = useState<any>(null)
@@ -52,10 +53,12 @@ return diff > 0 && diff <= 500
 })
 
 /* ========================= */
-/* 🚑 KM CORREGIDO SIN ROMPER NADA */
+/* 🚑 KM CORREGIDO DEFINITIVO */
 /* ========================= */
 
 async function actualizarKm(id:string){
+
+if(guardandoKm[id]) return // ✅ EVITA DOBLE CLICK
 
 const km = Number(editKm[id])
 
@@ -64,11 +67,9 @@ alert("Ingrese kilometraje válido")
 return
 }
 
-const usuario = localStorage.getItem("email") || "supervisor@ambulancias.ec"
+setGuardandoKm(prev => ({...prev,[id]:true})) // 🔒 BLOQUEO
 
-/* 🔥 FIX HORARIO ECUADOR (NO rompe nada) */
-const ahora = new Date()
-const fechaLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
+const usuario = localStorage.getItem("email") || "supervisor@ambulancias.ec"
 
 /* 1. ACTUALIZA DASHBOARD */
 const { error: errorUpdate } = await supabase
@@ -79,48 +80,43 @@ const { error: errorUpdate } = await supabase
 if(errorUpdate){
 console.error("ERROR UPDATE:", errorUpdate)
 alert("Error actualizando kilometraje")
+setGuardandoKm(prev => ({...prev,[id]:false}))
 return
 }
 
 /* ========================= */
-/* 🔥 REGISTRO DOBLE (SIN BORRAR NADA) */
+/* 🔥 INSERT LIMPIO (SIN DUPLICAR) */
 /* ========================= */
-
-const registros = [
-{
-ambulancia_id: String(id),
-usuario: usuario,
-kilometraje: km,
-created_at: fechaLocal.toISOString()
-},
-{
-ambulancia_id: String(id),
-usuario: usuario,
-kilometraje: km,
-created_at: fechaLocal.toISOString()
-}
-]
 
 const { error: errorInsert } = await supabase
 .from("registro_kilometraje")
-.insert(registros)
+.insert([
+{
+ambulancia_id: String(id),
+usuario: usuario,
+kilometraje: km,
+created_at: new Date().toISOString() // ✅ UTC correcto
+}
+])
 
 if(errorInsert){
 console.error("ERROR INSERT KM:", errorInsert)
 alert("Error guardando historial de kilometraje")
+setGuardandoKm(prev => ({...prev,[id]:false}))
 return
 }
 
 /* DEBUG */
 console.log("✅ KM guardado:", {
 ambulancia_id: id,
-km,
-fecha: fechaLocal
+km
 })
 
 alert("✅ Kilometraje registrado correctamente")
 
 setEditKm({...editKm,[id]:""})
+setGuardandoKm(prev => ({...prev,[id]:false}))
+
 cargar()
 }
 
@@ -296,7 +292,9 @@ value={editKm[a.id] || ""}
 onChange={(e)=>setEditKm({...editKm,[a.id]:e.target.value})}
 />
 
-<button onClick={()=>actualizarKm(a.id)}>Guardar KM</button>
+<button onClick={()=>actualizarKm(a.id)}>
+{guardandoKm[a.id] ? "Guardando..." : "Guardar KM"}
+</button>
 
 <p><b>Próximo mantenimiento:</b> {a.kilometraje_mtto || "-"}</p>
 
