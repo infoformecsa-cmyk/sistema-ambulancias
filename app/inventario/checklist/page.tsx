@@ -41,8 +41,11 @@ useEffect(()=>{cargar()},[])
 
 async function cargar(){
 
-const {data} = await supabase.from("inventario_items").select("*")
-const {data:amb} = await supabase.from("ambulancias").select("*")
+const {data,error} = await supabase.from("inventario_items").select("*")
+const {data:amb,error:errorAmb} = await supabase.from("ambulancias").select("*")
+
+if(error) console.error(error)
+if(errorAmb) console.error(errorAmb)
 
 const limpio = (data || []).map(i => ({
 ...i,
@@ -110,19 +113,30 @@ if(!lotes || lotes.length === 0) continue
 
 for(const l of lotes){
 
-/* CHECK */
+/* ========================= */
+/* 🔥 CHECK CORREGIDO */
+/* ========================= */
 if(l.estado){
+
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
 nombre: item?.nombre || "check",
-tipo: "CHECK_SIMPLE",
-estado: l.estado
+tipo: "CHECKLIST",
+cantidad: l.estado === "SI" ? 1 : 0,
+lote: null,
+fecha_registro: new Date().toISOString()
 })
+
 continue
 }
 
-/* STOCK */
+/* ========================= */
+/* 📦 STOCK NORMAL */
+/* ========================= */
+
 if(!l.lote && !l.cantidad && !l.fecha) continue
+
+const cantidadNum = Number(l.cantidad || 0)
 
 const { error } = await supabase
 .from("inventario_checklist")
@@ -130,25 +144,30 @@ const { error } = await supabase
 ambulancia_id: String(ambulancia),
 item_id: itemId,
 lote: l.lote || null,
-cantidad: Number(l.cantidad || 0),
+cantidad: cantidadNum,
 fecha_caducidad: l.fecha || null,
 fecha_registro: new Date().toISOString(),
 responsable: responsable
 })
 
 if(error){
-console.error(error)
+console.error("ERROR CHECKLIST:", error)
 alert("❌ Error guardando checklist")
 setGuardando(false)
 return
 }
 
+/* ========================= */
+/* 🔥 BITÁCORA CORREGIDA */
+/* ========================= */
+
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
 nombre: item?.nombre || "item",
 tipo: "CHECKLIST",
-cantidad: Number(l.cantidad || 0),
-lote: l.lote || null
+cantidad: cantidadNum,
+lote: l.lote || null,
+fecha_registro: new Date().toISOString()
 })
 
 }
@@ -159,7 +178,7 @@ alert("✅ Checklist guardado correctamente")
 setDatos({})
 
 }catch(err){
-console.error(err)
+console.error("ERROR GENERAL:", err)
 alert("❌ Error general")
 }
 
@@ -167,6 +186,8 @@ setGuardando(false)
 
 }
 
+/* ========================= */
+/* UI (NO TOCADO) */
 /* ========================= */
 
 return(
@@ -201,10 +222,7 @@ style={input}
 
 </div>
 
-{/* ========================= */}
-{/* 🧬 KITS OBSTÉTRICOS RESTAURADO */}
-{/* ========================= */}
-
+{/* 🧬 KITS */}
 <h2 style={section}>🧬 Kits Obstétricos</h2>
 
 <div style={grid}>
@@ -235,9 +253,7 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 <span style={badge}>Min {getMin(k)}</span>
 </div>
 
-<button style={btnAdd} onClick={()=>agregarLote(k.id)}>
-+ Lote
-</button>
+<button style={btnAdd} onClick={()=>agregarLote(k.id)}>+ Lote</button>
 
 {(datos[k.id]||[]).map((l:any,i:number)=>(
 
@@ -261,10 +277,7 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 
 </div>
 
-{/* ========================= */}
-{/* 📦 GENERAL */}
-{/* ========================= */}
-
+{/* GENERAL */}
 <h2 style={section}>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
@@ -299,7 +312,6 @@ return(
 }
 
 return(
-
 <div key={i.id} style={item}>
 
 <div style={rowTop}>
@@ -320,7 +332,6 @@ return(
 ))}
 
 </div>
-
 )
 
 })}
@@ -330,8 +341,6 @@ return(
 )
 
 })}
-
-{/* BOTÓN */}
 
 <div style={{marginTop:30}}>
 <button onClick={guardar} style={btnGuardar}>
@@ -344,7 +353,7 @@ return(
 }
 
 /* ========================= */
-/* ESTILOS */
+/* ESTILOS (NO TOCADOS) */
 /* ========================= */
 
 const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
