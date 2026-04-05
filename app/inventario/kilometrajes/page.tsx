@@ -1,93 +1,99 @@
 "use client"
 
-export const dynamic = "force-dynamic"
-
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
-export default function Kilometrajes(){
+export default function Kilometraje(){
 
 const router = useRouter()
 
-const [fecha,setFecha] = useState(
-new Date().toISOString().slice(0,10)
-)
-
-const [data,setData] = useState<any[]>([])
-const [ambulancias,setAmbulancias] = useState<any[]>([])
+const [registros,setRegistros] = useState<any[]>([])
+const [fecha,setFecha] = useState(() => {
+const hoy = new Date()
+return hoy.toISOString().split("T")[0]
+})
 
 useEffect(()=>{
 cargar()
 },[fecha])
 
+/* ========================= */
+/* CARGAR */
+/* ========================= */
+
 async function cargar(){
 
-/* 🚑 AMBULANCIAS */
-const {data:amb,error:errorAmb} = await supabase
-.from("ambulancias")
-.select("id,codigo_operativo")
+const inicio = new Date(fecha + "T00:00:00")
+const fin = new Date(fecha + "T23:59:59")
 
-if(errorAmb){
-console.error("❌ Error ambulancias:", errorAmb)
-}
-
-/* 🔥 KM */
-const {data:km,error} = await supabase
+const { data } = await supabase
 .from("registro_kilometraje")
 .select("*")
+.gte("created_at", inicio.toISOString())
+.lte("created_at", fin.toISOString())
 .order("created_at",{ascending:false})
 
-if(error){
-console.error("❌ ERROR REAL KM:", error)
-alert("Error cargando kilometrajes")
-return
+setRegistros(data || [])
 }
 
-/* 🔥 FILTRO SEGURO */
-const filtrados = (km || []).filter((item:any)=>{
+/* ========================= */
+/* ELIMINAR UNO */
+/* ========================= */
 
-if(!item.created_at){
-console.warn("⚠️ Registro sin fecha:", item)
-return false
+async function eliminar(id:string){
+
+if(!confirm("¿Eliminar registro?")) return
+
+await supabase
+.from("registro_kilometraje")
+.delete()
+.eq("id",id)
+
+cargar()
 }
 
-try{
-const fechaItem = new Date(item.created_at)
-.toISOString()
-.slice(0,10)
+/* ========================= */
+/* 🔥 LIMPIAR TODO EL DÍA */
+/* ========================= */
 
-return fechaItem === fecha
-}catch(e){
-console.warn("⚠️ Error procesando fecha:", item)
-return false
+async function limpiarDia(){
+
+if(!confirm("⚠️ Esto eliminará TODOS los registros del día ¿Continuar?")) return
+
+const inicio = new Date(fecha + "T00:00:00")
+const fin = new Date(fecha + "T23:59:59")
+
+await supabase
+.from("registro_kilometraje")
+.delete()
+.gte("created_at", inicio.toISOString())
+.lte("created_at", fin.toISOString())
+
+alert("✅ Registros eliminados")
+
+cargar()
 }
 
+/* ========================= */
+/* FORMATO HORA ECUADOR */
+/* ========================= */
+
+function horaLocal(fecha:string){
+return new Date(fecha).toLocaleTimeString("es-EC",{
+hour:"2-digit",
+minute:"2-digit",
+second:"2-digit"
 })
-
-/* DEBUG */
-console.log("📊 TOTAL REGISTROS BD:", km?.length)
-console.log("📅 FILTRADOS HOY:", filtrados.length)
-
-/* SET */
-setData(filtrados)
-setAmbulancias(amb || [])
 }
 
-/* 🚑 NOMBRE */
-function getAmbulancia(id:string){
-const a = ambulancias.find(x=>String(x.id)===String(id))
-return a?.codigo_operativo || id
-}
+/* ========================= */
+/* UI */
+/* ========================= */
 
 return(
 
-<div style={{
-padding:30,
-background:"#020617",
-color:"white",
-minHeight:"100vh"
-}}>
+<div style={container}>
 
 <h1>📊 Kilometraje Diario</h1>
 
@@ -97,81 +103,93 @@ minHeight:"100vh"
 type="date"
 value={fecha}
 onChange={(e)=>setFecha(e.target.value)}
-style={input}
 />
 
-<button 
-onClick={()=>setFecha(new Date().toISOString().slice(0,10))} 
-style={btn}
->
+<button onClick={()=>setFecha(new Date().toISOString().split("T")[0])}>
 HOY
 </button>
 
-<button 
-onClick={()=>router.push("/dashboard")} 
-style={btn}
->
+<button onClick={()=>router.back()}>
 ⬅ Volver
+</button>
+
+<button onClick={limpiarDia} style={btnEliminarTodo}>
+🗑 Limpiar día
 </button>
 
 </div>
 
-{/* 🔥 LISTADO */}
-{data.map((d,i)=>(
+{/* LISTADO */}
 
-<div key={i} style={{
-background:"#111827",
-padding:10,
-marginBottom:8,
-borderRadius:8,
-display:"flex",
-justifyContent:"space-between"
-}}>
+{registros.length === 0 ? (
+<p>No hay registros para este día</p>
+) : (
 
-<div>🚑 {getAmbulancia(d.ambulancia_id)}</div>
+registros.map(r=>(
+<div key={r.id} style={row}>
 
-<div>📏 {Number(d.kilometraje || 0)} km</div>
+<div style={{flex:2}}>
+🚑 {r.ambulancia_id}
+</div>
 
-<div>
-🕒 {d.created_at 
-? new Date(d.created_at).toLocaleTimeString()
-: "--"}
+<div style={{flex:2}}>
+📏 {r.kilometraje} km
+</div>
+
+<div style={{flex:2}}>
+🕒 {horaLocal(r.created_at)}
+</div>
+
+<div style={{flex:1}}>
+
+<button onClick={()=>eliminar(r.id)} style={btnEliminar}>
+🗑
+</button>
+
 </div>
 
 </div>
+))
 
-))}
-
-{/* 🔥 VACÍO */}
-{data.length === 0 && (
-<div style={empty}>
-No hay registros para este día
-</div>
 )}
 
 </div>
 )
 }
 
-/* 🎨 ESTILOS */
-const input = {
-padding:10,
-borderRadius:8,
-background:"#1f2937",
+/* ========================= */
+/* ESTILOS */
+/* ========================= */
+
+const container = {
+padding:30,
+background:"#020617",
 color:"white",
-border:"none"
+minHeight:"100vh"
 }
 
-const btn = {
-background:"#2563eb",
+const row = {
+display:"flex",
+gap:10,
+padding:12,
+borderBottom:"1px solid #1f2937",
+alignItems:"center"
+}
+
+const btnEliminar = {
+background:"#dc2626",
 color:"white",
-padding:"10px 15px",
 border:"none",
-borderRadius:8
+padding:"6px 10px",
+borderRadius:6,
+cursor:"pointer"
 }
 
-const empty = {
-textAlign:"center" as const,
-padding:20,
-color:"#9ca3af"
+const btnEliminarTodo = {
+background:"#7f1d1d",
+color:"white",
+border:"none",
+padding:"8px 12px",
+borderRadius:8,
+cursor:"pointer"
 }
