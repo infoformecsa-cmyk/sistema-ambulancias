@@ -29,7 +29,12 @@ const fin = new Date(fecha + "T23:59:59")
 
 const { data } = await supabase
 .from("registro_kilometraje")
-.select("*")
+.select(`
+*,
+ambulancias (
+codigo_operativo
+)
+`)
 .gte("created_at", inicio.toISOString())
 .lte("created_at", fin.toISOString())
 .order("created_at",{ascending:false})
@@ -99,14 +104,14 @@ HOY
 ⬅ Volver
 </button>
 
-{/* 🔥 BOTÓN NUEVO SIN CAMBIAR ESTILO */}
+{/* 🔥 BOTÓN NUEVO */}
 <button onClick={limpiarDia}>
 🗑 Limpiar día
 </button>
 
 </div>
 
-{/* LISTADO ORIGINAL */}
+{/* LISTADO */}
 
 {registros.length === 0 ? (
 <p>No hay registros para este día</p>
@@ -120,11 +125,18 @@ padding:10,
 borderBottom:"1px solid #ccc"
 }}>
 
-<div>🚑 {r.ambulancia_id}</div>
-<div>📏 {r.kilometraje} km</div>
-<div>🕒 {new Date(r.created_at).toLocaleTimeString()}</div>
+{/* ✅ AQUÍ ESTÁ EL FIX REAL */}
+<div>
+🚑 {r.ambulancias?.codigo_operativo || r.ambulancia_id}
+</div>
 
-{/* 🔥 BOTÓN ELIMINAR SIN CAMBIAR DISEÑO */}
+<div>📏 {r.kilometraje} km</div>
+
+<div>
+🕒 {new Date(r.created_at).toLocaleTimeString("es-EC")}
+</div>
+
+{/* BOTÓN ELIMINAR */}
 <button onClick={()=>eliminar(r.id)}>
 🗑
 </button>
