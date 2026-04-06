@@ -106,7 +106,6 @@ mapa[String(a.id)] = Math.floor(total / (1000*60*60))
 setHorasMap(mapa)
 }
 
-/* LOGICA ORIGINAL (NO TOCADA) */
 async function eliminarAmbulancia(id:string){
 if(!confirm("¿Eliminar ambulancia?")) return
 await supabase.from("historial_operativo").delete().eq("ambulancia_id",id)
@@ -157,7 +156,6 @@ return(
 
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 <div>
 <h1 style={title}>🚑 Centro de Control de Ambulancias</h1>
@@ -170,14 +168,12 @@ return(
 </div>
 </div>
 
-{/* BOTONES */}
 <div style={actions}>
 <button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnPrimary}>+ Ambulancia</button>
 <button onClick={()=>router.push("/dashboard/informe-flota")} style={btnAlt}>Informe</button>
 <button onClick={()=>router.push("/inventario/kilometrajes")} style={btnInfo}>KM Diario</button>
 </div>
 
-{/* ALERTAS */}
 {mttoVencido.length>0 && (
 <div style={alertRed}>
 🚨 Mantenimiento vencido: {mttoVencido.map(a=>a.codigo_operativo).join(", ")}
@@ -190,7 +186,6 @@ return(
 </div>
 )}
 
-{/* KPI */}
 <div style={grid}>
 <Card title="Operativas" value={operativas} color="#22c55e"/>
 <Card title="Mantenimiento" value={mantenimiento} color="#f59e0b"/>
@@ -200,7 +195,6 @@ return(
 <Card title="Promedio" value={promedioHoras+"h"} />
 </div>
 
-{/* TABLA */}
 <div style={tableBox}>
 
 <table style={table}>
@@ -209,6 +203,7 @@ return(
 <th>Estado</th>
 <th>Código</th>
 <th>Placa</th>
+<th>Marca</th>
 <th>Tipo</th>
 <th>KM</th>
 <th>Horas</th>
@@ -221,16 +216,65 @@ return(
 <tr key={a.id} style={row}>
 
 <td style={{color:colorEstado(a.estado)}}>{a.estado}</td>
-<td>{a.codigo_operativo}</td>
-<td>{a.placa}</td>
-<td>{a.tipo}</td>
+
+<td>
+{editando === a.id
+? <input value={editData.codigo_operativo} onChange={(e)=>setEditData({...editData,codigo_operativo:e.target.value})} style={inputEdit}/>
+: a.codigo_operativo}
+</td>
+
+<td>
+{editando === a.id
+? <input value={editData.placa} onChange={(e)=>setEditData({...editData,placa:e.target.value})} style={inputEdit}/>
+: a.placa}
+</td>
+
+<td>
+{editando === a.id
+? <input value={editData.marca || ""} onChange={(e)=>setEditData({...editData,marca:e.target.value})} style={inputEdit}/>
+: a.marca || "-"}
+</td>
+
+<td>
+{editando === a.id
+? <select value={editData.tipo} onChange={(e)=>setEditData({...editData,tipo:e.target.value})} style={inputEdit}>
+<option value="ALFA">ALFA</option>
+<option value="BRAVO">BRAVO</option>
+</select>
+: a.tipo}
+</td>
+
 <td>{a.kilometraje_actual}</td>
 <td>{horasMap[String(a.id)] || 0}h</td>
 
 <td>
+
+{editando === a.id ? (
+<>
+<button onClick={()=>guardarEdicion(a.id)} style={btnMini}>💾</button>
+<button onClick={()=>setEditando(null)} style={btnMini}>❌</button>
+</>
+) : (
+<>
 <button onClick={()=>router.push(`/ambulancia/${a.id}`)} style={btnMini}>Ficha</button>
-<button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)} style={btnMini}>Historial</button>
-<button onClick={()=>eliminarAmbulancia(a.id)} style={btnDanger}>🗑</button>
+
+<button onClick={()=>{
+setEditando(a.id)
+setEditData(a)
+}} style={btnMini}>
+Editar
+</button>
+
+<button onClick={()=>router.push(`/dashboard/historial?ambulancia=${a.id}`)} style={btnMini}>
+Historial
+</button>
+
+<button onClick={()=>eliminarAmbulancia(a.id)} style={btnDanger}>
+🗑
+</button>
+</>
+)}
+
 </td>
 
 </tr>
@@ -244,7 +288,7 @@ return(
 )
 }
 
-/* COMPONENTE KPI */
+/* KPI */
 function Card({title,value,color}:{title:string,value:any,color?:string}){
 return(
 <div style={card}>
@@ -256,74 +300,22 @@ return(
 
 /* ESTILOS */
 
-const container = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const header = {
-display:"flex",
-justifyContent:"space-between",
-marginBottom:20
-}
-
+const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
+const header = {display:"flex",justifyContent:"space-between",marginBottom:20}
 const title = {fontSize:28}
 const sub = {opacity:0.6}
-
-const logout = {
-marginLeft:10,
-background:"#ef4444",
-color:"white",
-border:"none",
-padding:"6px 10px",
-borderRadius:6
-}
-
+const logout = {marginLeft:10,background:"#ef4444",color:"white",border:"none",padding:"6px 10px",borderRadius:6}
 const actions = {display:"flex",gap:10,marginBottom:20}
-
 const btnPrimary = {background:"#2563eb",padding:10,borderRadius:6,color:"white"}
 const btnAlt = {background:"#0f766e",padding:10,borderRadius:6,color:"white"}
 const btnInfo = {background:"#0284c7",padding:10,borderRadius:6,color:"white"}
-
 const alertRed = {background:"#7f1d1d",padding:15,borderRadius:10,marginBottom:10}
 const alertYellow = {background:"#78350f",padding:15,borderRadius:10,marginBottom:10}
-
-const grid = {
-display:"grid",
-gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",
-gap:15,
-marginBottom:20
-}
-
-const card = {
-background:"#0f172a",
-padding:15,
-borderRadius:10
-}
-
-const tableBox = {
-background:"#0f172a",
-padding:20,
-borderRadius:10
-}
-
+const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:15,marginBottom:20}
+const card = {background:"#0f172a",padding:15,borderRadius:10}
+const tableBox = {background:"#0f172a",padding:20,borderRadius:10}
 const table = {width:"100%"}
-
 const row = {borderBottom:"1px solid #1e293b"}
-
-const btnMini = {
-background:"#1e293b",
-color:"white",
-padding:"5px 8px",
-marginRight:5,
-borderRadius:6
-}
-
-const btnDanger = {
-background:"#dc2626",
-color:"white",
-padding:"5px 8px",
-borderRadius:6
-}
+const btnMini = {background:"#1e293b",color:"white",padding:"5px 8px",marginRight:5,borderRadius:6}
+const btnDanger = {background:"#dc2626",color:"white",padding:"5px 8px",borderRadius:6}
+const inputEdit = {background:"#1e293b",color:"white",border:"none",padding:5,borderRadius:6}
