@@ -20,6 +20,7 @@ const [fecha,setFecha] = useState(new Date().toISOString().slice(0,10))
 
 const [registros,setRegistros] = useState<any>({})
 const [archivos,setArchivos] = useState<any>({})
+const [preview,setPreview] = useState<string | null>(null)
 
 useEffect(()=>{
 cargar()
@@ -35,17 +36,15 @@ const {data} = await supabase
 
 setPersonal(data || [])
 
-/* 🔥 AGRUPAR POR AMBULANCIA */
-const agrupadoData:any = {}
-
+/* AGRUPAR POR AMBULANCIA */
+const grupo:any = {}
 ;(data || []).forEach((p:any)=>{
-if(!agrupadoData[p.ambulancia_base]){
-agrupadoData[p.ambulancia_base] = []
-}
-agrupadoData[p.ambulancia_base].push(p)
+const key = p.ambulancia_base || "SIN ASIGNAR"
+if(!grupo[key]) grupo[key] = []
+grupo[key].push(p)
 })
 
-setAgrupado(agrupadoData)
+setAgrupado(grupo)
 
 /* AMBULANCIAS */
 const {data:amb} = await supabase
@@ -55,10 +54,8 @@ const {data:amb} = await supabase
 setAmbulancias(amb || [])
 }
 
-/* 📎 SUBIR ARCHIVO */
+/* SUBIR ARCHIVO */
 async function subirArchivo(file:File){
-
-if(!file) return null
 
 const nombre = `asistencia_${Date.now()}_${file.name}`
 
@@ -78,7 +75,7 @@ const { data } = supabase.storage
 return data.publicUrl
 }
 
-/* 💾 GUARDAR */
+/* GUARDAR */
 async function guardar(){
 
 const usuario = localStorage.getItem("email") || "admin"
@@ -96,7 +93,6 @@ if(turnoFinal === "guardia_16h") horas = 16
 if(turnoFinal === "12h_dia") horas = 12
 if(turnoFinal === "12h_noche") horas = 12
 
-/* 🔥 VALIDACIÓN DE ARCHIVOS */
 if((r.estado === "permiso" || r.estado === "vacaciones") && !archivos[p.id]){
 alert(`⚠️ Falta justificativo de ${p.nombre}`)
 return
@@ -123,7 +119,7 @@ horas
 
 }
 
-alert("✅ Asistencia registrada correctamente")
+alert("✅ Asistencia registrada")
 setRegistros({})
 setArchivos({})
 }
@@ -132,7 +128,12 @@ return(
 
 <div style={container}>
 
-<h1 style={{fontSize:28}}>👥 Control de Asistencia</h1>
+<h1>👥 Control de Asistencia</h1>
+
+{/* 🔥 INFO SUPERIOR */}
+<h3 style={{opacity:0.7}}>
+Guardia: {guardia} | Turno: {turnoGlobal}
+</h3>
 
 <div style={filtros}>
 
@@ -151,8 +152,8 @@ return(
 <select value={turnoGlobal} onChange={(e)=>setTurnoGlobal(e.target.value)} style={input}>
 <option value="24h">24h</option>
 <option value="guardia_16h">16h</option>
-<option value="12h_dia">12h Día</option>
-<option value="12h_noche">12h Noche</option>
+<option value="12h_dia">12 Día</option>
+<option value="12h_noche">12 Noche</option>
 </select>
 
 <input
@@ -168,25 +169,24 @@ style={input}
 
 </div>
 
-{/* 🔥 AGRUPADO POR AMBULANCIA */}
-{Object.keys(agrupado)
-.sort()
-.map(ambu=>(
-<div key={ambu} style={grupo}>
+{/* 🔥 AGRUPADO */}
+{Object.keys(agrupado).sort().map(ambu=>(
+<div key={ambu}>
 
-<h2 style={{color:"#38bdf8"}}>🚑 {ambu}</h2>
+<h2 style={{color:"#38bdf8"}}>
+🚑 {ambu}
+</h2>
 
 {agrupado[ambu].map((p:any)=>{
 
 const estado = registros[p.id]?.estado
 
 return(
-
 <div key={p.id} style={card}>
 
 <div style={{display:"flex",justifyContent:"space-between"}}>
 
-<h3 style={{margin:0}}>{p.nombre}</h3>
+<h3>{p.nombre}</h3>
 
 <select
 onChange={(e)=>setRegistros({
@@ -226,7 +226,8 @@ background: estado === s ? colores[s] : "#1f2937"
 </button>
 ))}
 
-/* TURNO INDIVIDUAL */
+<span style={{fontSize:12,opacity:0.7}}>Turno:</span>
+
 <select
 onChange={(e)=>setRegistros({
 ...registros,
@@ -234,7 +235,7 @@ onChange={(e)=>setRegistros({
 })}
 style={inputMini}
 >
-<option value="">Turno</option>
+<option value="">Seleccionar</option>
 <option value="24h">24h</option>
 <option value="guardia_16h">16h</option>
 <option value="12h_dia">12 Día</option>
@@ -248,27 +249,31 @@ style={inputMini}
 
 <div style={{marginTop:10}}>
 
-<select
-onChange={(e)=>setRegistros({
-...registros,
-[p.id]: {...registros[p.id], tipo:e.target.value}
-})}
-style={input}
->
-<option value="">Tipo</option>
-<option value="medico">Médico</option>
-<option value="vacaciones">Vacaciones</option>
-<option value="otro">Otro</option>
-</select>
-
 <input
 type="file"
 accept="image/*,.pdf"
-onChange={(e)=>setArchivos({
-...archivos,
-[p.id]: e.target.files?.[0]
-})}
+onChange={(e)=>{
+const file = e.target.files?.[0]
+setArchivos({...archivos,[p.id]:file})
+
+if(file){
+const url = URL.createObjectURL(file)
+setRegistros({
+...registros,
+[p.id]: {...registros[p.id], preview:url}
+})
+}
+}}
 />
+
+{registros[p.id]?.preview && (
+<div
+style={miniatura}
+onClick={()=>setPreview(registros[p.id].preview)}
+>
+<img src={registros[p.id].preview} style={{width:"100%"}}/>
+</div>
+)}
 
 </div>
 
@@ -293,6 +298,13 @@ style={input}
 <button onClick={guardar} style={btnGuardar}>
 💾 Guardar Asistencia
 </button>
+
+{/* MODAL */}
+{preview && (
+<div style={modal} onClick={()=>setPreview(null)}>
+<img src={preview} style={modalImg}/>
+</div>
+)}
 
 </div>
 )
@@ -320,10 +332,6 @@ display:"flex",
 gap:10,
 marginBottom:20,
 flexWrap:"wrap"
-}
-
-const grupo: CSSProperties = {
-marginBottom:30
 }
 
 const card: CSSProperties = {
@@ -386,4 +394,31 @@ borderRadius:12,
 fontWeight:"bold",
 fontSize:16,
 border:"none"
+}
+
+const miniatura: CSSProperties = {
+marginTop:10,
+width:120,
+cursor:"pointer",
+border:"1px solid #334155",
+borderRadius:8,
+overflow:"hidden"
+}
+
+const modal: CSSProperties = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.8)",
+display:"flex",
+alignItems:"center",
+justifyContent:"center",
+zIndex:999
+}
+
+const modalImg: CSSProperties = {
+maxWidth:"90%",
+maxHeight:"90%"
 }
