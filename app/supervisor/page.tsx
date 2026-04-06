@@ -13,10 +13,20 @@ const TURNOS_CONSOLA = [
 { label: "14H00 - 06H00", value: "t5", horas: 16 }
 ]
 
-/* 🔥 FUNCIÓN LISTA PARA FUTURO */
-function obtenerHorasTurno(turno:string){
+/* 🔥 FUNCIÓN MEJORADA (NO ROMPE NADA) */
+function obtenerHorasTurno(turno:string, tipo:string = "ambulancia"){
+
+if(tipo === "consola"){
 const t = TURNOS_CONSOLA.find(x=>x.value === turno)
 return t ? t.horas : 0
+}
+
+if(turno === "24h") return 24
+if(turno === "guardia_16h") return 16
+if(turno === "12h_dia") return 12
+if(turno === "12h_noche") return 12
+
+return 0
 }
 
 export default function Supervisor(){
