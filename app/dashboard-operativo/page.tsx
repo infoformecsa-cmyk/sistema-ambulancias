@@ -37,7 +37,7 @@ export default function Dashboard() {
     // 🔥 SOLO LIMPIA LOCAL (NO SUPABASE GLOBAL)
     localStorage.clear()
     sessionStorage.clear()
-    router.replace('/login')
+    router.replace('/')
   }
 
   const eliminar = async (id: number) => {
