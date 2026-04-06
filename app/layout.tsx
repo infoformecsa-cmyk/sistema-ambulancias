@@ -1,3 +1,4 @@
+import './globals.css'
 export const metadata = {
   title: "Sistema de Ambulancias",
   description: "Sistema de control de flota de ambulancias"
