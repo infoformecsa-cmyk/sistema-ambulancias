@@ -12,35 +12,12 @@ export default function Dashboard() {
   const [editando, setEditando] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  // 🔥 YA NO VALIDAMOS SESIÓN GLOBAL (EVITA CRUCE CON FLOTA)
   useEffect(() => {
-    verificarSesion()
+    iniciar()
   }, [])
 
-  const verificarSesion = async () => {
-    const { data, error } = await supabase.auth.getSession()
-
-    // 🔥 SI NO HAY SESIÓN → LOGIN
-    if (!data?.session) {
-      router.replace('/login')
-      return
-    }
-
-    // 🔥 VALIDAR USUARIO (CLAVE PARA EVITAR CRUCE DE SISTEMAS)
-    const user = data.session.user
-
-    if (!user?.email) {
-      await supabase.auth.signOut()
-      router.replace('/login')
-      return
-    }
-
-    // 🔥 OPCIONAL (RECOMENDADO): restringir acceso solo a este usuario
-    // if (user.email !== 'talento.humano@ambulancias.ec') {
-    //   await supabase.auth.signOut()
-    //   router.replace('/login')
-    //   return
-    // }
-
+  const iniciar = async () => {
     await fetchData()
     setLoading(false)
   }
@@ -56,13 +33,10 @@ export default function Dashboard() {
     if (a) setArchivos(a)
   }
 
-  const logout = async () => {
-    await supabase.auth.signOut()
-
-    // 🔥 LIMPIAR COMPLETAMENTE SESIÓN
+  const logout = () => {
+    // 🔥 SOLO LIMPIA LOCAL (NO SUPABASE GLOBAL)
     localStorage.clear()
     sessionStorage.clear()
-
     router.replace('/login')
   }
 
