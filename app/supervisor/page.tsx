@@ -206,7 +206,7 @@ return(
 
 <div style={container}>
 
-<h1>👨‍⚕️ Panel Supervisor</h1>
+<h1 style={{color:"red", fontSize:40}}>🔥 CAMBIO REAL SUPERVISOR 🔥</h1>
 
 <button onClick={cerrarSesion} style={btnSalir}>
 Cerrar sesión
