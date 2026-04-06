@@ -36,22 +36,29 @@ const {data} = await supabase
 
 setPersonal(data || [])
 
-/* AGRUPAR POR AMBULANCIA */
+/* 🔥 TRAER ID + CODIGO */
+const {data:amb} = await supabase
+.from("ambulancias")
+.select("id, codigo_operativo")
+
+setAmbulancias(amb || [])
+
+/* 🔥 MAPA ID → CODIGO */
+const mapa:any = {}
+;(amb || []).forEach((a:any)=>{
+mapa[a.id] = a.codigo_operativo
+})
+
+/* 🔥 AGRUPAR CON NOMBRE CORRECTO */
 const grupo:any = {}
 ;(data || []).forEach((p:any)=>{
-const key = p.ambulancia_base || "SIN ASIGNAR"
+const key = mapa[p.ambulancia_base] || "SIN ASIGNAR"
 if(!grupo[key]) grupo[key] = []
 grupo[key].push(p)
 })
 
 setAgrupado(grupo)
 
-/* AMBULANCIAS */
-const {data:amb} = await supabase
-.from("ambulancias")
-.select("codigo_operativo")
-
-setAmbulancias(amb || [])
 }
 
 /* SUBIR ARCHIVO */
@@ -130,7 +137,6 @@ return(
 
 <h1>👥 Control de Asistencia</h1>
 
-{/* 🔥 INFO SUPERIOR */}
 <h3 style={{opacity:0.7}}>
 Guardia: {guardia} | Turno: {turnoGlobal}
 </h3>
@@ -199,7 +205,7 @@ style={inputMini}
 <option value="CONSOLA">CONSOLA</option>
 
 {ambulancias.map(a=>(
-<option key={a.codigo_operativo}>
+<option key={a.id} value={a.codigo_operativo}>
 {a.codigo_operativo}
 </option>
 ))}
@@ -244,41 +250,6 @@ style={inputMini}
 
 </div>
 
-{/* 📎 JUSTIFICATIVOS */}
-{["permiso","vacaciones"].includes(estado) && (
-
-<div style={{marginTop:10}}>
-
-<input
-type="file"
-accept="image/*,.pdf"
-onChange={(e)=>{
-const file = e.target.files?.[0]
-setArchivos({...archivos,[p.id]:file})
-
-if(file){
-const url = URL.createObjectURL(file)
-setRegistros({
-...registros,
-[p.id]: {...registros[p.id], preview:url}
-})
-}
-}}
-/>
-
-{registros[p.id]?.preview && (
-<div
-style={miniatura}
-onClick={()=>setPreview(registros[p.id].preview)}
->
-<img src={registros[p.id].preview} style={{width:"100%"}}/>
-</div>
-)}
-
-</div>
-
-)}
-
 <input
 placeholder="Observación"
 onChange={(e)=>setRegistros({
@@ -299,7 +270,6 @@ style={input}
 💾 Guardar Asistencia
 </button>
 
-{/* MODAL */}
 {preview && (
 <div style={modal} onClick={()=>setPreview(null)}>
 <img src={preview} style={modalImg}/>
@@ -310,8 +280,7 @@ style={input}
 )
 }
 
-/* ESTILOS */
-
+/* ESTILOS (NO TOCADOS) */
 const colores:any = {
 asistio:"#22c55e",
 atraso:"#eab308",
