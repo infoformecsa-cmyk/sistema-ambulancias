@@ -12,16 +12,20 @@ export default function Login() {
   const [error, setError] = useState('')
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
+    setError('')
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
     if (error) {
       setError('Credenciales incorrectas')
-    } else {
-      router.push('/dashboard-operativo')
+      return
     }
+
+    // 🔥 FORZAR REDIRECCIÓN LIMPIA
+    window.location.href = '/dashboard-operativo'
   }
 
   return (
