@@ -10,6 +10,7 @@ export default function Asistencia(){
 const router = useRouter()
 
 const [personal,setPersonal] = useState<any[]>([])
+const [agrupado,setAgrupado] = useState<any>({})
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 
 const [tipo,setTipo] = useState("ambulancia")
@@ -34,6 +35,19 @@ const {data} = await supabase
 
 setPersonal(data || [])
 
+/* 🔥 AGRUPAR POR AMBULANCIA */
+const agrupadoData:any = {}
+
+;(data || []).forEach((p:any)=>{
+if(!agrupadoData[p.ambulancia_base]){
+agrupadoData[p.ambulancia_base] = []
+}
+agrupadoData[p.ambulancia_base].push(p)
+})
+
+setAgrupado(agrupadoData)
+
+/* AMBULANCIAS */
 const {data:amb} = await supabase
 .from("ambulancias")
 .select("codigo_operativo")
@@ -46,7 +60,7 @@ async function subirArchivo(file:File){
 
 if(!file) return null
 
-const nombre = `asistencia_${Date.now()}`
+const nombre = `asistencia_${Date.now()}_${file.name}`
 
 const { error } = await supabase.storage
 .from("asistencia")
@@ -82,8 +96,9 @@ if(turnoFinal === "guardia_16h") horas = 16
 if(turnoFinal === "12h_dia") horas = 12
 if(turnoFinal === "12h_noche") horas = 12
 
+/* 🔥 VALIDACIÓN DE ARCHIVOS */
 if((r.estado === "permiso" || r.estado === "vacaciones") && !archivos[p.id]){
-alert(`Falta respaldo de ${p.nombre}`)
+alert(`⚠️ Falta justificativo de ${p.nombre}`)
 return
 }
 
@@ -108,7 +123,7 @@ horas
 
 }
 
-alert("✅ Asistencia registrada")
+alert("✅ Asistencia registrada correctamente")
 setRegistros({})
 setArchivos({})
 }
@@ -133,10 +148,9 @@ return(
 <option value="G4">Guardia 4</option>
 </select>
 
-{/* TURNO GLOBAL */}
 <select value={turnoGlobal} onChange={(e)=>setTurnoGlobal(e.target.value)} style={input}>
 <option value="24h">24h</option>
-<option value="guardia_16h">16h Guardia</option>
+<option value="guardia_16h">16h</option>
 <option value="12h_dia">12h Día</option>
 <option value="12h_noche">12h Noche</option>
 </select>
@@ -154,7 +168,15 @@ style={input}
 
 </div>
 
-{personal.map(p=>{
+{/* 🔥 AGRUPADO POR AMBULANCIA */}
+{Object.keys(agrupado)
+.sort()
+.map(ambu=>(
+<div key={ambu} style={grupo}>
+
+<h2 style={{color:"#38bdf8"}}>🚑 {ambu}</h2>
+
+{agrupado[ambu].map((p:any)=>{
 
 const estado = registros[p.id]?.estado
 
@@ -164,12 +186,7 @@ return(
 
 <div style={{display:"flex",justifyContent:"space-between"}}>
 
-<div>
 <h3 style={{margin:0}}>{p.nombre}</h3>
-<span style={{fontSize:12,color:"#9ca3af"}}>
-🚑 {p.ambulancia_base}
-</span>
-</div>
 
 <select
 onChange={(e)=>setRegistros({
@@ -191,7 +208,6 @@ style={inputMini}
 
 </div>
 
-{/* 🔥 ESTADO + TURNO EN LA MISMA LÍNEA */}
 <div style={estadoContainer}>
 
 {["asistio","atraso","falta","permiso","vacaciones"].map(s=>(
@@ -210,7 +226,7 @@ background: estado === s ? colores[s] : "#1f2937"
 </button>
 ))}
 
-/* 🔥 TURNO INDIVIDUAL */
+/* TURNO INDIVIDUAL */
 <select
 onChange={(e)=>setRegistros({
 ...registros,
@@ -227,9 +243,11 @@ style={inputMini}
 
 </div>
 
+{/* 📎 JUSTIFICATIVOS */}
 {["permiso","vacaciones"].includes(estado) && (
 
-<>
+<div style={{marginTop:10}}>
+
 <select
 onChange={(e)=>setRegistros({
 ...registros,
@@ -245,12 +263,14 @@ style={input}
 
 <input
 type="file"
+accept="image/*,.pdf"
 onChange={(e)=>setArchivos({
 ...archivos,
 [p.id]: e.target.files?.[0]
 })}
 />
-</>
+
+</div>
 
 )}
 
@@ -266,6 +286,9 @@ style={input}
 </div>
 )
 })}
+
+</div>
+))}
 
 <button onClick={guardar} style={btnGuardar}>
 💾 Guardar Asistencia
@@ -299,11 +322,15 @@ marginBottom:20,
 flexWrap:"wrap"
 }
 
+const grupo: CSSProperties = {
+marginBottom:30
+}
+
 const card: CSSProperties = {
 background:"#0f172a",
 padding:15,
 borderRadius:12,
-marginBottom:12,
+marginBottom:10,
 border:"1px solid #1e293b"
 }
 
@@ -316,7 +343,7 @@ alignItems:"center"
 }
 
 const estadoBtn: CSSProperties = {
-padding:"8px 10px",
+padding:"6px 10px",
 borderRadius:8,
 border:"none",
 color:"white",
