@@ -36,23 +36,20 @@ const {data} = await supabase
 
 setPersonal(data || [])
 
-/* 🔥 TRAER ID + CODIGO */
 const {data:amb} = await supabase
 .from("ambulancias")
 .select("id, codigo_operativo")
 
 setAmbulancias(amb || [])
 
-/* 🔥 MAPA ID → CODIGO */
 const mapa:any = {}
 ;(amb || []).forEach((a:any)=>{
 mapa[a.id] = a.codigo_operativo
 })
 
-/* 🔥 AGRUPAR CON NOMBRE CORRECTO */
 const grupo:any = {}
 ;(data || []).forEach((p:any)=>{
-const key = mapa[p.ambulancia_base] || "SIN ASIGNAR"
+const key = mapa[p.ambulancia_base] || p.ambulancia_base_text || "SIN ASIGNAR"
 if(!grupo[key]) grupo[key] = []
 grupo[key].push(p)
 })
@@ -121,7 +118,12 @@ usuario_registro: usuario,
 ambulancia_turno: r.ubicacion || null,
 reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
 turno: turnoFinal,
-horas
+horas,
+
+/* 🔥 NUEVO */
+es_r2: r.es_r2 || false,
+origen_r2: r.origen_r2 || null
+
 }])
 
 }
@@ -175,7 +177,7 @@ style={input}
 
 </div>
 
-{/* 🔥 AGRUPADO */}
+{/* AGRUPADO */}
 {Object.keys(agrupado).sort().map(ambu=>(
 <div key={ambu}>
 
@@ -232,6 +234,19 @@ background: estado === s ? colores[s] : "#1f2937"
 </button>
 ))}
 
+{/* 🔥 NUEVO R2 */}
+<label style={{fontSize:12}}>
+<input
+type="checkbox"
+checked={registros[p.id]?.es_r2 || false}
+onChange={(e)=>setRegistros({
+...registros,
+[p.id]: {...registros[p.id], es_r2:e.target.checked}
+})}
+/>
+R2
+</label>
+
 <span style={{fontSize:12,opacity:0.7}}>Turno:</span>
 
 <select
@@ -249,6 +264,18 @@ style={inputMini}
 </select>
 
 </div>
+
+{/* 🔥 ORIGEN R2 */}
+{registros[p.id]?.es_r2 && (
+<input
+placeholder="Origen R2 (ej: ALFA 3)"
+onChange={(e)=>setRegistros({
+...registros,
+[p.id]: {...registros[p.id], origen_r2:e.target.value}
+})}
+style={input}
+/>
+)}
 
 <input
 placeholder="Observación"
@@ -278,116 +305,4 @@ style={input}
 
 </div>
 )
-}
-
-/* ESTILOS (NO TOCADOS) */
-const colores:any = {
-asistio:"#22c55e",
-atraso:"#eab308",
-falta:"#ef4444",
-permiso:"#3b82f6",
-vacaciones:"#a855f7"
-}
-
-const container: CSSProperties = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const filtros: CSSProperties = {
-display:"flex",
-gap:10,
-marginBottom:20,
-flexWrap:"wrap"
-}
-
-const card: CSSProperties = {
-background:"#0f172a",
-padding:15,
-borderRadius:12,
-marginBottom:10,
-border:"1px solid #1e293b"
-}
-
-const estadoContainer: CSSProperties = {
-display:"flex",
-gap:8,
-marginTop:10,
-flexWrap:"wrap",
-alignItems:"center"
-}
-
-const estadoBtn: CSSProperties = {
-padding:"6px 10px",
-borderRadius:8,
-border:"none",
-color:"white",
-cursor:"pointer",
-fontSize:12
-}
-
-const input: CSSProperties = {
-padding:10,
-borderRadius:8,
-background:"#1f2937",
-color:"white",
-border:"none",
-marginTop:10,
-width:"100%"
-}
-
-const inputMini: CSSProperties = {
-padding:6,
-borderRadius:6,
-background:"#1f2937",
-color:"white",
-border:"none"
-}
-
-const btn: CSSProperties = {
-background:"#2563eb",
-color:"white",
-padding:"10px 15px",
-borderRadius:8,
-border:"none"
-}
-
-const btnGuardar: CSSProperties = {
-marginTop:20,
-width:"100%",
-background:"#22c55e",
-padding:18,
-borderRadius:12,
-fontWeight:"bold",
-fontSize:16,
-border:"none"
-}
-
-const miniatura: CSSProperties = {
-marginTop:10,
-width:120,
-cursor:"pointer",
-border:"1px solid #334155",
-borderRadius:8,
-overflow:"hidden"
-}
-
-const modal: CSSProperties = {
-position:"fixed",
-top:0,
-left:0,
-width:"100%",
-height:"100%",
-background:"rgba(0,0,0,0.8)",
-display:"flex",
-alignItems:"center",
-justifyContent:"center",
-zIndex:999
-}
-
-const modalImg: CSSProperties = {
-maxWidth:"90%",
-maxHeight:"90%"
 }
