@@ -2,15 +2,31 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 export default function Dashboard() {
+  const router = useRouter()
+
   const [personal, setPersonal] = useState<any[]>([])
   const [archivos, setArchivos] = useState<any[]>([])
   const [editando, setEditando] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchData()
+    verificarSesion()
   }, [])
+
+  const verificarSesion = async () => {
+    const { data } = await supabase.auth.getSession()
+
+    if (!data.session) {
+      router.push('/login')
+      return
+    }
+
+    await fetchData()
+    setLoading(false)
+  }
 
   const fetchData = async () => {
     const { data: p } = await supabase.from('personal').select('*')
@@ -25,7 +41,7 @@ export default function Dashboard() {
 
   const logout = async () => {
     await supabase.auth.signOut()
-    window.location.href = '/'
+    router.push('/login')
   }
 
   const eliminar = async (id: number) => {
@@ -87,6 +103,15 @@ export default function Dashboard() {
       default:
         return 'bg-gray-400'
     }
+  }
+
+  // 🔥 LOADER (IMPORTANTE PARA VERCEL)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        🚑 Cargando sistema...
+      </div>
+    )
   }
 
   return (
@@ -192,7 +217,6 @@ export default function Dashboard() {
 
                           <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-                          {/* editar */}
                           <button
                             onClick={() => setEditando(p)}
                             className="text-xs bg-cyan-600 px-2 py-1 rounded"
@@ -200,7 +224,6 @@ export default function Dashboard() {
                             ✏️
                           </button>
 
-                          {/* eliminar */}
                           <button
                             onClick={() => eliminar(p.id)}
                             className="text-xs bg-red-600 px-2 py-1 rounded"
@@ -208,7 +231,6 @@ export default function Dashboard() {
                             🗑️
                           </button>
 
-                          {/* unidad */}
                           <input
                             className="bg-black border text-xs px-1 w-16"
                             value={p.ambulancia_codigo || ''}
