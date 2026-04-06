@@ -13,7 +13,8 @@ const [personal,setPersonal] = useState<any[]>([])
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 
 const [tipo,setTipo] = useState("ambulancia")
-const [turno,setTurno] = useState("24h")
+const [guardia,setGuardia] = useState("G1")
+const [turnoGlobal,setTurnoGlobal] = useState("24h")
 const [fecha,setFecha] = useState(new Date().toISOString().slice(0,10))
 
 const [registros,setRegistros] = useState<any>({})
@@ -21,7 +22,7 @@ const [archivos,setArchivos] = useState<any>({})
 
 useEffect(()=>{
 cargar()
-},[tipo])
+},[tipo,guardia])
 
 async function cargar(){
 
@@ -29,6 +30,7 @@ const {data} = await supabase
 .from("personal")
 .select("*")
 .eq("tipo",tipo)
+.eq("guardia",guardia)
 
 setPersonal(data || [])
 
@@ -37,7 +39,6 @@ const {data:amb} = await supabase
 .select("codigo_operativo")
 
 setAmbulancias(amb || [])
-
 }
 
 /* 📎 SUBIR ARCHIVO */
@@ -68,16 +69,18 @@ async function guardar(){
 
 const usuario = localStorage.getItem("email") || "admin"
 
-let horas = 0
-if(turno === "24h") horas = 24
-if(turno === "guardia_16h") horas = 16
-if(turno === "12h_dia") horas = 12
-if(turno === "12h_noche") horas = 12
-
 for(const p of personal){
 
 const r = registros[p.id]
 if(!r) continue
+
+const turnoFinal = r.turno || turnoGlobal
+
+let horas = 0
+if(turnoFinal === "24h") horas = 24
+if(turnoFinal === "guardia_16h") horas = 16
+if(turnoFinal === "12h_dia") horas = 12
+if(turnoFinal === "12h_noche") horas = 12
 
 if((r.estado === "permiso" || r.estado === "vacaciones") && !archivos[p.id]){
 alert(`Falta respaldo de ${p.nombre}`)
@@ -99,7 +102,7 @@ observacion: r.obs || "",
 usuario_registro: usuario,
 ambulancia_turno: r.ubicacion || null,
 reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
-turno,
+turno: turnoFinal,
 horas
 }])
 
@@ -116,7 +119,6 @@ return(
 
 <h1 style={{fontSize:28}}>👥 Control de Asistencia</h1>
 
-{/* FILTROS */}
 <div style={filtros}>
 
 <select value={tipo} onChange={(e)=>setTipo(e.target.value)} style={input}>
@@ -124,8 +126,16 @@ return(
 <option value="consola">Consola</option>
 </select>
 
-<select value={turno} onChange={(e)=>setTurno(e.target.value)} style={input}>
-<option value="24h">24h (08:00 - 08:00)</option>
+<select value={guardia} onChange={(e)=>setGuardia(e.target.value)} style={input}>
+<option value="G1">Guardia 1</option>
+<option value="G2">Guardia 2</option>
+<option value="G3">Guardia 3</option>
+<option value="G4">Guardia 4</option>
+</select>
+
+{/* TURNO GLOBAL */}
+<select value={turnoGlobal} onChange={(e)=>setTurnoGlobal(e.target.value)} style={input}>
+<option value="24h">24h</option>
 <option value="guardia_16h">16h Guardia</option>
 <option value="12h_dia">12h Día</option>
 <option value="12h_noche">12h Noche</option>
@@ -144,7 +154,6 @@ style={input}
 
 </div>
 
-{/* LISTADO */}
 {personal.map(p=>{
 
 const estado = registros[p.id]?.estado
@@ -153,7 +162,6 @@ return(
 
 <div key={p.id} style={card}>
 
-{/* HEADER */}
 <div style={{display:"flex",justifyContent:"space-between"}}>
 
 <div>
@@ -183,7 +191,7 @@ style={inputMini}
 
 </div>
 
-{/* ESTADOS COMO BOTONES */}
+{/* 🔥 ESTADO + TURNO EN LA MISMA LÍNEA */}
 <div style={estadoContainer}>
 
 {["asistio","atraso","falta","permiso","vacaciones"].map(s=>(
@@ -202,9 +210,23 @@ background: estado === s ? colores[s] : "#1f2937"
 </button>
 ))}
 
+/* 🔥 TURNO INDIVIDUAL */
+<select
+onChange={(e)=>setRegistros({
+...registros,
+[p.id]: {...registros[p.id], turno:e.target.value}
+})}
+style={inputMini}
+>
+<option value="">Turno</option>
+<option value="24h">24h</option>
+<option value="guardia_16h">16h</option>
+<option value="12h_dia">12 Día</option>
+<option value="12h_noche">12 Noche</option>
+</select>
+
 </div>
 
-{/* PERMISO / VACACIONES */}
 {["permiso","vacaciones"].includes(estado) && (
 
 <>
@@ -232,7 +254,6 @@ onChange={(e)=>setArchivos({
 
 )}
 
-{/* OBS */}
 <input
 placeholder="Observación"
 onChange={(e)=>setRegistros({
@@ -254,7 +275,7 @@ style={input}
 )
 }
 
-/* 🎨 ESTILOS */
+/* ESTILOS */
 
 const colores:any = {
 asistio:"#22c55e",
@@ -290,7 +311,8 @@ const estadoContainer: CSSProperties = {
 display:"flex",
 gap:8,
 marginTop:10,
-flexWrap:"wrap"
+flexWrap:"wrap",
+alignItems:"center"
 }
 
 const estadoBtn: CSSProperties = {
