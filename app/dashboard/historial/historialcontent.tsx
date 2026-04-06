@@ -22,32 +22,22 @@ const [eventoSeleccionado,setEventoSeleccionado] = useState<string>("")
 
 const [loading,setLoading] = useState(false)
 
-/* 🔥 INIT */
+/* INIT */
 useEffect(()=>{
-
 const params = new URLSearchParams(window.location.search)
 const amb = params.get("ambulancia")
-
-if(amb){
-setAmbulancia(amb)
-}
-
+if(amb) setAmbulancia(amb)
 cargar()
-
 },[])
 
 /* cargar ambulancias */
 async function cargar(){
-
-const {data,error} = await supabase
+const {data} = await supabase
 .from("ambulancias")
 .select("*")
 .order("codigo_operativo")
 
-if(!error){
 setAmbulancias(data || [])
-}
-
 }
 
 /* cargar eventos */
@@ -58,17 +48,13 @@ cargarEventos()
 },[ambulancia])
 
 async function cargarEventos(){
-
-const {data,error} = await supabase
+const {data} = await supabase
 .from("historial_operativo")
 .select("*")
 .eq("ambulancia_id",ambulancia)
 .order("fecha_inicio",{ascending:false})
 
-if(!error){
 setEventos(data || [])
-}
-
 }
 
 /* GUARDAR */
@@ -124,20 +110,17 @@ cargarEventos()
 
 setLoading(false)
 return
-
 }
 
 /* NUEVO */
 const hoy = new Date().toISOString().split("T")[0]
 
 if(!fechaFin && fechaInicio === hoy){
-
 await supabase
 .from("historial_operativo")
 .update({ fecha_fin: new Date().toISOString() })
 .eq("ambulancia_id",ambulancia)
 .is("fecha_fin",null)
-
 }
 
 const {error} = await supabase
@@ -165,44 +148,39 @@ setFechaFin("")
 
 cargarEventos()
 setLoading(false)
-
 }
 
 return(
 
-<div style={{padding:40,fontFamily:"Arial",maxWidth:600}}>
+<div style={container}>
 
-{/* 🔥 BOTÓN NUEVO */}
-<button 
-onClick={()=>router.push("/dashboard")}
-style={{
-marginBottom:20,
-padding:"8px 12px",
-background:"#0070f3",
-color:"white",
-border:"none",
-borderRadius:5,
-cursor:"pointer"
-}}
->
-← Volver al dashboard
+<div style={card}>
+
+{/* HEADER */}
+<div style={header}>
+<h1 style={title}>📋 Historial Operativo</h1>
+
+<button onClick={()=>router.push("/dashboard")} style={btnBack}>
+← Volver
 </button>
+</div>
 
-<h1>Registro de Historial Operativo</h1>
-
-<hr/>
-
-<select value={modo} onChange={(e)=>setModo(e.target.value)}>
+{/* MODO */}
+<div style={section}>
+<label>Modo</label>
+<select value={modo} onChange={(e)=>setModo(e.target.value)} style={input}>
 <option value="nuevo">Nuevo evento</option>
 <option value="editar">Editar evento</option>
 </select>
+</div>
 
-<br/><br/>
-
+{/* AMBULANCIA */}
+<div style={section}>
+<label>Ambulancia</label>
 <select
 value={ambulancia}
 onChange={(e)=>setAmbulancia(e.target.value)}
-style={{width:"100%",padding:6}}
+style={input}
 >
 <option value="">Seleccione ambulancia</option>
 {ambulancias.map(a=>(
@@ -211,16 +189,15 @@ style={{width:"100%",padding:6}}
 </option>
 ))}
 </select>
+</div>
 
+{/* EVENTOS */}
 {modo==="editar" && (
-
-<>
-<br/><br/>
-
+<div style={section}>
+<label>Evento</label>
 <select
 value={eventoSeleccionado}
 onChange={(e)=>{
-
 const id = e.target.value
 setEventoSeleccionado(id)
 
@@ -233,9 +210,8 @@ setTipoFalla(ev.tipo_falla || "")
 setFechaInicio(ev.fecha_inicio?.split("T")[0] || "")
 setFechaFin(ev.fecha_fin?.split("T")[0] || "")
 }
-
 }}
-style={{width:"100%",padding:6}}
+style={input}
 >
 <option value="">Seleccione evento</option>
 
@@ -244,55 +220,132 @@ style={{width:"100%",padding:6}}
 {new Date(ev.fecha_inicio).toLocaleDateString()} - {ev.estado}
 </option>
 ))}
-
 </select>
-</>
+</div>
 )}
 
-<br/><br/>
-
-<select value={estado} onChange={(e)=>setEstado(e.target.value)}>
+{/* ESTADO */}
+<div style={section}>
+<label>Estado</label>
+<select value={estado} onChange={(e)=>setEstado(e.target.value)} style={input}>
 <option value="operativa">Operativa</option>
 <option value="mantenimiento">Mantenimiento</option>
 <option value="no operativa">No operativa</option>
 </select>
+</div>
 
-<br/><br/>
-
+{/* MOTIVO */}
+<div style={section}>
+<label>Motivo</label>
 <textarea
 value={motivo}
 onChange={(e)=>setMotivo(e.target.value)}
-placeholder="Motivo"
-style={{width:"100%",height:80}}
+placeholder="Detalle del evento"
+style={textarea}
 />
+</div>
 
-<br/><br/>
-
-<select value={tipoFalla} onChange={(e)=>setTipoFalla(e.target.value)}>
-<option value="">Tipo de falla</option>
+{/* TIPO FALLA */}
+<div style={section}>
+<label>Tipo de falla</label>
+<select value={tipoFalla} onChange={(e)=>setTipoFalla(e.target.value)} style={input}>
+<option value="">Seleccione tipo</option>
 <option value="preventivo">Preventivo</option>
 <option value="correctivo">Correctivo</option>
 <option value="mecanico">Mecánico</option>
 <option value="electrico">Eléctrico</option>
 <option value="accidente">Accidente</option>
 </select>
+</div>
 
-<br/><br/>
+{/* FECHAS */}
+<div style={{display:"flex",gap:10}}>
+<input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} style={input}/>
+<input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} style={input}/>
+</div>
 
-<input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} />
-
-<br/><br/>
-
-<input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} />
-
-<br/><br/>
-
-<button onClick={guardar} disabled={loading}>
-{loading ? "Guardando..." : "Guardar evento"}
+{/* BOTÓN */}
+<button onClick={guardar} disabled={loading} style={btnGuardar}>
+{loading ? "Guardando..." : "💾 Guardar evento"}
 </button>
+
+</div>
 
 </div>
 
 )
 
+}
+
+/* ESTILOS */
+
+const container = {
+minHeight:"100vh",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+background:"linear-gradient(135deg,#020617,#0f172a)",
+padding:20
+}
+
+const card = {
+background:"#020617",
+padding:30,
+borderRadius:16,
+width:500,
+boxShadow:"0 0 40px rgba(0,255,255,0.08)",
+border:"1px solid rgba(0,255,255,0.1)"
+}
+
+const header = {
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:20
+}
+
+const title = {
+color:"#22d3ee",
+fontSize:22
+}
+
+const section = {
+marginBottom:15,
+display:"flex",
+flexDirection:"column" as const,
+gap:5
+}
+
+const input = {
+padding:10,
+borderRadius:8,
+border:"1px solid #1e293b",
+background:"#020617",
+color:"white"
+}
+
+const textarea = {
+...input,
+height:80
+}
+
+const btnBack = {
+background:"#1e293b",
+color:"white",
+padding:"6px 10px",
+borderRadius:6,
+border:"none",
+cursor:"pointer"
+}
+
+const btnGuardar = {
+marginTop:20,
+width:"100%",
+padding:12,
+background:"#06b6d4",
+border:"none",
+borderRadius:8,
+color:"#020617",
+fontWeight:"bold",
+cursor:"pointer"
 }
