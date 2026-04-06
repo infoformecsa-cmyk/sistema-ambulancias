@@ -4,6 +4,21 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
+/* 🔥 NUEVO: TURNOS CONSOLA (NO ROMPE NADA) */
+const TURNOS_CONSOLA = [
+{ label: "06H00 - 18H00", value: "t1", horas: 12 },
+{ label: "18H00 - 06H00", value: "t2", horas: 12 },
+{ label: "10H00 - 06H00", value: "t3", horas: 20 },
+{ label: "06H00 - 06H00", value: "t4", horas: 24 },
+{ label: "14H00 - 06H00", value: "t5", horas: 16 }
+]
+
+/* 🔥 FUNCIÓN LISTA PARA FUTURO */
+function obtenerHorasTurno(turno:string){
+const t = TURNOS_CONSOLA.find(x=>x.value === turno)
+return t ? t.horas : 0
+}
+
 export default function Supervisor(){
 
 const router = useRouter()
