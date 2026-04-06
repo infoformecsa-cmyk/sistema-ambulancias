@@ -69,43 +69,36 @@ localStorage.setItem("rol",perfil?.rol || "usuario")
 /* 🔥 REDIRECCIÓN POR ROLES */
 /* ========================= */
 
-/* 🆕 OPERATIVO */
 if(perfil?.rol === "operativo"){
 router.replace("/dashboard-operativo")
 return
 }
 
-/* 🟢 INVENTARIO */
 if(perfil?.rol === "inventario"){
 router.replace("/bitacora/dashboard")
 return
 }
 
-/* 🔴 ADMIN (CONTROL TOTAL FLOTA) */
 if(perfil?.rol === "admin"){
 router.replace("/dashboard")
 return
 }
 
-/* 🟡 SUPERVISOR (CONTROL LIMITADO) */
 if(perfil?.rol === "supervisor"){
 router.replace("/supervisor")
 return
 }
 
-/* 🔧 MECÁNICO */
 if(perfil?.rol === "mecanico"){
 router.replace("/mecanica")
 return
 }
 
-/* 🚑 CONDUCTOR */
 if(perfil?.rol === "conductor"){
 router.replace("/conductor")
 return
 }
 
-/* fallback */
 router.replace("/dashboard")
 return
 }
@@ -141,69 +134,58 @@ localStorage.setItem("email",data.email)
 /* 🔥 REDIRECCIÓN POR ROLES */
 /* ========================= */
 
-/* 🆕 OPERATIVO */
 if(data.rol === "operativo"){
 router.replace("/dashboard-operativo")
 return
 }
 
-/* 🟢 INVENTARIO */
 if(data.rol === "inventario"){
 router.replace("/bitacora/dashboard")
 return
 }
 
-/* 🔴 ADMIN */
 if(data.rol === "admin"){
 router.replace("/dashboard")
 return
 }
 
-/* 🟡 SUPERVISOR */
 if(data.rol === "supervisor"){
 router.replace("/supervisor")
 return
 }
 
-/* 🔧 MECÁNICO */
 if(data.rol === "mecanico"){
 router.replace("/mecanica")
 return
 }
 
-/* 🚑 CONDUCTOR */
 if(data.rol === "conductor"){
 router.replace("/conductor")
 return
 }
 
-/* fallback */
 router.replace("/dashboard")
 
 }
 
 /* ========================= */
-/* UI */
+/* UI MEJORADO */
 /* ========================= */
 
 return(
 
-<div style={{padding:"40px",fontFamily:"Arial"}}>
+<div style={container}>
 
-<h1>Sistema de Control de Ambulancias</h1>
+<div style={card}>
 
-<h2>Ingreso al sistema</h2>
+<h1 style={title}>🚑 Sistema de Ambulancias</h1>
+<p style={subtitle}>Control Operativo y Gestión Institucional</p>
 
 <input
-placeholder="Correo"
+placeholder="Correo institucional"
 value={email}
 onChange={(e)=>setEmail(e.target.value)}
-style={{
-display:"block",
-marginBottom:"10px",
-width:"300px",
-padding:"8px"
-}}
+style={input}
 />
 
 <input
@@ -211,37 +193,89 @@ type="password"
 placeholder="Contraseña"
 value={password}
 onChange={(e)=>setPassword(e.target.value)}
-style={{
-display:"block",
-marginBottom:"10px",
-width:"300px",
-padding:"8px"
-}}
+style={input}
 />
 
 <button
 onClick={login}
 disabled={loading}
-style={{
-padding:"10px 20px",
-background:"#667eea",
-color:"white",
-border:"none",
-borderRadius:"4px",
-cursor:"pointer"
-}}
+style={button}
 >
-
 {loading ? "Ingresando..." : "Ingresar"}
-
 </button>
 
 {error && (
-<p style={{color:"red",marginTop:"10px"}}>{error}</p>
+<p style={errorStyle}>{error}</p>
 )}
+
+</div>
 
 </div>
 
 )
 
+}
+
+/* ========================= */
+/* ESTILOS PRO */
+/* ========================= */
+
+const container: React.CSSProperties = {
+minHeight:"100vh",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+background:"linear-gradient(135deg,#020617,#0f172a)",
+fontFamily:"Arial"
+}
+
+const card: React.CSSProperties = {
+background:"#020617",
+padding:"40px 30px",
+borderRadius:16,
+width:340,
+boxShadow:"0 0 50px rgba(0,255,255,0.08)",
+border:"1px solid rgba(0,255,255,0.15)",
+textAlign:"center"
+}
+
+const title: React.CSSProperties = {
+color:"#22d3ee",
+marginBottom:5,
+fontSize:24
+}
+
+const subtitle: React.CSSProperties = {
+color:"#94a3b8",
+marginBottom:25,
+fontSize:13
+}
+
+const input: React.CSSProperties = {
+width:"100%",
+padding:12,
+marginBottom:12,
+borderRadius:8,
+border:"1px solid #1e293b",
+background:"#020617",
+color:"white",
+outline:"none"
+}
+
+const button: React.CSSProperties = {
+width:"100%",
+padding:12,
+background:"#06b6d4",
+border:"none",
+borderRadius:8,
+color:"#020617",
+fontWeight:"bold",
+cursor:"pointer",
+marginTop:10
+}
+
+const errorStyle: React.CSSProperties = {
+color:"#ef4444",
+marginTop:12,
+fontSize:13
 }
