@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -28,17 +27,27 @@ cargar()
 
 async function cargar(){
 
-const {data} = await supabase
+const {data,error} = await supabase
 .from("personal")
 .select("*")
 .eq("tipo",tipo)
 .eq("guardia",guardia)
 
+if(error){
+console.error("Error personal:", error)
+return
+}
+
 setPersonal(data || [])
 
-const {data:amb} = await supabase
+const {data:amb,error:errAmb} = await supabase
 .from("ambulancias")
 .select("id, codigo_operativo")
+
+if(errAmb){
+console.error("Error ambulancias:", errAmb)
+return
+}
 
 setAmbulancias(amb || [])
 
@@ -49,7 +58,11 @@ mapa[a.id] = a.codigo_operativo
 
 const grupo:any = {}
 ;(data || []).forEach((p:any)=>{
-const key = mapa[p.ambulancia_base] || p.ambulancia_base_text || "SIN ASIGNAR"
+const key =
+mapa[p.ambulancia_base] ||
+(p.ambulancia_base_text ?? "") ||
+"SIN ASIGNAR"
+
 if(!grupo[key]) grupo[key] = []
 grupo[key].push(p)
 })
@@ -60,6 +73,8 @@ setAgrupado(grupo)
 
 /* SUBIR ARCHIVO */
 async function subirArchivo(file:File){
+
+try{
 
 const nombre = `asistencia_${Date.now()}_${file.name}`
 
@@ -76,7 +91,13 @@ const { data } = supabase.storage
 .from("asistencia")
 .getPublicUrl(nombre)
 
-return data.publicUrl
+return data?.publicUrl || null
+
+}catch(err){
+console.error(err)
+return null
+}
+
 }
 
 /* GUARDAR */
@@ -107,7 +128,7 @@ if(archivos[p.id]){
 url = await subirArchivo(archivos[p.id])
 }
 
-await supabase.from("asistencia").insert([{
+const { error } = await supabase.from("asistencia").insert([{
 personal_id: p.id,
 fecha,
 estado: r.estado,
@@ -119,12 +140,15 @@ ambulancia_turno: r.ubicacion || null,
 reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
 turno: turnoFinal,
 horas,
-
-/* 🔥 NUEVO */
 es_r2: r.es_r2 || false,
 origen_r2: r.origen_r2 || null
-
 }])
+
+if(error){
+console.error("Error insert asistencia:", error)
+alert("Error guardando asistencia")
+return
+}
 
 }
 
@@ -144,7 +168,6 @@ Guardia: {guardia} | Turno: {turnoGlobal}
 </h3>
 
 <div style={filtros}>
-
 <select value={tipo} onChange={(e)=>setTipo(e.target.value)} style={input}>
 <option value="ambulancia">Ambulancias</option>
 <option value="consola">Consola</option>
@@ -164,28 +187,19 @@ Guardia: {guardia} | Turno: {turnoGlobal}
 <option value="12h_noche">12 Noche</option>
 </select>
 
-<input
-type="date"
-value={fecha}
-onChange={(e)=>setFecha(e.target.value)}
-style={input}
-/>
+<input type="date" value={fecha} onChange={(e)=>setFecha(e.target.value)} style={input}/>
 
 <button onClick={()=>router.push("/supervisor")} style={btn}>
 ⬅ Volver
 </button>
-
 </div>
 
-{/* AGRUPADO */}
-{Object.keys(agrupado).sort().map(ambu=>(
+{Object.keys(agrupado || {}).sort().map(ambu=>(
 <div key={ambu}>
 
-<h2 style={{color:"#38bdf8"}}>
-🚑 {ambu}
-</h2>
+<h2 style={{color:"#38bdf8"}}>🚑 {ambu}</h2>
 
-{agrupado[ambu].map((p:any)=>{
+{agrupado[ambu]?.map((p:any)=>{
 
 const estado = registros[p.id]?.estado
 
@@ -193,7 +207,6 @@ return(
 <div key={p.id} style={card}>
 
 <div style={{display:"flex",justifyContent:"space-between"}}>
-
 <h3>{p.nombre}</h3>
 
 <select
@@ -211,7 +224,6 @@ style={inputMini}
 {a.codigo_operativo}
 </option>
 ))}
-
 </select>
 
 </div>
@@ -219,8 +231,7 @@ style={inputMini}
 <div style={estadoContainer}>
 
 {["asistio","atraso","falta","permiso","vacaciones"].map(s=>(
-<button
-key={s}
+<button key={s}
 onClick={()=>setRegistros({
 ...registros,
 [p.id]: {...registros[p.id], estado:s}
@@ -228,13 +239,11 @@ onClick={()=>setRegistros({
 style={{
 ...estadoBtn,
 background: estado === s ? colores[s] : "#1f2937"
-}}
->
+}}>
 {s.toUpperCase()}
 </button>
 ))}
 
-{/* 🔥 NUEVO R2 */}
 <label style={{fontSize:12}}>
 <input
 type="checkbox"
@@ -265,7 +274,6 @@ style={inputMini}
 
 </div>
 
-{/* 🔥 ORIGEN R2 */}
 {registros[p.id]?.es_r2 && (
 <input
 placeholder="Origen R2 (ej: ALFA 3)"
@@ -296,12 +304,6 @@ style={input}
 <button onClick={guardar} style={btnGuardar}>
 💾 Guardar Asistencia
 </button>
-
-{preview && (
-<div style={modal} onClick={()=>setPreview(null)}>
-<img src={preview} style={modalImg}/>
-</div>
-)}
 
 </div>
 )
