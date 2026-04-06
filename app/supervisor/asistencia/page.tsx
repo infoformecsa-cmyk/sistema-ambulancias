@@ -10,6 +10,8 @@ export default function Asistencia(){
 const router = useRouter()
 
 const [personal,setPersonal] = useState<any[]>([])
+const [ambulancias,setAmbulancias] = useState<any[]>([])
+
 const [tipo,setTipo] = useState("ambulancia")
 const [turno,setTurno] = useState("24h")
 const [fecha,setFecha] = useState(new Date().toISOString().slice(0,10))
@@ -19,20 +21,23 @@ const [archivos,setArchivos] = useState<any>({})
 
 useEffect(()=>{
 cargar()
-},[tipo,turno])
+},[tipo])
 
 async function cargar(){
 
-const {data,error} = await supabase
+const {data} = await supabase
 .from("personal")
 .select("*")
 .eq("tipo",tipo)
 
-if(error){
-console.error("Error cargando personal:", error)
-}
-
 setPersonal(data || [])
+
+const {data:amb} = await supabase
+.from("ambulancias")
+.select("codigo_operativo")
+
+setAmbulancias(amb || [])
+
 }
 
 /* 📎 SUBIR ARCHIVO */
@@ -63,6 +68,12 @@ async function guardar(){
 
 const usuario = localStorage.getItem("email") || "admin"
 
+let horas = 0
+if(turno === "24h") horas = 24
+if(turno === "guardia_16h") horas = 16
+if(turno === "12h_dia") horas = 12
+if(turno === "12h_noche") horas = 12
+
 for(const p of personal){
 
 const r = registros[p.id]
@@ -78,16 +89,18 @@ if(archivos[p.id]){
 url = await subirArchivo(archivos[p.id])
 }
 
-await supabase
-.from("asistencia")
-.insert([{
+await supabase.from("asistencia").insert([{
 personal_id: p.id,
 fecha,
 estado: r.estado,
 tipo_permiso: r.tipo || null,
 archivo_url: url,
 observacion: r.obs || "",
-usuario_registro: usuario
+usuario_registro: usuario,
+ambulancia_turno: r.ubicacion || null,
+reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
+turno,
+horas
 }])
 
 }
@@ -101,8 +114,9 @@ return(
 
 <div style={container}>
 
-<h1>👥 Control de Asistencia</h1>
+<h1 style={{fontSize:28}}>👥 Control de Asistencia</h1>
 
+{/* FILTROS */}
 <div style={filtros}>
 
 <select value={tipo} onChange={(e)=>setTipo(e.target.value)} style={input}>
@@ -111,12 +125,10 @@ return(
 </select>
 
 <select value={turno} onChange={(e)=>setTurno(e.target.value)} style={input}>
-<option value="24h">24h</option>
+<option value="24h">24h (08:00 - 08:00)</option>
+<option value="guardia_16h">16h Guardia</option>
 <option value="12h_dia">12h Día</option>
 <option value="12h_noche">12h Noche</option>
-<option value="mañana">Mañana</option>
-<option value="tarde">Tarde</option>
-<option value="noche">Noche</option>
 </select>
 
 <input
@@ -132,30 +144,68 @@ style={input}
 
 </div>
 
-{personal.map(p=>(
+{/* LISTADO */}
+{personal.map(p=>{
+
+const estado = registros[p.id]?.estado
+
+return(
 
 <div key={p.id} style={card}>
 
-<h3>{p.nombre}</h3>
+{/* HEADER */}
+<div style={{display:"flex",justifyContent:"space-between"}}>
+
+<div>
+<h3 style={{margin:0}}>{p.nombre}</h3>
+<span style={{fontSize:12,color:"#9ca3af"}}>
+🚑 {p.ambulancia_base}
+</span>
+</div>
 
 <select
 onChange={(e)=>setRegistros({
 ...registros,
-[p.id]: {...registros[p.id], estado:e.target.value}
+[p.id]: {...registros[p.id], ubicacion:e.target.value}
 })}
-style={input}
+style={inputMini}
 >
+<option value="">Ubicación</option>
+<option value="CONSOLA">CONSOLA</option>
 
-<option value="">Estado</option>
-<option value="asistio">Asistió</option>
-<option value="atraso">Atraso</option>
-<option value="falta">Falta</option>
-<option value="permiso">Permiso</option>
-<option value="vacaciones">Vacaciones</option>
+{ambulancias.map(a=>(
+<option key={a.codigo_operativo}>
+{a.codigo_operativo}
+</option>
+))}
 
 </select>
 
-{["permiso","vacaciones"].includes(registros[p.id]?.estado) && (
+</div>
+
+{/* ESTADOS COMO BOTONES */}
+<div style={estadoContainer}>
+
+{["asistio","atraso","falta","permiso","vacaciones"].map(s=>(
+<button
+key={s}
+onClick={()=>setRegistros({
+...registros,
+[p.id]: {...registros[p.id], estado:s}
+})}
+style={{
+...estadoBtn,
+background: estado === s ? colores[s] : "#1f2937"
+}}
+>
+{s.toUpperCase()}
+</button>
+))}
+
+</div>
+
+{/* PERMISO / VACACIONES */}
+{["permiso","vacaciones"].includes(estado) && (
 
 <>
 <select
@@ -178,11 +228,11 @@ onChange={(e)=>setArchivos({
 [p.id]: e.target.files?.[0]
 })}
 />
-
 </>
 
 )}
 
+{/* OBS */}
 <input
 placeholder="Observación"
 onChange={(e)=>setRegistros({
@@ -193,8 +243,8 @@ style={input}
 />
 
 </div>
-
-))}
+)
+})}
 
 <button onClick={guardar} style={btnGuardar}>
 💾 Guardar Asistencia
@@ -204,7 +254,15 @@ style={input}
 )
 }
 
-/* 🎨 ESTILOS TIPADOS */
+/* 🎨 ESTILOS */
+
+const colores:any = {
+asistio:"#22c55e",
+atraso:"#eab308",
+falta:"#ef4444",
+permiso:"#3b82f6",
+vacaciones:"#a855f7"
+}
 
 const container: CSSProperties = {
 background:"#020617",
@@ -221,10 +279,27 @@ flexWrap:"wrap"
 }
 
 const card: CSSProperties = {
-background:"#111827",
+background:"#0f172a",
 padding:15,
-borderRadius:10,
-marginBottom:10
+borderRadius:12,
+marginBottom:12,
+border:"1px solid #1e293b"
+}
+
+const estadoContainer: CSSProperties = {
+display:"flex",
+gap:8,
+marginTop:10,
+flexWrap:"wrap"
+}
+
+const estadoBtn: CSSProperties = {
+padding:"8px 10px",
+borderRadius:8,
+border:"none",
+color:"white",
+cursor:"pointer",
+fontSize:12
 }
 
 const input: CSSProperties = {
@@ -233,7 +308,16 @@ borderRadius:8,
 background:"#1f2937",
 color:"white",
 border:"none",
-marginTop:5
+marginTop:10,
+width:"100%"
+}
+
+const inputMini: CSSProperties = {
+padding:6,
+borderRadius:6,
+background:"#1f2937",
+color:"white",
+border:"none"
 }
 
 const btn: CSSProperties = {
