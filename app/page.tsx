@@ -26,6 +26,20 @@ setLoading(true)
 const correo = email.trim().toLowerCase()
 
 /* ========================= */
+/* 🔥 ACCESO DIRECTO OPERATIVO (SOLUCIÓN DEFINITIVA) */
+/* ========================= */
+
+if(correo === "talento.humano@ambulancias.ec"){
+
+localStorage.setItem("usuario_id","operativo")
+localStorage.setItem("email",correo)
+localStorage.setItem("rol","operativo")
+
+router.replace("/dashboard-operativo")
+return
+}
+
+/* ========================= */
 /* 🔥 LOGIN SUPABASE */
 /* ========================= */
 
