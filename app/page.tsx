@@ -55,6 +55,12 @@ localStorage.setItem("rol",perfil?.rol || "usuario")
 /* 🔥 REDIRECCIÓN POR ROLES */
 /* ========================= */
 
+/* 🆕 OPERATIVO */
+if(perfil?.rol === "operativo"){
+router.replace("/dashboard-operativo")
+return
+}
+
 /* 🟢 INVENTARIO */
 if(perfil?.rol === "inventario"){
 router.replace("/bitacora/dashboard")
@@ -120,6 +126,12 @@ localStorage.setItem("email",data.email)
 /* ========================= */
 /* 🔥 REDIRECCIÓN POR ROLES */
 /* ========================= */
+
+/* 🆕 OPERATIVO */
+if(data.rol === "operativo"){
+router.replace("/dashboard-operativo")
+return
+}
 
 /* 🟢 INVENTARIO */
 if(data.rol === "inventario"){
