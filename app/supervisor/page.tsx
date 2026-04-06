@@ -11,22 +11,30 @@ const router = useRouter()
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [grupo,setGrupo] = useState("ALFA")
 
-const [editKm,setEditKm] = useState<any>({})
-const [guardandoKm,setGuardandoKm] = useState<any>({})
+const [editKm,setEditKm] = useState<Record<string,string>>({})
+const [guardandoKm,setGuardandoKm] = useState<Record<string,boolean>>({})
 
 const [panel,setPanel] = useState(false)
 const [ambulanciaActiva,setAmbulanciaActiva] = useState<any>(null)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivo,setMotivo] = useState("")
 
-useEffect(()=>{cargar()},[grupo])
+useEffect(()=>{
+cargar()
+},[grupo])
 
 async function cargar(){
-const {data} = await supabase
+
+const {data,error} = await supabase
 .from("ambulancias")
 .select("*")
 .eq("tipo",grupo)
 .order("codigo_operativo")
+
+if(error){
+console.error("Error cargando:", error)
+return
+}
 
 setAmbulancias(data || [])
 }
@@ -51,24 +59,38 @@ alert("Ingrese kilometraje válido")
 return
 }
 
-setGuardandoKm((p:any)=>({...p,[id]:true}))
+setGuardandoKm(prev => ({...prev,[id]:true}))
 
-await supabase
+const usuario = localStorage.getItem("email") || "supervisor"
+
+const { error: errorUpdate } = await supabase
 .from("ambulancias")
 .update({ kilometraje_actual: km })
 .eq("id",id)
 
-await supabase
+if(errorUpdate){
+console.error(errorUpdate)
+alert("Error actualizando KM")
+setGuardandoKm(prev => ({...prev,[id]:false}))
+return
+}
+
+const { error: errorInsert } = await supabase
 .from("registro_kilometraje")
 .insert([{
 ambulancia_id:id,
-usuario: localStorage.getItem("email") || "supervisor",
+usuario,
 kilometraje: km,
-created_at:new Date()
+created_at:new Date().toISOString()
 }])
 
+if(errorInsert){
+console.error(errorInsert)
+alert("Error guardando KM")
+}
+
 setEditKm({...editKm,[id]:""})
-setGuardandoKm((p:any)=>({...p,[id]:false}))
+setGuardandoKm(prev => ({...prev,[id]:false}))
 
 cargar()
 }
@@ -86,23 +108,46 @@ alert("Ingrese motivo")
 return
 }
 
-if(!ambulanciaActiva) return
+if(!ambulanciaActiva){
+alert("Error interno")
+return
+}
 
-await supabase.from("historial_operativo").insert({
+const usuario = localStorage.getItem("nombre") || "supervisor"
+
+/* INSERT CORRECTO */
+const { error } = await supabase
+.from("historial_operativo")
+.insert([{
 ambulancia_id:ambulanciaActiva.id,
 estado:estadoPendiente,
 motivo,
 fecha_inicio:new Date().toISOString(),
-usuario: localStorage.getItem("nombre") || "supervisor"
-})
+usuario
+}])
 
-await supabase
+if(error){
+console.error(error)
+alert("Error guardando historial")
+return
+}
+
+/* UPDATE ESTADO */
+const { error: errorUpdate } = await supabase
 .from("ambulancias")
 .update({estado:estadoPendiente})
 .eq("id",ambulanciaActiva.id)
 
+if(errorUpdate){
+console.error(errorUpdate)
+alert("Error actualizando estado")
+return
+}
+
 setPanel(false)
 setMotivo("")
+setAmbulanciaActiva(null)
+
 cargar()
 }
 
