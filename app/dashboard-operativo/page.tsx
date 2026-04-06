@@ -17,12 +17,29 @@ export default function Dashboard() {
   }, [])
 
   const verificarSesion = async () => {
-    const { data } = await supabase.auth.getSession()
+    const { data, error } = await supabase.auth.getSession()
 
-    if (!data.session) {
-      router.push('/login')
+    // 🔥 SI NO HAY SESIÓN → LOGIN
+    if (!data?.session) {
+      router.replace('/login')
       return
     }
+
+    // 🔥 VALIDAR USUARIO (CLAVE PARA EVITAR CRUCE DE SISTEMAS)
+    const user = data.session.user
+
+    if (!user?.email) {
+      await supabase.auth.signOut()
+      router.replace('/login')
+      return
+    }
+
+    // 🔥 OPCIONAL (RECOMENDADO): restringir acceso solo a este usuario
+    // if (user.email !== 'talento.humano@ambulancias.ec') {
+    //   await supabase.auth.signOut()
+    //   router.replace('/login')
+    //   return
+    // }
 
     await fetchData()
     setLoading(false)
@@ -41,7 +58,12 @@ export default function Dashboard() {
 
   const logout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+
+    // 🔥 LIMPIAR COMPLETAMENTE SESIÓN
+    localStorage.clear()
+    sessionStorage.clear()
+
+    router.replace('/login')
   }
 
   const eliminar = async (id: number) => {
@@ -105,7 +127,7 @@ export default function Dashboard() {
     }
   }
 
-  // 🔥 LOADER (IMPORTANTE PARA VERCEL)
+  // 🔥 LOADER
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -133,9 +155,7 @@ export default function Dashboard() {
             🔄 Actualizar
           </button>
 
-          <button
-            className="bg-green-600 px-4 py-2 rounded-lg"
-          >
+          <button className="bg-green-600 px-4 py-2 rounded-lg">
             ➕ Nuevo
           </button>
 
