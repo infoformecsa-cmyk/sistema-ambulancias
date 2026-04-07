@@ -70,20 +70,11 @@ const actual = datos[id] || []
 setDatos({...datos,[id]:[...actual,{lote:"",cantidad:"",fecha:""}]})
 }
 
-/* 🔥 CORREGIDO */
 function actualizar(id:string,i:number,campo:string,val:any){
-
-const copia = [...(datos[id] || [])]
-
+const copia = [...(datos[id]||[])]
 if(!copia[i]) copia[i] = {}
-
-copia[i][campo] = val
-
-setDatos({
-  ...datos,
-  [id]: copia
-})
-
+copia[i][campo]=val
+setDatos({...datos,[id]:copia})
 }
 
 function setCheck(id:string,val:string){
@@ -95,7 +86,7 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 💾 GUARDAR */
+/* GUARDAR */
 /* ========================= */
 
 async function guardar(){
@@ -124,7 +115,6 @@ if(!lotes || lotes.length === 0) continue
 for(const l of lotes){
 
 if(l.estado){
-
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
 nombre: item?.nombre || "check",
@@ -133,7 +123,6 @@ cantidad: l.estado === "SI" ? 1 : 0,
 lote: null,
 fecha_registro: new Date().toISOString()
 })
-
 continue
 }
 
@@ -141,9 +130,7 @@ if(!l.lote && !l.cantidad && !l.fecha) continue
 
 const cantidadNum = Number(l.cantidad || 0)
 
-const { error } = await supabase
-.from("inventario_checklist")
-.insert({
+await supabase.from("inventario_checklist").insert({
 ambulancia_id: String(ambulancia),
 item_id: itemId,
 lote: l.lote || null,
@@ -152,13 +139,6 @@ fecha_caducidad: l.fecha || null,
 fecha_registro: new Date().toISOString(),
 responsable: responsable
 })
-
-if(error){
-console.error("ERROR CHECKLIST:", error)
-alert("❌ Error guardando checklist")
-setGuardando(false)
-return
-}
 
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
@@ -177,12 +157,11 @@ alert("✅ Checklist guardado correctamente")
 setDatos({})
 
 }catch(err){
-console.error("ERROR GENERAL:", err)
+console.error(err)
 alert("❌ Error general")
 }
 
 setGuardando(false)
-
 }
 
 /* ========================= */
@@ -221,7 +200,7 @@ style={input}
 
 </div>
 
-{/* 🧬 KITS */}
+{/* KITS */}
 <h2 style={section}>🧬 Kits Obstétricos</h2>
 
 <div style={grid}>
@@ -257,9 +236,9 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 {(datos[k.id]||[]).map((l:any,i:number)=>(
 
 <div key={i} style={inputsRow}>
-<input value={l.lote || ""} placeholder="Lote" onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
-<input type="number" value={l.cantidad || ""} onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
-<input type="date" value={l.fecha || ""} onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
+<input style={input} value={l.lote || ""} placeholder="Lote" onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
+<input style={input} type="number" value={l.cantidad || ""} onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
+<input style={input} type="date" value={l.fecha || ""} onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
 </div>
 
 ))}
@@ -293,23 +272,6 @@ return(
 
 {expandido[cat] && grupo.map(i=>{
 
-if(i.tipo_control === "check"){
-return(
-<div key={i.id} style={item}>
-<div style={rowTop}>
-<span>{i.nombre}</span>
-<span style={badge}>CHECK</span>
-</div>
-
-<select value={(datos[i.id]?.[0]?.estado)||""} onChange={(e)=>setCheck(i.id,e.target.value)} style={input}>
-<option value="">Seleccione</option>
-<option value="SI">SI</option>
-<option value="NO">NO</option>
-</select>
-</div>
-)
-}
-
 return(
 <div key={i.id} style={item}>
 
@@ -323,9 +285,9 @@ return(
 {(datos[i.id]||[]).map((l:any,index:number)=>(
 
 <div key={index} style={inputsRow}>
-<input value={l.lote || ""} placeholder="Lote" onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
-<input type="number" value={l.cantidad || ""} onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
-<input type="date" value={l.fecha || ""} onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
+<input style={input} value={l.lote || ""} placeholder="Lote" onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
+<input style={input} type="number" value={l.cantidad || ""} onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
+<input style={input} type="date" value={l.fecha || ""} onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 </div>
 
 ))}
