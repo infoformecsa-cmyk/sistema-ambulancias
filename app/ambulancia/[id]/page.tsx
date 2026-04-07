@@ -140,9 +140,37 @@ return(
 
 {/* BOTONES */}
 <div style={acciones}>
-<button onClick={()=>setEstadoPendiente("operativa") || setMostrarModal(true)} style={btn("#22c55e")}>Operativa</button>
-<button onClick={()=>setEstadoPendiente("mantenimiento") || setMostrarModal(true)} style={btn("#f59e0b")}>Mtto</button>
-<button onClick={()=>setEstadoPendiente("no operativa") || setMostrarModal(true)} style={btn("#ef4444")}>Fuera</button>
+
+<button
+onClick={()=>{
+setEstadoPendiente("operativa")
+setMostrarModal(true)
+}}
+style={btn("#22c55e")}
+>
+Operativa
+</button>
+
+<button
+onClick={()=>{
+setEstadoPendiente("mantenimiento")
+setMostrarModal(true)
+}}
+style={btn("#f59e0b")}
+>
+Mtto
+</button>
+
+<button
+onClick={()=>{
+setEstadoPendiente("no operativa")
+setMostrarModal(true)
+}}
+style={btn("#ef4444")}
+>
+Fuera
+</button>
+
 </div>
 
 {/* ================= HISTORIAL ================= */}
@@ -221,8 +249,13 @@ style={textarea}
 <input type="file" onChange={e=>setFoto(e.target.files?.[0] || null)} />
 
 <div style={{marginTop:10}}>
-<button onClick={confirmarCambioEstado}>Guardar</button>
-<button onClick={()=>setMostrarModal(false)}>Cancelar</button>
+<button onClick={confirmarCambioEstado}>
+{loading ? "Guardando..." : "Guardar"}
+</button>
+
+<button onClick={()=>setMostrarModal(false)}>
+Cancelar
+</button>
 </div>
 
 </div>
