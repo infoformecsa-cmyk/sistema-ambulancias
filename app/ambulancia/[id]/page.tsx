@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter, useParams } from "next/navigation"
@@ -21,14 +21,11 @@ const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 
-/* 🔥 NUEVO */
 const [tipoMtto,setTipoMtto] = useState("")
 const [area,setArea] = useState("")
 const [foto,setFoto] = useState<File | null>(null)
 
 const [loading,setLoading] = useState(false)
-
-const bloqueado = useRef(false)
 
 /* ========================= */
 
@@ -69,20 +66,27 @@ async function confirmarCambioEstado(){
 
 if(!estadoPendiente) return
 
+if(!motivoCambio.trim()){
+alert("⚠️ Debes ingresar un motivo")
+return
+}
+
 setLoading(true)
 
 let fotoUrl = null
+
+try{
 
 /* 🔥 SUBIR IMAGEN */
 if(foto){
 const nombre = `${Date.now()}_${foto.name}`
 
-const {data,error} = await supabase.storage
+const { error } = await supabase.storage
 .from("imagenes")
 .upload(nombre,foto)
 
-if(data){
-const {data:url} = supabase.storage
+if(!error){
+const { data:url } = supabase.storage
 .from("imagenes")
 .getPublicUrl(nombre)
 
@@ -90,34 +94,44 @@ fotoUrl = url.publicUrl
 }
 }
 
-try{
-
+/* 🔥 UPDATE ESTADO */
 await supabase
 .from("ambulancias")
 .update({ estado: estadoPendiente })
 .eq("id",id)
 
-await supabase.from("historial_operativo").insert({
+/* 🔥 INSERT HISTORIAL */
+const { error: insertError } = await supabase
+.from("historial_operativo")
+.insert({
 ambulancia_id: id,
 estado: estadoPendiente,
-motivo: motivoCambio,
-tipo_mantenimiento: tipoMtto,
-area: area,
+motivo: motivoCambio.trim(),
+tipo_mantenimiento: tipoMtto || null,
+area: area || null,
 foto_url: fotoUrl,
 fecha_inicio: new Date().toISOString()
 })
 
+if(insertError){
+console.error(insertError)
+alert("❌ Error al guardar historial")
+return
+}
+
+/* RESET */
 setMostrarModal(false)
 setMotivoCambio("")
 setTipoMtto("")
 setArea("")
 setFoto(null)
 
-cargarTodo()
+/* 🔥 REFRESH REAL */
+await cargarTodo()
 
 }catch(err){
 console.error(err)
-alert("❌ Error al guardar")
+alert("❌ Error general")
 }
 
 setLoading(false)
@@ -184,31 +198,13 @@ return(
 
 {/* KPI */}
 <div style={grid}>
-
-<div style={card}>
-<p>KM Actual</p>
-<h2>{ambulancia.kilometraje_actual}</h2>
-</div>
-
-<div style={card}>
-<p>Estado</p>
-<h2 style={{color:estadoColor()}}>
-{ambulancia.estado}
-</h2>
-</div>
-
-<div style={card}>
-<p>Próx. Mtto</p>
-<h2>{ambulancia.kilometraje_mtto || "-"}</h2>
-</div>
-
+<div style={card}><p>KM Actual</p><h2>{ambulancia.kilometraje_actual}</h2></div>
+<div style={card}><p>Estado</p><h2 style={{color:estadoColor()}}>{ambulancia.estado}</h2></div>
+<div style={card}><p>Próx. Mtto</p><h2>{ambulancia.kilometraje_mtto || "-"}</h2></div>
 </div>
 
 {/* ESTADO */}
-<div style={{
-...estadoBox,
-borderColor:estadoColor()
-}}>
+<div style={{...estadoBox,borderColor:estadoColor()}}>
 Estado: {ambulancia.estado.toUpperCase()}
 </div>
 
@@ -239,13 +235,7 @@ Estado: {ambulancia.estado.toUpperCase()}
 <h3>📋 Historial</h3>
 
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 2fr 1fr auto",fontWeight:"bold"}}>
-<div>Fecha</div>
-<div>Estado</div>
-<div>Tipo</div>
-<div>Área</div>
-<div>Motivo</div>
-<div>Foto</div>
-<div></div>
+<div>Fecha</div><div>Estado</div><div>Tipo</div><div>Área</div><div>Motivo</div><div>Foto</div><div></div>
 </div>
 
 {historial.map(h=>(
@@ -257,11 +247,10 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div>{h.area || "-"}</div>
 <div>{h.motivo}</div>
 
-<div>
-{h.foto_url && <a href={h.foto_url} target="_blank">📷</a>}
-</div>
+<div>{h.foto_url && <a href={h.foto_url} target="_blank">📷</a>}</div>
 
-<div>
+<div style={{display:"flex",gap:5}}>
+<button>✏️</button>
 <button onClick={()=>eliminarRegistro(h.id)}>🗑️</button>
 </div>
 
@@ -276,7 +265,6 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div style={modal}>
 
 <h3>Cambiar estado</h3>
-
 <p>Nuevo estado: <b>{estadoPendiente}</b></p>
 
 <textarea
@@ -319,10 +307,7 @@ Cancelar
 )
 }
 
-/* ========================= */
 /* ESTILOS */
-/* ========================= */
-
 const container: CSSProperties = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
 const header: CSSProperties = {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}
 const title = {fontSize:30,fontWeight:"bold"}
