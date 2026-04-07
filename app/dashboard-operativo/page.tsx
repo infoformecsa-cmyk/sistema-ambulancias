@@ -40,6 +40,8 @@ setLoading(false)
 
 const fetchData = async () => {
 
+try{
+
 const { data: p } = await supabase.from('personal').select('*')
 const { data: a } = await supabase
 .from('archivos_asistencia')
@@ -48,9 +50,13 @@ const { data: a } = await supabase
 
 const { data: amb } = await supabase.from('ambulancias').select('*')
 
-if(p) setPersonal(p)
-if(a) setArchivos(a)
-if(amb) setAmbulanciasDB(amb)
+setPersonal(p || [])
+setArchivos(a || [])
+setAmbulanciasDB(amb || [])
+
+}catch(err){
+console.error("Error fetch:", err)
+}
 }
 
 /* 🔥 CREAR */
@@ -171,33 +177,6 @@ return (
 ⚠ {alertas.length} ALERTAS
 </div>
 
-{/* KPIs */}
-<div className="grid grid-cols-4 gap-6 mb-10">
-
-<div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
-<p>Total</p>
-<h2 className="text-3xl">{personal.length}</h2>
-</div>
-
-<div className="bg-green-900 p-6 rounded-xl">
-<p>Activos</p>
-<h2 className="text-3xl">
-{personal.filter(p=>p.estado==="Activo").length}
-</h2>
-</div>
-
-<div className="bg-red-900 p-6 rounded-xl">
-<p>No disponibles</p>
-<h2 className="text-3xl">{alertas.length}</h2>
-</div>
-
-<div className="bg-blue-900 p-6 rounded-xl">
-<p>Reportes</p>
-<h2 className="text-3xl">{archivos.length}</h2>
-</div>
-
-</div>
-
 {/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 
@@ -213,7 +192,6 @@ return(
 
 <h2 className="text-xl mb-4 text-cyan-400">{g}</h2>
 
-{/* 🚑 AMBULANCIAS */}
 {ambulancias.map(([ambulancia,personas]:any)=>(
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
@@ -221,38 +199,24 @@ return(
 
 {personas.map((p:any)=>(
 <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
-
 <p className="text-sm font-semibold">{p.nombre}</p>
-
-<div className="flex items-center gap-2">
-
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
-
-</div>
-
 </div>
 ))}
 
 </div>
 ))}
 
-{/* 💻 CONSOLA */}
+{/* CONSOLA */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 
-<h3 className="text-green-400 mb-2">
-💻 CONSOLA
-</h3>
+<h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
 
 {consola.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
-
 <p className="text-sm">{p.nombre}</p>
-
-<div className="flex items-center gap-2">
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
-</div>
-
 </div>
 ))}
 
@@ -265,7 +229,7 @@ return(
 
 </div>
 
-{/* MODAL NUEVO */}
+{/* MODAL */}
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 
@@ -293,26 +257,29 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G5</option>
 </select>
 
-{/* 🚑 SELECT AUTOMÁTICO */}
+{/* 🚑 SELECT SEGURO */}
 {formNuevo.tipo==="ambulancia" && (
 <select
 className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
 >
 <option value="">Seleccionar unidad</option>
-{ambulanciasDB.map((a:any)=>(
-<option key={a.id} value={a.codigo_operativo}>
-{a.codigo_operativo}
+{(ambulanciasDB || []).map((a:any)=>(
+<option key={a.id} value={a.codigo_operativo || ''}>
+{a.codigo_operativo || 'SIN CODIGO'}
 </option>
 ))}
 </select>
 )}
 
-{/* 💻 COLOR CONSOLA */}
-{formNuevo.tipo==="consola" && (
+{/* 💻 COLOR SEGURO */}
+{formNuevo.tipo==="consola" && COLORES_GUARDIA[formNuevo.guardia] && (
 <div
 className="w-full mb-2 p-2 text-center font-bold rounded"
-style={{background:COLORES_GUARDIA[formNuevo.guardia].color,color:"#000"}}
+style={{
+background: COLORES_GUARDIA[formNuevo.guardia].color,
+color:"#000"
+}}
 >
 💻 {COLORES_GUARDIA[formNuevo.guardia].nombre}
 </div>
