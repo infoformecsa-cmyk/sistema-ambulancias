@@ -21,24 +21,6 @@ guardia:"G1",
 ambulancia_codigo:""
 })
 
-/* 🔥 LISTA DINÁMICA SEGURA */
-const listaAmbulancias = Array.from(
-new Set(
-personal
-.filter(p => p.tipo === "ambulancia" && p.ambulancia_codigo)
-.map(p => p.ambulancia_codigo)
-)
-)
-
-/* 🎨 COLORES CONSOLA */
-const COLORES_GUARDIA:any = {
-G1: { nombre:"VERDE", color:"#22c55e" },
-G2: { nombre:"MORADO", color:"#a855f7" },
-G3: { nombre:"AMARILLO", color:"#eab308" },
-G4: { nombre:"ROSA", color:"#ec4899" },
-G5: { nombre:"AZUL", color:"#3b82f6" }
-}
-
 useEffect(()=>{ iniciar() },[])
 
 const iniciar = async ()=>{
@@ -262,7 +244,7 @@ fetchData()
 </div>
 ))}
 
-{/* 💻 CONSOLA */}
+{/* 💻 CONSOLA (ELEGANTE) */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 
@@ -288,6 +270,38 @@ fetchData()
 </div>
 )
 })}
+
+</div>
+
+{/* DERECHA */}
+<div className="space-y-6">
+
+<div className="bg-red-900/50 p-4 rounded-xl">
+<h2 className="text-red-400 mb-2">⚠ Críticos</h2>
+
+{alertas.map((p)=>(
+<div key={p.id} className="text-sm border-b py-1">
+{p.nombre} — {p.estado}
+</div>
+))}
+
+</div>
+
+<div className="bg-gray-900 p-4 rounded-xl">
+<h2 className="text-blue-400 mb-2">📁 Reportes</h2>
+
+{archivos.map((a)=>(
+<div key={a.id} className="flex justify-between text-sm border-b py-1">
+<span>{a.nombre}</span>
+<span className="text-gray-400">
+{new Date(a.fecha).toLocaleDateString('es-EC')}
+</span>
+</div>
+))}
+
+</div>
+
+</div>
 
 </div>
 
@@ -319,32 +333,10 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G5</option>
 </select>
 
-{/* 🚑 SELECT AUTOMÁTICO */}
-{formNuevo.tipo==="ambulancia" && (
-<select
+<input placeholder="Unidad"
 className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.ambulancia_codigo || ""}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
->
-<option value="">Seleccionar unidad</option>
-{listaAmbulancias.map((cod:any)=>(
-<option key={cod} value={cod}>{cod}</option>
-))}
-</select>
-)}
-
-{/* 💻 COLOR CONSOLA */}
-{formNuevo.tipo==="consola" && COLORES_GUARDIA[formNuevo.guardia] && (
-<div
-className="w-full mb-2 p-2 text-center font-bold rounded"
-style={{
-background: COLORES_GUARDIA[formNuevo.guardia].color,
-color:"#000"
-}}
->
-💻 GRUPO {COLORES_GUARDIA[formNuevo.guardia].nombre}
-</div>
-)}
+/>
 
 <div className="flex justify-between mt-4">
 
@@ -362,7 +354,7 @@ Cancelar
 </div>
 )}
 
-{/* MODAL EDITAR (sin cambios) */}
+{/* MODAL EDITAR */}
 {editando && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 
