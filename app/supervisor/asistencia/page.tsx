@@ -60,7 +60,6 @@ const grupo:any = {}
 ;(data || []).forEach((p:any)=>{
 const key =
 mapa[p.ambulancia_base] ||
-(p.ambulancia_base_text ?? "") ||
 "SIN ASIGNAR"
 
 if(!grupo[key]) grupo[key] = []
@@ -139,9 +138,7 @@ usuario_registro: usuario,
 ambulancia_turno: r.ubicacion || null,
 reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
 turno: turnoFinal,
-horas,
-es_r2: r.es_r2 || false,
-origen_r2: r.origen_r2 || null
+horas
 }])
 
 if(error){
