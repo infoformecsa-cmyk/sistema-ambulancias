@@ -35,7 +35,33 @@ const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
 
-useEffect(()=>{cargar()},[])
+/* ========================= */
+/* 🔥 AUTOSAVE */
+/* ========================= */
+
+useEffect(()=>{
+const d = localStorage.getItem("checklist_datos")
+const a = localStorage.getItem("checklist_ambulancia")
+const r = localStorage.getItem("checklist_responsable")
+
+if(d) setDatos(JSON.parse(d))
+if(a) setAmbulancia(a)
+if(r) setResponsable(r)
+
+cargar()
+},[])
+
+useEffect(()=>{
+localStorage.setItem("checklist_datos", JSON.stringify(datos))
+},[datos])
+
+useEffect(()=>{
+localStorage.setItem("checklist_ambulancia", ambulancia)
+},[ambulancia])
+
+useEffect(()=>{
+localStorage.setItem("checklist_responsable", responsable)
+},[responsable])
 
 /* ========================= */
 
@@ -126,7 +152,7 @@ fecha_registro: new Date().toISOString()
 continue
 }
 
-/* 🔥 NUEVA VALIDACIÓN INTELIGENTE */
+/* 🔥 VALIDACIÓN FLEXIBLE (LOTE OPCIONAL) */
 const tieneDatos =
 (l.lote && l.lote.trim() !== "") ||
 (l.cantidad && Number(l.cantidad) > 0) ||
@@ -159,6 +185,11 @@ fecha_registro: new Date().toISOString()
 
 }
 
+/* 🔥 LIMPIAR AUTOSAVE */
+localStorage.removeItem("checklist_datos")
+localStorage.removeItem("checklist_ambulancia")
+localStorage.removeItem("checklist_responsable")
+
 alert("✅ Checklist guardado correctamente")
 setDatos({})
 
@@ -178,7 +209,6 @@ return(
 
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 
 <div>
@@ -206,7 +236,6 @@ style={input}
 
 </div>
 
-{/* KITS */}
 <h2 style={section}>🧬 Kits Obstétricos</h2>
 
 <div style={grid}>
@@ -261,7 +290,6 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 
 </div>
 
-{/* GENERAL */}
 <h2 style={section}>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
