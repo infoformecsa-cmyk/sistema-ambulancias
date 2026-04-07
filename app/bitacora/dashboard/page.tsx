@@ -74,7 +74,7 @@ async function cargarRegistros(id:string){
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
-.eq("ambulancia_id", id)
+.eq("ambulancia_id", String(id))
 .eq("tipo","CHECKLIST") // 🔥 MISMO FILTRO
 
 const hoy = new Date()
@@ -118,7 +118,8 @@ ambulancias.map(a => [a.id, a.codigo_operativo])
 
 const resumenAmbulancias = ambulancias.map(a=>{
 
-const items = data.filter(i=>i.ambulancia_id === a.id)
+const items = data.filter(i=> String(i.ambulancia_id) === String(a.id)
+)
 
 if(items.length === 0){
 return {
@@ -193,8 +194,8 @@ cargarRegistros(ambulanciaSeleccionada.id)
 }
 }
 
-function irChecklist(ambulanciaId:string){
-router.push(`/inventario/checklist?ambulancia=${ambulanciaId}`)
+function irChecklist(ambulanciaId:any){
+router.push(`/inventario/checklist?ambulancia=${string(ambulanciaId)}`)
 }
 
 /* ========================= */
