@@ -94,6 +94,10 @@ copia[i][campo]=val
 setDatos({...datos,[id]:copia})
 }
 
+function setCheck(id:string,val:string){
+setDatos({...datos,[id]:[{estado:val}]})
+}
+
 function getMin(i:any){
 return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
@@ -167,7 +171,9 @@ fecha_registro: new Date().toISOString()
 
 }
 
-localStorage.clear()
+localStorage.removeItem("checklist_datos")
+localStorage.removeItem("checklist_ambulancia")
+localStorage.removeItem("checklist_responsable")
 
 alert("✅ Checklist guardado correctamente")
 setDatos({})
@@ -188,7 +194,6 @@ return(
 
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 <div>
 <h1>🚑 Checklist Clínico</h1>
@@ -212,21 +217,15 @@ style={input}
 </div>
 </div>
 
-{/* KITS */}
 <h2 style={section}>🧬 Kits Obstétricos</h2>
 
 <div style={grid}>
 {["celeste","azul","amarillo","rojo"].map(color=>{
-
 const grupo = kits.filter(k=>k.kit_color===color)
 if(!grupo.length) return null
 
 return(
-<div key={color} style={{
-background:"#111827",
-borderRadius:12,
-borderLeft:`6px solid ${COLORES_KIT[color]}`
-}}>
+<div key={color} style={{background:"#111827",borderRadius:12,borderLeft:`6px solid ${COLORES_KIT[color]}`}}>
 
 <div onClick={()=>toggle(color)} style={kitHeader}>
 <span>Clave {color}</span>
@@ -261,6 +260,62 @@ onFocus={(e)=>e.target.type='date'}
 onBlur={(e)=>!e.target.value && (e.target.type='text')}
 onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}
 />
+
+</div>
+
+))}
+
+</div>
+
+))}
+
+</div>
+)
+})}
+</div>
+
+{/* 🔥 CHECKLIST GENERAL INTACTO */}
+<h2 style={section}>📦 Checklist General</h2>
+
+{ORDEN.map(cat=>{
+const grupo = items.filter(i => i.categoria === cat)
+
+return(
+<div key={cat} style={card}>
+
+<div style={catHeader} onClick={()=>toggle(cat)}>
+{cat.toUpperCase()} ({grupo.length})
+</div>
+
+{expandido[cat] && grupo.map(i=>(
+<div key={i.id} style={item}>
+
+<div style={rowTop}>
+<span>{i.nombre}</span>
+<span style={badge}>Min {getMin(i)}</span>
+</div>
+
+<button style={btnAdd} onClick={()=>agregarLote(i.id)}>+ Lote</button>
+
+{(datos[i.id]||[]).map((l:any,index:number)=>(
+
+<div key={index} style={inputsRow}>
+<input style={input} value={l.lote || ""} placeholder="Lote"
+onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
+
+<input style={input} type="number" value={l.cantidad || ""} placeholder="Cantidad"
+onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
+
+<input
+style={input}
+type={l.fecha ? "date" : "text"}
+placeholder="Fecha"
+value={l.fecha || ""}
+onFocus={(e)=>e.target.type='date'}
+onBlur={(e)=>!e.target.value && (e.target.type='text')}
+onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}
+/>
+
 </div>
 
 ))}
@@ -271,9 +326,7 @@ onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}
 </div>
 )
 })}
-</div>
 
-{/* BOTÓN */}
 <div style={{marginTop:30}}>
 <button onClick={guardar} style={btnGuardar}>
 {guardando ? "Guardando..." : "💾 Guardar Checklist"}
@@ -295,6 +348,8 @@ const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",bord
 const section = {marginTop:20,marginBottom:10}
 const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:15}
 const kitHeader = {padding:12,cursor:"pointer",display:"flex",justifyContent:"space-between"}
+const card = {background:"#111827",borderRadius:10,marginBottom:10}
+const catHeader = {background:"#1f2937",padding:10,cursor:"pointer"}
 const item = {padding:10,borderBottom:"1px solid #1f2937"}
 const rowTop = {display:"flex",justifyContent:"space-between"}
 const inputsRow = {display:"flex",gap:5,marginTop:6}
