@@ -20,11 +20,17 @@ const [kmMtto,setKmMtto] = useState("")
 const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
+
 const [loading,setLoading] = useState(false)
 
 const [editando,setEditando] = useState<any>(null)
 
+const bloqueado = useRef(false)
+
+/* ========================= */
 /* INIT */
+/* ========================= */
+
 useEffect(()=>{
 if(!id) return
 cargarTodo()
@@ -50,66 +56,72 @@ setHistorial(data || [])
 }
 
 /* ========================= */
-/* 🔥 ESTADO (ARREGLADO) */
+/* FUNCIONES */
 /* ========================= */
+
+async function actualizarKilometraje(){
+if(!nuevoKm) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_actual: Number(nuevoKm) })
+.eq("id",id)
+
+setNuevoKm("")
+cargarAmbulancia()
+}
+
+async function guardarMtto(){
+if(!kmMtto) return
+
+await supabase
+.from("ambulancias")
+.update({ kilometraje_mtto: Number(kmMtto) })
+.eq("id",id)
+
+setKmMtto("")
+cargarAmbulancia()
+}
 
 function abrirCambioEstado(estado:string){
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
 
+/* 🔥 CAMBIO ESTADO REAL */
 async function confirmarCambioEstado(){
 
 if(!estadoPendiente) return
 
 setLoading(true)
 
-/* actualizar estado */
+try{
+
 await supabase
 .from("ambulancias")
 .update({ estado: estadoPendiente })
 .eq("id",id)
 
-/* guardar historial */
 await supabase.from("historial_operativo").insert({
 ambulancia_id: id,
 estado: estadoPendiente,
-motivo: motivoCambio || "Sin detalle",
+motivo: motivoCambio,
 fecha_inicio: new Date().toISOString()
 })
 
 setMostrarModal(false)
 setMotivoCambio("")
-setEstadoPendiente("")
+cargarTodo()
 
-await cargarTodo()
+}catch(err){
+console.error(err)
+alert("❌ Error al cambiar estado")
+}
 
 setLoading(false)
 }
 
-/* ========================= */
-/* 🔥 EDITAR */
-/* ========================= */
-
-async function guardarEdicion(){
-
-if(!editando) return
-
-await supabase
-.from("historial_operativo")
-.update({
-motivo: editando.motivo
-})
-.eq("id",editando.id)
-
-setEditando(null)
-cargarHistorial()
-}
-
-/* ========================= */
 /* 🔥 ELIMINAR */
-/* ========================= */
-
 async function eliminarRegistro(idRegistro:string){
 
 if(!confirm("¿Eliminar registro?")) return
@@ -123,22 +135,6 @@ cargarHistorial()
 }
 
 /* ========================= */
-/* FUNCIONES EXISTENTES */
-/* ========================= */
-
-async function actualizarKilometraje(){
-if(!nuevoKm) return
-await supabase.from("ambulancias").update({ kilometraje_actual: Number(nuevoKm) }).eq("id",id)
-setNuevoKm("")
-cargarAmbulancia()
-}
-
-async function guardarMtto(){
-if(!kmMtto) return
-await supabase.from("ambulancias").update({ kilometraje_mtto: Number(kmMtto) }).eq("id",id)
-setKmMtto("")
-cargarAmbulancia()
-}
 
 function estadoColor(){
 if(ambulancia.estado === "operativa") return "#22c55e"
@@ -146,7 +142,10 @@ if(ambulancia.estado === "mantenimiento") return "#f59e0b"
 return "#ef4444"
 }
 
+/* ========================= */
 /* UI */
+/* ========================= */
+
 if(!ambulancia) return <div style={loadingStyle}>🚑 Cargando...</div>
 
 return(
@@ -224,27 +223,18 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div key={h.id} style={row}>
 
 <div>{new Date(h.fecha_inicio).toLocaleString()}</div>
-<div style={{color:estadoColor()}}>{h.estado}</div>
-<div>{h.tipo_mantenimiento || "-"}</div>
 
-{editando?.id === h.id ? (
-<input
-value={editando.motivo}
-onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
-/>
-) : (
+<div style={{color:estadoColor()}}>
+{h.estado}
+</div>
+
 <div>{h.motivo}</div>
-)}
 
 <div style={{display:"flex",gap:5}}>
 
-{editando?.id === h.id ? (
-<button onClick={guardarEdicion}>💾</button>
-) : (
 <button onClick={()=>setEditando(h)}>✏️</button>
-)}
 
-<button onClick={()=>eliminarRegistro(h.id)}>🗑</button>
+<button onClick={()=>eliminarRegistro(h.id)}>🗑️</button>
 
 </div>
 
@@ -253,26 +243,28 @@ onChange={(e)=>setEditando({...editando,motivo:e.target.value})}
 
 </div>
 
-{/* MODAL */}
+{/* 🔥 MODAL */}
 {mostrarModal && (
 <div style={modalBg}>
 <div style={modal}>
 
 <h3>Cambiar estado</h3>
 
+<p>Nuevo estado: <b>{estadoPendiente}</b></p>
+
 <textarea
 placeholder="Motivo del cambio"
 value={motivoCambio}
 onChange={(e)=>setMotivoCambio(e.target.value)}
-style={input}
+style={textarea}
 />
 
-<div style={{display:"flex",gap:10}}>
+<div style={{display:"flex",gap:10,marginTop:10}}>
 <button onClick={confirmarCambioEstado} style={btnPrimary}>
-Guardar
+{loading ? "Guardando..." : "Confirmar"}
 </button>
 
-<button onClick={()=>setMostrarModal(false)} style={btn("#64748b")}>
+<button onClick={()=>setMostrarModal(false)} style={btnBack}>
 Cancelar
 </button>
 </div>
@@ -285,36 +277,137 @@ Cancelar
 )
 }
 
+/* ========================= */
 /* ESTILOS */
+/* ========================= */
 
-const modalBg = {
+const container: CSSProperties = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:30
+}
+
+const header: CSSProperties = {
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:20
+}
+
+const title = {fontSize:30,fontWeight:"bold"}
+const sub = {opacity:0.6}
+
+const btnBack: CSSProperties = {
+background:"#1e293b",
+padding:"10px 15px",
+borderRadius:8,
+border:"none",
+color:"white"
+}
+
+const grid: CSSProperties = {
+display:"grid",
+gridTemplateColumns:"repeat(3,1fr)",
+gap:20,
+marginBottom:20
+}
+
+const card: CSSProperties = {
+background:"#0f172a",
+padding:20,
+borderRadius:12
+}
+
+const estadoBox: CSSProperties = {
+border:"2px solid",
+padding:10,
+borderRadius:10,
+marginBottom:20
+}
+
+const acciones: CSSProperties = {
+display:"flex",
+gap:10,
+marginBottom:20
+}
+
+const btn = (c:string): CSSProperties => ({
+background:c,
+padding:"10px 15px",
+border:"none",
+borderRadius:8,
+color:"white",
+cursor:"pointer"
+})
+
+const section: CSSProperties = {
+background:"#0f172a",
+padding:20,
+borderRadius:12,
+marginBottom:20
+}
+
+const input: CSSProperties = {
+padding:10,
+marginRight:10,
+borderRadius:6,
+border:"1px solid #1e293b",
+background:"#020617",
+color:"white"
+}
+
+const btnPrimary: CSSProperties = {
+background:"#2563eb",
+color:"white",
+padding:"10px 15px",
+border:"none",
+borderRadius:6
+}
+
+const row: CSSProperties = {
+display:"grid",
+gridTemplateColumns:"1fr 1fr 2fr auto",
+gap:10,
+padding:10,
+borderBottom:"1px solid #1e293b"
+}
+
+const textarea: CSSProperties = {
+width:"100%",
+padding:10,
+marginTop:10,
+background:"#020617",
+color:"white",
+border:"1px solid #1e293b",
+borderRadius:6
+}
+
+/* 🔥 FIX ERROR TYPESCRIPT */
+const modalBg: CSSProperties = {
 position:"fixed",
-top:0,left:0,right:0,bottom:0,
+top:0,
+left:0,
+right:0,
+bottom:0,
 background:"rgba(0,0,0,0.7)",
 display:"flex",
 justifyContent:"center",
 alignItems:"center"
 }
 
-const modal = {
+const modal: CSSProperties = {
 background:"#0f172a",
 padding:20,
-borderRadius:10,
-width:300
+borderRadius:12,
+width:400
 }
 
-const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
-const header = {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}
-const title = {fontSize:30,fontWeight:"bold"}
-const sub = {opacity:0.6}
-const btnBack = {background:"#1e293b",padding:"10px 15px",borderRadius:8,border:"none",color:"white"}
-const grid = {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,marginBottom:20}
-const card = {background:"#0f172a",padding:20,borderRadius:12}
-const estadoBox = {border:"2px solid",padding:10,borderRadius:10,marginBottom:20}
-const acciones = {display:"flex",gap:10,marginBottom:20}
-const btn = (c:string)=>({background:c,padding:"10px 15px",border:"none",borderRadius:8,color:"white",cursor:"pointer"})
-const section = {background:"#0f172a",padding:20,borderRadius:12,marginBottom:20}
-const input = {padding:10,marginRight:10,borderRadius:6,border:"1px solid #1e293b",background:"#020617",color:"white"}
-const btnPrimary = {background:"#2563eb",color:"white",padding:"10px 15px",border:"none",borderRadius:6}
-const row = {display:"grid",gridTemplateColumns:"1fr 1fr 1fr 2fr auto",gap:10,padding:10,borderBottom:"1px solid #1e293b"}
-const loadingStyle = {height:"100vh",display:"flex",justifyContent:"center",alignItems:"center",background:"black",color:"white"}
+const loadingStyle: CSSProperties = {
+height:"100vh",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+background:"black",
+color:"white"
+}
