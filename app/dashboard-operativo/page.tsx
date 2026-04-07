@@ -4,11 +4,21 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
+/* 🎨 COLORES CONSOLA */
+const COLORES_GUARDIA:any = {
+G1: { nombre:"VERDE", color:"#22c55e" },
+G2: { nombre:"MORADO", color:"#a855f7" },
+G3: { nombre:"AMARILLO", color:"#eab308" },
+G4: { nombre:"ROSA", color:"#ec4899" },
+G5: { nombre:"AZUL", color:"#3b82f6" }
+}
+
 export default function Dashboard() {
 
 const router = useRouter()
 
 const [personal, setPersonal] = useState<any[]>([])
+const [ambulancias, setAmbulancias] = useState<any[]>([])
 const [archivos, setArchivos] = useState<any[]>([])
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
@@ -29,14 +39,15 @@ setLoading(false)
 }
 
 const fetchData = async () => {
+
 const { data: p } = await supabase.from('personal').select('*')
-const { data: a } = await supabase
-.from('archivos_asistencia')
-.select('*')
-.order('fecha',{ascending:false})
+const { data: a } = await supabase.from('archivos_asistencia').select('*')
+const { data: amb } = await supabase.from('ambulancias').select('*')
 
 if(p) setPersonal(p)
 if(a) setArchivos(a)
+if(amb) setAmbulancias(amb)
+
 }
 
 /* 🔥 CREAR */
@@ -74,14 +85,14 @@ sessionStorage.clear()
 router.replace('/')
 }
 
-/* 🔥 FILTROS LIMPIOS */
+/* 🔥 FILTROS */
 const getAmbulancia = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 
 const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
-/* 🔥 AGRUPAR SOLO AMBULANCIAS */
+/* 🔥 AGRUPAR */
 const agruparPorAmbulancia = (data:any[])=>{
 
 const grupos:any = {}
@@ -116,11 +127,9 @@ default: return 'bg-gray-400'
 }
 
 if (loading) {
-return (
-<div className="min-h-screen flex items-center justify-center bg-black text-white">
+return <div className="min-h-screen flex items-center justify-center bg-black text-white">
 🚑 Cargando sistema...
 </div>
-)
 }
 
 const guardias = ['G1','G2','G3','G4','G5']
@@ -157,42 +166,12 @@ return (
 ⚠ {alertas.length} ALERTAS
 </div>
 
-{/* KPIs */}
-<div className="grid grid-cols-4 gap-6 mb-10">
-
-<div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
-<p>Total</p>
-<h2 className="text-3xl">{personal.length}</h2>
-</div>
-
-<div className="bg-green-900 p-6 rounded-xl">
-<p>Activos</p>
-<h2 className="text-3xl">
-{personal.filter(p=>p.estado==="Activo").length}
-</h2>
-</div>
-
-<div className="bg-red-900 p-6 rounded-xl">
-<p>No disponibles</p>
-<h2 className="text-3xl">{alertas.length}</h2>
-</div>
-
-<div className="bg-blue-900 p-6 rounded-xl">
-<p>Reportes</p>
-<h2 className="text-3xl">{archivos.length}</h2>
-</div>
-
-</div>
-
 {/* CONTENIDO */}
-<div className="grid grid-cols-3 gap-6">
-
-{/* IZQUIERDA */}
-<div className="col-span-2 grid grid-cols-2 gap-6">
+<div className="grid grid-cols-2 gap-6">
 
 {guardias.map((g)=>{
 
-const ambulancias = agruparPorAmbulancia(getAmbulancia(g))
+const ambulanciasData = agruparPorAmbulancia(getAmbulancia(g))
 const consola = getConsola(g)
 
 return(
@@ -201,66 +180,35 @@ return(
 <h2 className="text-xl mb-4 text-cyan-400">{g}</h2>
 
 {/* 🚑 AMBULANCIAS */}
-{ambulancias.map(([ambulancia,personas]:any)=>(
+{ambulanciasData.map(([ambulancia,personas]:any)=>(
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
 <h3 className="text-cyan-300 mb-2">🚑 {ambulancia}</h3>
 
 {personas.map((p:any)=>(
-<div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
-
-<p className="text-sm font-semibold">{p.nombre}</p>
-
-<div className="flex items-center gap-2">
-
-<div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
-
-<button onClick={()=>setEditando(p)}
-className="text-xs bg-cyan-600 px-2 py-1 rounded">
-✏️
-</button>
-
-<button onClick={()=>supabase.from('personal').delete().eq('id',p.id).then(fetchData)}
-className="text-xs bg-red-600 px-2 py-1 rounded">
-🗑️
-</button>
-
-<input
-className="bg-black border text-xs px-1 w-16"
-value={p.ambulancia_codigo || ''}
-onChange={async (e)=>{
-await supabase.from('personal')
-.update({ambulancia_codigo:e.target.value})
-.eq('id',p.id)
-fetchData()
-}}
-/>
-
-</div>
-
-</div>
-))}
-
-</div>
-))}
-
-{/* 💻 CONSOLA (ELEGANTE) */}
-{consola.length>0 && (
-<div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
-
-<h3 className="text-green-400 mb-2">
-💻 CONSOLA
-</h3>
-
-{consola.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
 
-<p className="text-sm">{p.nombre}</p>
+<span>{p.nombre}</span>
 
 <div className="flex items-center gap-2">
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 </div>
 
+</div>
+))}
+
+</div>
+))}
+
+{/* 💻 CONSOLA */}
+{consola.length>0 && (
+<div className="border border-green-500/30 p-3 rounded">
+
+<h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
+
+{consola.map((p:any)=>(
+<div key={p.id} className="bg-black p-2 mb-2 rounded">
+{p.nombre}
 </div>
 ))}
 
@@ -273,39 +221,7 @@ fetchData()
 
 </div>
 
-{/* DERECHA */}
-<div className="space-y-6">
-
-<div className="bg-red-900/50 p-4 rounded-xl">
-<h2 className="text-red-400 mb-2">⚠ Críticos</h2>
-
-{alertas.map((p)=>(
-<div key={p.id} className="text-sm border-b py-1">
-{p.nombre} — {p.estado}
-</div>
-))}
-
-</div>
-
-<div className="bg-gray-900 p-4 rounded-xl">
-<h2 className="text-blue-400 mb-2">📁 Reportes</h2>
-
-{archivos.map((a)=>(
-<div key={a.id} className="flex justify-between text-sm border-b py-1">
-<span>{a.nombre}</span>
-<span className="text-gray-400">
-{new Date(a.fecha).toLocaleDateString('es-EC')}
-</span>
-</div>
-))}
-
-</div>
-
-</div>
-
-</div>
-
-{/* MODAL NUEVO */}
+{/* 🔥 MODAL NUEVO */}
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 
@@ -318,14 +234,18 @@ className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
 />
 
-<select className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}>
+<select
+className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}
+>
 <option value="ambulancia">Ambulancia</option>
 <option value="consola">Consola</option>
 </select>
 
-<select className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
+<select
+className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
+>
 <option>G1</option>
 <option>G2</option>
 <option>G3</option>
@@ -333,10 +253,30 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G5</option>
 </select>
 
-<input placeholder="Unidad"
+{/* 🚑 SELECT AUTOMÁTICO */}
+{formNuevo.tipo==="ambulancia" && (
+<select
 className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
-/>
+>
+<option value="">Seleccionar unidad</option>
+{ambulancias.map(a=>(
+<option key={a.id} value={a.codigo_operativo}>
+{a.codigo_operativo}
+</option>
+))}
+</select>
+)}
+
+{/* 💻 COLOR AUTOMÁTICO */}
+{formNuevo.tipo==="consola" && (
+<div
+className="p-2 rounded text-center font-bold"
+style={{background: COLORES_GUARDIA[formNuevo.guardia].color}}
+>
+{COLORES_GUARDIA[formNuevo.guardia].nombre}
+</div>
+)}
 
 <div className="flex justify-between mt-4">
 
@@ -348,49 +288,6 @@ Guardar
 Cancelar
 </button>
 
-</div>
-
-</div>
-</div>
-)}
-
-{/* MODAL EDITAR */}
-{editando && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
-<div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Editar</h2>
-
-<input
-className="w-full mb-3 p-2 bg-black border"
-value={editando.nombre}
-onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
-/>
-
-<input
-className="w-full mb-3 p-2 bg-black border"
-value={editando.ambulancia_codigo || ''}
-onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
-/>
-
-<div className="flex justify-between">
-<button onClick={async()=>{
-await supabase.from('personal')
-.update({
-nombre:editando.nombre,
-ambulancia_codigo:editando.ambulancia_codigo
-})
-.eq('id',editando.id)
-setEditando(null)
-fetchData()
-}} className="bg-green-600 px-4 py-2 rounded">
-Guardar
-</button>
-
-<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
-Cancelar
-</button>
 </div>
 
 </div>
