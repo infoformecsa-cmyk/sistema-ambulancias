@@ -72,11 +72,10 @@ setLoading(true)
 
 let fotoUrl = null
 
-/* 🔥 SUBIDA IMAGEN */
 if(foto){
 const nombre = `${Date.now()}_${foto.name}`
 
-const {data,error} = await supabase.storage
+const {data} = await supabase.storage
 .from("imagenes")
 .upload(nombre,foto)
 
@@ -178,7 +177,6 @@ Fuera
 <div style={section}>
 <h3>📋 Historial Operativo</h3>
 
-{/* HEADER TABLA */}
 <div style={rowHeader}>
 <div>Fecha</div>
 <div>Estado</div>
