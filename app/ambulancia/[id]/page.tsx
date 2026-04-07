@@ -21,14 +21,15 @@ const [mostrarModal,setMostrarModal] = useState(false)
 const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 
-const [loading,setLoading] = useState(false)
+/* 🔥 NUEVO */
+const [tipoMtto,setTipoMtto] = useState("")
+const [area,setArea] = useState("")
+const [foto,setFoto] = useState<File | null>(null)
 
-const [editando,setEditando] = useState<any>(null)
+const [loading,setLoading] = useState(false)
 
 const bloqueado = useRef(false)
 
-/* ========================= */
-/* INIT */
 /* ========================= */
 
 useEffect(()=>{
@@ -56,7 +57,72 @@ setHistorial(data || [])
 }
 
 /* ========================= */
-/* FUNCIONES */
+
+function abrirCambioEstado(estado:string){
+setEstadoPendiente(estado)
+setMostrarModal(true)
+}
+
+/* ========================= */
+
+async function confirmarCambioEstado(){
+
+if(!estadoPendiente) return
+
+setLoading(true)
+
+let fotoUrl = null
+
+/* 🔥 SUBIR IMAGEN */
+if(foto){
+const nombre = `${Date.now()}_${foto.name}`
+
+const {data,error} = await supabase.storage
+.from("imagenes")
+.upload(nombre,foto)
+
+if(data){
+const {data:url} = supabase.storage
+.from("imagenes")
+.getPublicUrl(nombre)
+
+fotoUrl = url.publicUrl
+}
+}
+
+try{
+
+await supabase
+.from("ambulancias")
+.update({ estado: estadoPendiente })
+.eq("id",id)
+
+await supabase.from("historial_operativo").insert({
+ambulancia_id: id,
+estado: estadoPendiente,
+motivo: motivoCambio,
+tipo_mantenimiento: tipoMtto,
+area: area,
+foto_url: fotoUrl,
+fecha_inicio: new Date().toISOString()
+})
+
+setMostrarModal(false)
+setMotivoCambio("")
+setTipoMtto("")
+setArea("")
+setFoto(null)
+
+cargarTodo()
+
+}catch(err){
+console.error(err)
+alert("❌ Error al guardar")
+}
+
+setLoading(false)
+}
+
 /* ========================= */
 
 async function actualizarKilometraje(){
@@ -83,54 +149,9 @@ setKmMtto("")
 cargarAmbulancia()
 }
 
-function abrirCambioEstado(estado:string){
-setEstadoPendiente(estado)
-setMostrarModal(true)
-}
-
-/* 🔥 CAMBIO ESTADO REAL */
-async function confirmarCambioEstado(){
-
-if(!estadoPendiente) return
-
-setLoading(true)
-
-try{
-
-await supabase
-.from("ambulancias")
-.update({ estado: estadoPendiente })
-.eq("id",id)
-
-await supabase.from("historial_operativo").insert({
-ambulancia_id: id,
-estado: estadoPendiente,
-motivo: motivoCambio,
-fecha_inicio: new Date().toISOString()
-})
-
-setMostrarModal(false)
-setMotivoCambio("")
-cargarTodo()
-
-}catch(err){
-console.error(err)
-alert("❌ Error al cambiar estado")
-}
-
-setLoading(false)
-}
-
-/* 🔥 ELIMINAR */
 async function eliminarRegistro(idRegistro:string){
-
 if(!confirm("¿Eliminar registro?")) return
-
-await supabase
-.from("historial_operativo")
-.delete()
-.eq("id",idRegistro)
-
+await supabase.from("historial_operativo").delete().eq("id",idRegistro)
 cargarHistorial()
 }
 
@@ -142,8 +163,6 @@ if(ambulancia.estado === "mantenimiento") return "#f59e0b"
 return "#ef4444"
 }
 
-/* ========================= */
-/* UI */
 /* ========================= */
 
 if(!ambulancia) return <div style={loadingStyle}>🚑 Cargando...</div>
@@ -219,23 +238,31 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div style={section}>
 <h3>📋 Historial</h3>
 
-{historial.map(h=>(
-<div key={h.id} style={row}>
-
-<div>{new Date(h.fecha_inicio).toLocaleString()}</div>
-
-<div style={{color:estadoColor()}}>
-{h.estado}
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 2fr 1fr auto",fontWeight:"bold"}}>
+<div>Fecha</div>
+<div>Estado</div>
+<div>Tipo</div>
+<div>Área</div>
+<div>Motivo</div>
+<div>Foto</div>
+<div></div>
 </div>
 
+{historial.map(h=>(
+<div key={h.id} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 2fr 1fr auto",gap:10,padding:10}}>
+
+<div>{new Date(h.fecha_inicio).toLocaleString()}</div>
+<div style={{color:estadoColor()}}>{h.estado}</div>
+<div>{h.tipo_mantenimiento || "-"}</div>
+<div>{h.area || "-"}</div>
 <div>{h.motivo}</div>
 
-<div style={{display:"flex",gap:5}}>
+<div>
+{h.foto_url && <a href={h.foto_url} target="_blank">📷</a>}
+</div>
 
-<button onClick={()=>setEditando(h)}>✏️</button>
-
+<div>
 <button onClick={()=>eliminarRegistro(h.id)}>🗑️</button>
-
 </div>
 
 </div>
@@ -243,7 +270,7 @@ Estado: {ambulancia.estado.toUpperCase()}
 
 </div>
 
-{/* 🔥 MODAL */}
+{/* MODAL */}
 {mostrarModal && (
 <div style={modalBg}>
 <div style={modal}>
@@ -258,6 +285,21 @@ value={motivoCambio}
 onChange={(e)=>setMotivoCambio(e.target.value)}
 style={textarea}
 />
+
+<select value={tipoMtto} onChange={(e)=>setTipoMtto(e.target.value)} style={input}>
+<option value="">Tipo de mantenimiento</option>
+<option value="preventivo">Preventivo</option>
+<option value="correctivo">Correctivo</option>
+</select>
+
+<select value={area} onChange={(e)=>setArea(e.target.value)} style={input}>
+<option value="">Área</option>
+<option value="mecanico">Mecánico</option>
+<option value="electrico">Eléctrico</option>
+<option value="aire">Aire acondicionado</option>
+</select>
+
+<input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
 
 <div style={{display:"flex",gap:10,marginTop:10}}>
 <button onClick={confirmarCambioEstado} style={btnPrimary}>
@@ -281,133 +323,20 @@ Cancelar
 /* ESTILOS */
 /* ========================= */
 
-const container: CSSProperties = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const header: CSSProperties = {
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
-marginBottom:20
-}
-
+const container: CSSProperties = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
+const header: CSSProperties = {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}
 const title = {fontSize:30,fontWeight:"bold"}
 const sub = {opacity:0.6}
-
-const btnBack: CSSProperties = {
-background:"#1e293b",
-padding:"10px 15px",
-borderRadius:8,
-border:"none",
-color:"white"
-}
-
-const grid: CSSProperties = {
-display:"grid",
-gridTemplateColumns:"repeat(3,1fr)",
-gap:20,
-marginBottom:20
-}
-
-const card: CSSProperties = {
-background:"#0f172a",
-padding:20,
-borderRadius:12
-}
-
-const estadoBox: CSSProperties = {
-border:"2px solid",
-padding:10,
-borderRadius:10,
-marginBottom:20
-}
-
-const acciones: CSSProperties = {
-display:"flex",
-gap:10,
-marginBottom:20
-}
-
-const btn = (c:string): CSSProperties => ({
-background:c,
-padding:"10px 15px",
-border:"none",
-borderRadius:8,
-color:"white",
-cursor:"pointer"
-})
-
-const section: CSSProperties = {
-background:"#0f172a",
-padding:20,
-borderRadius:12,
-marginBottom:20
-}
-
-const input: CSSProperties = {
-padding:10,
-marginRight:10,
-borderRadius:6,
-border:"1px solid #1e293b",
-background:"#020617",
-color:"white"
-}
-
-const btnPrimary: CSSProperties = {
-background:"#2563eb",
-color:"white",
-padding:"10px 15px",
-border:"none",
-borderRadius:6
-}
-
-const row: CSSProperties = {
-display:"grid",
-gridTemplateColumns:"1fr 1fr 2fr auto",
-gap:10,
-padding:10,
-borderBottom:"1px solid #1e293b"
-}
-
-const textarea: CSSProperties = {
-width:"100%",
-padding:10,
-marginTop:10,
-background:"#020617",
-color:"white",
-border:"1px solid #1e293b",
-borderRadius:6
-}
-
-/* 🔥 FIX ERROR TYPESCRIPT */
-const modalBg: CSSProperties = {
-position:"fixed",
-top:0,
-left:0,
-right:0,
-bottom:0,
-background:"rgba(0,0,0,0.7)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
-}
-
-const modal: CSSProperties = {
-background:"#0f172a",
-padding:20,
-borderRadius:12,
-width:400
-}
-
-const loadingStyle: CSSProperties = {
-height:"100vh",
-display:"flex",
-justifyContent:"center",
-alignItems:"center",
-background:"black",
-color:"white"
-}
+const btnBack: CSSProperties = {background:"#1e293b",padding:"10px 15px",borderRadius:8,color:"white"}
+const grid: CSSProperties = {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,marginBottom:20}
+const card: CSSProperties = {background:"#0f172a",padding:20,borderRadius:12}
+const estadoBox: CSSProperties = {border:"2px solid",padding:10,borderRadius:10,marginBottom:20}
+const acciones: CSSProperties = {display:"flex",gap:10,marginBottom:20}
+const btn = (c:string): CSSProperties => ({background:c,padding:"10px 15px",borderRadius:8,color:"white"})
+const section: CSSProperties = {background:"#0f172a",padding:20,borderRadius:12,marginBottom:20}
+const input: CSSProperties = {padding:10,marginTop:5,borderRadius:6,background:"#020617",color:"white"}
+const btnPrimary: CSSProperties = {background:"#2563eb",color:"white",padding:"10px 15px",borderRadius:6}
+const textarea: CSSProperties = {width:"100%",padding:10,marginTop:10,background:"#020617",color:"white"}
+const modalBg: CSSProperties = {position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.7)",display:"flex",justifyContent:"center",alignItems:"center"}
+const modal: CSSProperties = {background:"#0f172a",padding:20,borderRadius:12,width:400}
+const loadingStyle: CSSProperties = {height:"100vh",display:"flex",justifyContent:"center",alignItems:"center",background:"black",color:"white"}
