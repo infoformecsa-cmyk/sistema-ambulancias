@@ -10,7 +10,6 @@ const router = useRouter()
 
 const [personal, setPersonal] = useState<any[]>([])
 const [archivos, setArchivos] = useState<any[]>([])
-const [ambulanciasDB, setAmbulanciasDB] = useState<any[]>([]) // 🔥 NUEVO
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
 const [loading, setLoading] = useState(true)
@@ -39,20 +38,28 @@ setLoading(false)
 }
 
 const fetchData = async () => {
-
 const { data: p } = await supabase.from('personal').select('*')
 const { data: a } = await supabase
 .from('archivos_asistencia')
 .select('*')
 .order('fecha',{ascending:false})
 
-/* 🔥 TRAER AMBULANCIAS */
-const { data: amb } = await supabase.from('ambulancias').select('id, codigo_operativo')
-
 if(p) setPersonal(p)
 if(a) setArchivos(a)
-if(amb) setAmbulanciasDB(amb)
 }
+
+/* 🔥 LISTA AUTOMÁTICA DE AMBULANCIAS (SIN TABLAS NUEVAS) */
+const listaAmbulancias = [
+...new Set(
+personal
+.filter(p => p.tipo === "ambulancia" && p.ambulancia_codigo)
+.map(p => p.ambulancia_codigo)
+)
+].sort((a:any,b:any)=>{
+const numA = parseInt(a.replace(/\D/g,'')) || 999
+const numB = parseInt(b.replace(/\D/g,'')) || 999
+return numA - numB
+})
 
 /* 🔥 CREAR */
 const crearNuevo = async ()=>{
@@ -172,6 +179,33 @@ return (
 ⚠ {alertas.length} ALERTAS
 </div>
 
+{/* KPIs */}
+<div className="grid grid-cols-4 gap-6 mb-10">
+
+<div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
+<p>Total</p>
+<h2 className="text-3xl">{personal.length}</h2>
+</div>
+
+<div className="bg-green-900 p-6 rounded-xl">
+<p>Activos</p>
+<h2 className="text-3xl">
+{personal.filter(p=>p.estado==="Activo").length}
+</h2>
+</div>
+
+<div className="bg-red-900 p-6 rounded-xl">
+<p>No disponibles</p>
+<h2 className="text-3xl">{alertas.length}</h2>
+</div>
+
+<div className="bg-blue-900 p-6 rounded-xl">
+<p>Reportes</p>
+<h2 className="text-3xl">{archivos.length}</h2>
+</div>
+
+</div>
+
 {/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 
@@ -289,23 +323,22 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G5</option>
 </select>
 
-{/* 🚑 SELECT DINÁMICO */}
+{/* 🚑 SELECT AUTOMÁTICO */}
 {formNuevo.tipo==="ambulancia" && (
 <select
 className="w-full mb-2 p-2 bg-black border"
+value={formNuevo.ambulancia_codigo}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
 >
 <option value="">Seleccionar unidad</option>
-{(ambulanciasDB || []).map((a:any)=>(
-<option key={a.id} value={a.codigo_operativo}>
-{a.codigo_operativo}
-</option>
+{listaAmbulancias.map((cod:any)=>(
+<option key={cod} value={cod}>{cod}</option>
 ))}
 </select>
 )}
 
-{/* 💻 COLOR AUTOMÁTICO */}
-{formNuevo.tipo==="consola" && COLORES_GUARDIA[formNuevo.guardia] && (
+{/* 💻 COLOR CONSOLA */}
+{formNuevo.tipo==="consola" && (
 <div
 className="w-full mb-2 p-2 text-center font-bold rounded"
 style={{
@@ -333,7 +366,48 @@ Cancelar
 </div>
 )}
 
-{/* MODAL EDITAR → intacto */}
+{/* MODAL EDITAR */}
+{editando && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+
+<div className="bg-gray-900 p-6 rounded-xl w-80">
+
+<h2 className="mb-4">Editar</h2>
+
+<input
+className="w-full mb-3 p-2 bg-black border"
+value={editando.nombre}
+onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
+/>
+
+<input
+className="w-full mb-3 p-2 bg-black border"
+value={editando.ambulancia_codigo || ''}
+onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
+/>
+
+<div className="flex justify-between">
+<button onClick={async()=>{
+await supabase.from('personal')
+.update({
+nombre:editando.nombre,
+ambulancia_codigo:editando.ambulancia_codigo
+})
+.eq('id',editando.id)
+setEditando(null)
+fetchData()
+}} className="bg-green-600 px-4 py-2 rounded">
+Guardar
+</button>
+
+<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
+Cancelar
+</button>
+</div>
+
+</div>
+</div>
+)}
 
 </div>
 )
