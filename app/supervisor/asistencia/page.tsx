@@ -60,7 +60,6 @@ const grupo:any = {}
 
 let key = "SIN ASIGNAR"
 
-/* 🔥 CAMBIO INTELIGENTE */
 if(tipo === "consola"){
 key = GRUPOS_COLORES[p.guardia]?.nombre || "CONSOLA"
 }else{
@@ -149,7 +148,12 @@ Guardia: {guardia} | Turno: {turnoGlobal}
 <option value="12h_noche">12 Noche</option>
 </select>
 
-<input type="date" value={fecha} onChange={(e)=>setFecha(e.target.value)} style={input}/>
+<input
+type="date"
+value={fecha}
+onChange={(e)=>setFecha(e.target.value)}
+style={input}
+/>
 
 <button onClick={()=>router.push("/supervisor")} style={btn}>
 ⬅ Volver
@@ -157,11 +161,17 @@ Guardia: {guardia} | Turno: {turnoGlobal}
 
 </div>
 
-{/* 🔥 AGRUPADO MEJORADO */}
+{/* 🔥 AGRUPADO */}
 {Object.keys(agrupado).sort().map(grupoNombre=>{
 
-const colorGrupo =
-Object.values(GRUPOS_COLORES).find((g:any)=>g.nombre === grupoNombre)?.color || "#38bdf8"
+let colorGrupo = "#38bdf8"
+
+/* 🔥 FIX BUILD VERCEL */
+for(const key in GRUPOS_COLORES){
+if(GRUPOS_COLORES[key].nombre === grupoNombre){
+colorGrupo = GRUPOS_COLORES[key].color
+}
+}
 
 return(
 <div key={grupoNombre}>
