@@ -67,13 +67,23 @@ setExpandido((p:any)=>({...p,[k]:!p[k]}))
 
 function agregarLote(id:string){
 const actual = datos[id] || []
-setDatos({...datos,[id]:[...actual,{lote:"",cantidad:0,fecha:""}]})
+setDatos({...datos,[id]:[...actual,{lote:"",cantidad:"",fecha:""}]})
 }
 
+/* 🔥 CORREGIDO */
 function actualizar(id:string,i:number,campo:string,val:any){
-const copia = [...(datos[id]||[])]
-copia[i][campo]=val
-setDatos({...datos,[id]:copia})
+
+const copia = [...(datos[id] || [])]
+
+if(!copia[i]) copia[i] = {}
+
+copia[i][campo] = val
+
+setDatos({
+  ...datos,
+  [id]: copia
+})
+
 }
 
 function setCheck(id:string,val:string){
@@ -113,9 +123,6 @@ if(!lotes || lotes.length === 0) continue
 
 for(const l of lotes){
 
-/* ========================= */
-/* 🔥 CHECK CORREGIDO */
-/* ========================= */
 if(l.estado){
 
 await supabase.from("bitacora_items").insert({
@@ -129,10 +136,6 @@ fecha_registro: new Date().toISOString()
 
 continue
 }
-
-/* ========================= */
-/* 📦 STOCK NORMAL */
-/* ========================= */
 
 if(!l.lote && !l.cantidad && !l.fecha) continue
 
@@ -156,10 +159,6 @@ alert("❌ Error guardando checklist")
 setGuardando(false)
 return
 }
-
-/* ========================= */
-/* 🔥 BITÁCORA CORREGIDA */
-/* ========================= */
 
 await supabase.from("bitacora_items").insert({
 ambulancia_id: String(ambulancia),
@@ -187,7 +186,7 @@ setGuardando(false)
 }
 
 /* ========================= */
-/* UI (NO TOCADO) */
+/* UI */
 /* ========================= */
 
 return(
@@ -258,9 +257,9 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 {(datos[k.id]||[]).map((l:any,i:number)=>(
 
 <div key={i} style={inputsRow}>
-<input placeholder="Lote" onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
-<input type="number" onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
-<input type="date" onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
+<input value={l.lote || ""} placeholder="Lote" onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
+<input type="number" value={l.cantidad || ""} onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
+<input type="date" value={l.fecha || ""} onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
 </div>
 
 ))}
@@ -302,7 +301,7 @@ return(
 <span style={badge}>CHECK</span>
 </div>
 
-<select onChange={(e)=>setCheck(i.id,e.target.value)} style={input}>
+<select value={(datos[i.id]?.[0]?.estado)||""} onChange={(e)=>setCheck(i.id,e.target.value)} style={input}>
 <option value="">Seleccione</option>
 <option value="SI">SI</option>
 <option value="NO">NO</option>
@@ -324,9 +323,9 @@ return(
 {(datos[i.id]||[]).map((l:any,index:number)=>(
 
 <div key={index} style={inputsRow}>
-<input placeholder="Lote" onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
-<input type="number" onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
-<input type="date" onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
+<input value={l.lote || ""} placeholder="Lote" onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
+<input type="number" value={l.cantidad || ""} onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
+<input type="date" value={l.fecha || ""} onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 </div>
 
 ))}
@@ -353,7 +352,7 @@ return(
 }
 
 /* ========================= */
-/* ESTILOS (NO TOCADOS) */
+/* ESTILOS */
 /* ========================= */
 
 const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
