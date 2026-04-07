@@ -126,7 +126,13 @@ fecha_registro: new Date().toISOString()
 continue
 }
 
-if(!l.lote && !l.cantidad && !l.fecha) continue
+/* 🔥 NUEVA VALIDACIÓN INTELIGENTE */
+const tieneDatos =
+(l.lote && l.lote.trim() !== "") ||
+(l.cantidad && Number(l.cantidad) > 0) ||
+(l.fecha && l.fecha !== "")
+
+if(!tieneDatos) continue
 
 const cantidadNum = Number(l.cantidad || 0)
 
