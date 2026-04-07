@@ -5,6 +5,15 @@ import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
+/* 🎨 MAPA VISUAL DE GRUPOS CONSOLA */
+const GRUPOS_COLORES:any = {
+G1: { nombre:"GRUPO VERDE", color:"#22c55e" },
+G2: { nombre:"GRUPO MORADO", color:"#a855f7" },
+G3: { nombre:"GRUPO AMARILLO", color:"#eab308" },
+G4: { nombre:"GRUPO ROSA", color:"#ec4899" },
+G5: { nombre:"GRUPO AZUL", color:"#3b82f6" }
+}
+
 export default function Asistencia(){
 
 const router = useRouter()
@@ -46,10 +55,17 @@ mapa[a.id] = a.codigo_operativo
 })
 
 const grupo:any = {}
+
 ;(data || []).forEach((p:any)=>{
-const key =
-mapa[p.ambulancia_base] ||
-"SIN ASIGNAR"
+
+let key = "SIN ASIGNAR"
+
+/* 🔥 CAMBIO INTELIGENTE */
+if(tipo === "consola"){
+key = GRUPOS_COLORES[p.guardia]?.nombre || "CONSOLA"
+}else{
+key = mapa[p.ambulancia_base] || "SIN ASIGNAR"
+}
 
 if(!grupo[key]) grupo[key] = []
 grupo[key].push(p)
@@ -59,7 +75,7 @@ setAgrupado(grupo)
 
 }
 
-/* 🔥 GUARDAR (SIN ROMPER BD) */
+/* GUARDAR */
 async function guardar(){
 
 const usuario = localStorage.getItem("email") || "admin"
@@ -133,12 +149,7 @@ Guardia: {guardia} | Turno: {turnoGlobal}
 <option value="12h_noche">12 Noche</option>
 </select>
 
-<input
-type="date"
-value={fecha}
-onChange={(e)=>setFecha(e.target.value)}
-style={input}
-/>
+<input type="date" value={fecha} onChange={(e)=>setFecha(e.target.value)} style={input}/>
 
 <button onClick={()=>router.push("/supervisor")} style={btn}>
 ⬅ Volver
@@ -146,13 +157,25 @@ style={input}
 
 </div>
 
-{/* 🔥 AGRUPADO BONITO COMO TENÍAS */}
-{Object.keys(agrupado).sort().map(ambu=>(
-<div key={ambu}>
+{/* 🔥 AGRUPADO MEJORADO */}
+{Object.keys(agrupado).sort().map(grupoNombre=>{
 
-<h2 style={{color:"#38bdf8"}}>🚑 {ambu}</h2>
+const colorGrupo =
+Object.values(GRUPOS_COLORES).find((g:any)=>g.nombre === grupoNombre)?.color || "#38bdf8"
 
-{agrupado[ambu].map((p:any)=>{
+return(
+<div key={grupoNombre}>
+
+<h2 style={{
+color:colorGrupo,
+display:"flex",
+alignItems:"center",
+gap:10
+}}>
+{tipo === "consola" ? "💻" : "🚑"} {grupoNombre}
+</h2>
+
+{agrupado[grupoNombre].map((p:any)=>{
 
 const estado = registros[p.id]?.estado
 
@@ -201,7 +224,6 @@ background: estado === s ? colores[s] : "#1f2937"
 </button>
 ))}
 
-{/* 🔥 R2 SOLO VISUAL (NO BD) */}
 <label style={{fontSize:12}}>
 <input
 type="checkbox"
@@ -232,17 +254,6 @@ style={inputMini}
 
 </div>
 
-{registros[p.id]?.es_r2 && (
-<input
-placeholder="Origen R2 (ej: ALFA 3)"
-onChange={(e)=>setRegistros({
-...registros,
-[p.id]: {...registros[p.id], origen_r2:e.target.value}
-})}
-style={input}
-/>
-)}
-
 <input
 placeholder="Observación"
 onChange={(e)=>setRegistros({
@@ -257,7 +268,8 @@ style={input}
 })}
 
 </div>
-))}
+)
+})}
 
 <button onClick={guardar} style={btnGuardar}>
 💾 Guardar Asistencia
@@ -267,7 +279,7 @@ style={input}
 )
 }
 
-/* 🎨 TUS ESTILOS ORIGINALES RESTAURADOS */
+/* 🎨 ESTILOS */
 
 const colores:any = {
 asistio:"#22c55e",
