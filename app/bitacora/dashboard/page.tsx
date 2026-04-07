@@ -36,13 +36,12 @@ async function cargar(){
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
-.eq("tipo","CHECKLIST") // 🔥 FILTRO CLAVE
+.eq("tipo","CHECKLIST")
 
 const hoy = new Date()
 
 const procesado = (data || []).map(item=>{
 
-// 🔥 FIX DE FECHA
 const fecha = new Date(item.fecha_registro || item.updated_at || item.created_at)
 
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
@@ -69,13 +68,13 @@ setData(procesado)
 /* DETALLE */
 /* ========================= */
 
-async function cargarRegistros(id:string){
+async function cargarRegistros(id:any){
 
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
-.eq("ambulancia_id", id)
-.eq("tipo","CHECKLIST") // 🔥 MISMO FILTRO
+.eq("ambulancia_id", String(id)) // 🔥 FIX CLAVE
+.eq("tipo","CHECKLIST")
 
 const hoy = new Date()
 
@@ -101,16 +100,7 @@ return {...item, estado}
 })
 
 setRegistros(procesado || [])
-
 }
-
-/* ========================= */
-/* MAPA */
-/* ========================= */
-
-const mapaAmbulancias = Object.fromEntries(
-ambulancias.map(a => [a.id, a.codigo_operativo])
-)
 
 /* ========================= */
 /* INTELIGENCIA */
@@ -118,7 +108,9 @@ ambulancias.map(a => [a.id, a.codigo_operativo])
 
 const resumenAmbulancias = ambulancias.map(a=>{
 
-const items = data.filter(i=>i.ambulancia_id === a.id)
+const items = data.filter(
+i => String(i.ambulancia_id) === String(a.id) // 🔥 FIX PRINCIPAL
+)
 
 if(items.length === 0){
 return {
@@ -153,7 +145,7 @@ preventivos
 })
 
 /* ========================= */
-/* MÉTRICAS GENERALES */
+/* MÉTRICAS */
 /* ========================= */
 
 const total = resumenAmbulancias.length
@@ -193,8 +185,8 @@ cargarRegistros(ambulanciaSeleccionada.id)
 }
 }
 
-function irChecklist(ambulanciaId:string){
-router.push(`/inventario/checklist?ambulancia=${ambulanciaId}`)
+function irChecklist(ambulanciaId:any){
+router.push(`/inventario/checklist?ambulancia=${String(ambulanciaId)}`)
 }
 
 /* ========================= */
@@ -204,20 +196,17 @@ router.push(`/inventario/checklist?ambulancia=${ambulanciaId}`)
 return(
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 
 <div>
 <h1>🚑 Centro de Control Médico</h1>
 
 <div style={metricas}>
-
 <span>🚑 {total}</span>
 <span style={{color:"#22c55e"}}>OK {ok}</span>
 <span style={{color:"#f59e0b"}}>Prev {preventivo}</span>
 <span style={{color:"#ef4444"}}>Crit {critico}</span>
 <span style={{color:"#7f1d1d"}}>Falt {faltante}</span>
-
 </div>
 
 </div>
@@ -231,7 +220,6 @@ Salir
 {/* ALERTAS */}
 {resumenAmbulancias.filter(a=>a.estado==="FALTANTE" || a.estado==="CRITICO").length > 0 && (
 <div style={alertas}>
-
 <b>🚨 ALERTAS CRÍTICAS</b>
 
 {resumenAmbulancias
@@ -242,7 +230,6 @@ Salir
 🚑 {a.nombre} → {a.estado}
 </div>
 ))}
-
 </div>
 )}
 
@@ -264,6 +251,8 @@ cursor:"pointer",
 transition:"0.2s",
 transform:"scale(1)"
 }}
+onMouseEnter={(e)=>e.currentTarget.style.transform="scale(1.05)"}
+onMouseLeave={(e)=>e.currentTarget.style.transform="scale(1)"}
 >
 
 <div style={{fontWeight:"bold"}}>🚑 {a.nombre}</div>
