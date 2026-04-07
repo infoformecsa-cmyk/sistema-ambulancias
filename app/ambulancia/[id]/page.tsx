@@ -27,6 +27,9 @@ const [foto,setFoto] = useState<File | null>(null)
 
 const [loading,setLoading] = useState(false)
 
+/* 🔥 NUEVO SOLO PARA EDITAR */
+const [editando,setEditando] = useState<any>(null)
+
 /* ========================= */
 
 useEffect(()=>{
@@ -56,6 +59,7 @@ setHistorial(data || [])
 /* ========================= */
 
 function abrirCambioEstado(estado:string){
+setEditando(null) // 🔥 IMPORTANTE
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
@@ -100,7 +104,27 @@ await supabase
 .update({ estado: estadoPendiente })
 .eq("id",id)
 
-/* 🔥 INSERT HISTORIAL */
+/* 🔥 EDITAR O INSERTAR */
+if(editando){
+
+const { error } = await supabase
+.from("historial_operativo")
+.update({
+estado: estadoPendiente,
+motivo: motivoCambio.trim(),
+tipo_mantenimiento: tipoMtto || null,
+area: area || null,
+})
+.eq("id", editando.id)
+
+if(error){
+console.error(error)
+alert("❌ Error al actualizar")
+return
+}
+
+}else{
+
 const { error: insertError } = await supabase
 .from("historial_operativo")
 .insert({
@@ -119,14 +143,17 @@ alert("❌ Error al guardar historial")
 return
 }
 
+}
+
 /* RESET */
 setMostrarModal(false)
 setMotivoCambio("")
 setTipoMtto("")
 setArea("")
 setFoto(null)
+setEditando(null)
 
-/* 🔥 REFRESH REAL */
+/* REFRESH */
 await cargarTodo()
 
 }catch(err){
@@ -250,7 +277,15 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div>{h.foto_url && <a href={h.foto_url} target="_blank">📷</a>}</div>
 
 <div style={{display:"flex",gap:5}}>
-<button>✏️</button>
+<button onClick={()=>{
+setEditando(h)
+setEstadoPendiente(h.estado)
+setMotivoCambio(h.motivo || "")
+setTipoMtto(h.tipo_mantenimiento || "")
+setArea(h.area || "")
+setMostrarModal(true)
+}}>✏️</button>
+
 <button onClick={()=>eliminarRegistro(h.id)}>🗑️</button>
 </div>
 
@@ -264,7 +299,8 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div style={modalBg}>
 <div style={modal}>
 
-<h3>Cambiar estado</h3>
+<h3>{editando ? "Editar registro" : "Cambiar estado"}</h3>
+
 <p>Nuevo estado: <b>{estadoPendiente}</b></p>
 
 <textarea
