@@ -21,7 +21,16 @@ guardia:"G1",
 ambulancia_codigo:""
 })
 
-/* 🎨 COLORES CONSOLA (SAFE) */
+/* 🔥 LISTA DINÁMICA SEGURA */
+const listaAmbulancias = Array.from(
+new Set(
+personal
+.filter(p => p.tipo === "ambulancia" && p.ambulancia_codigo)
+.map(p => p.ambulancia_codigo)
+)
+)
+
+/* 🎨 COLORES CONSOLA */
 const COLORES_GUARDIA:any = {
 G1: { nombre:"VERDE", color:"#22c55e" },
 G2: { nombre:"MORADO", color:"#a855f7" },
@@ -47,19 +56,6 @@ const { data: a } = await supabase
 if(p) setPersonal(p)
 if(a) setArchivos(a)
 }
-
-/* 🔥 LISTA SEGURA DE AMBULANCIAS */
-const listaAmbulancias = [
-...new Set(
-(personal || [])
-.filter(p => p?.tipo === "ambulancia" && p?.ambulancia_codigo)
-.map(p => String(p.ambulancia_codigo))
-)
-].sort((a:any,b:any)=>{
-const numA = parseInt((a || '').replace(/\D/g,'')) || 999
-const numB = parseInt((b || '').replace(/\D/g,'')) || 999
-return numA - numB
-})
 
 /* 🔥 CREAR */
 const crearNuevo = async ()=>{
@@ -96,34 +92,34 @@ sessionStorage.clear()
 router.replace('/')
 }
 
-/* 🔥 FILTROS */
+/* 🔥 FILTROS LIMPIOS */
 const getAmbulancia = (g:string)=>
-(personal || []).filter(p=>p?.guardia===g && p?.tipo==="ambulancia")
+personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 
 const getConsola = (g:string)=>
-(personal || []).filter(p=>p?.guardia===g && p?.tipo==="consola")
+personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
-/* 🔥 AGRUPAR */
+/* 🔥 AGRUPAR SOLO AMBULANCIAS */
 const agruparPorAmbulancia = (data:any[])=>{
 
 const grupos:any = {}
 
-;(data || []).forEach(p=>{
-const key = p?.ambulancia_codigo || 'SIN UNIDAD'
+data.forEach(p=>{
+const key = p.ambulancia_codigo || 'SIN UNIDAD'
 if(!grupos[key]) grupos[key]=[]
 grupos[key].push(p)
 })
 
 return Object.entries(grupos).sort((a:any,b:any)=>{
-const numA = parseInt((a[0] || '').replace(/\D/g,'')) || 999
-const numB = parseInt((b[0] || '').replace(/\D/g,'')) || 999
+const numA = parseInt(a[0].replace(/\D/g,'')) || 999
+const numB = parseInt(b[0].replace(/\D/g,'')) || 999
 return numA - numB
 })
 }
 
 /* 🔥 ALERTAS */
-const alertas = (personal || []).filter(
-p => p?.estado === 'Reposo Médico' || p?.estado === 'Permiso'
+const alertas = personal.filter(
+p => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
 )
 
 /* 🔥 COLOR */
@@ -209,6 +205,7 @@ return (
 {/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 
+{/* IZQUIERDA */}
 <div className="col-span-2 grid grid-cols-2 gap-6">
 
 {guardias.map((g)=>{
@@ -227,13 +224,36 @@ return(
 
 <h3 className="text-cyan-300 mb-2">🚑 {ambulancia}</h3>
 
-{(personas || []).map((p:any)=>(
+{personas.map((p:any)=>(
 <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
 
 <p className="text-sm font-semibold">{p.nombre}</p>
 
 <div className="flex items-center gap-2">
+
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
+
+<button onClick={()=>setEditando(p)}
+className="text-xs bg-cyan-600 px-2 py-1 rounded">
+✏️
+</button>
+
+<button onClick={()=>supabase.from('personal').delete().eq('id',p.id).then(fetchData)}
+className="text-xs bg-red-600 px-2 py-1 rounded">
+🗑️
+</button>
+
+<input
+className="bg-black border text-xs px-1 w-16"
+value={p.ambulancia_codigo || ''}
+onChange={async (e)=>{
+await supabase.from('personal')
+.update({ambulancia_codigo:e.target.value})
+.eq('id',p.id)
+fetchData()
+}}
+/>
+
 </div>
 
 </div>
@@ -246,7 +266,9 @@ return(
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 
-<h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
+<h3 className="text-green-400 mb-2">
+💻 CONSOLA
+</h3>
 
 {consola.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
@@ -277,24 +299,19 @@ return(
 
 <h2 className="mb-4">Nuevo funcionario</h2>
 
-<input
-placeholder="Nombre"
+<input placeholder="Nombre"
 className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
 />
 
-<select
-className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}
->
+<select className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}>
 <option value="ambulancia">Ambulancia</option>
 <option value="consola">Consola</option>
 </select>
 
-<select
-className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
->
+<select className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G1</option>
 <option>G2</option>
 <option>G3</option>
@@ -302,7 +319,7 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
 <option>G5</option>
 </select>
 
-{/* 🚑 SELECT */}
+{/* 🚑 SELECT AUTOMÁTICO */}
 {formNuevo.tipo==="ambulancia" && (
 <select
 className="w-full mb-2 p-2 bg-black border"
@@ -310,14 +327,14 @@ value={formNuevo.ambulancia_codigo || ""}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
 >
 <option value="">Seleccionar unidad</option>
-{(listaAmbulancias || []).map((cod:any)=>(
+{listaAmbulancias.map((cod:any)=>(
 <option key={cod} value={cod}>{cod}</option>
 ))}
 </select>
 )}
 
-{/* 💻 COLOR */}
-{formNuevo.tipo==="consola" && COLORES_GUARDIA?.[formNuevo.guardia] && (
+{/* 💻 COLOR CONSOLA */}
+{formNuevo.tipo==="consola" && COLORES_GUARDIA[formNuevo.guardia] && (
 <div
 className="w-full mb-2 p-2 text-center font-bold rounded"
 style={{
@@ -325,18 +342,63 @@ background: COLORES_GUARDIA[formNuevo.guardia].color,
 color:"#000"
 }}
 >
-💻 {COLORES_GUARDIA[formNuevo.guardia].nombre}
+💻 GRUPO {COLORES_GUARDIA[formNuevo.guardia].nombre}
 </div>
 )}
 
 <div className="flex justify-between mt-4">
 
 <button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">
-Guardar</button>
+Guardar
+</button>
 
 <button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">
-Cancelar</button>
+Cancelar
+</button>
 
+</div>
+
+</div>
+</div>
+)}
+
+{/* MODAL EDITAR (sin cambios) */}
+{editando && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+
+<div className="bg-gray-900 p-6 rounded-xl w-80">
+
+<h2 className="mb-4">Editar</h2>
+
+<input
+className="w-full mb-3 p-2 bg-black border"
+value={editando.nombre}
+onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
+/>
+
+<input
+className="w-full mb-3 p-2 bg-black border"
+value={editando.ambulancia_codigo || ''}
+onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
+/>
+
+<div className="flex justify-between">
+<button onClick={async()=>{
+await supabase.from('personal')
+.update({
+nombre:editando.nombre,
+ambulancia_codigo:editando.ambulancia_codigo
+})
+.eq('id',editando.id)
+setEditando(null)
+fetchData()
+}} className="bg-green-600 px-4 py-2 rounded">
+Guardar
+</button>
+
+<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
+Cancelar
+</button>
 </div>
 
 </div>
