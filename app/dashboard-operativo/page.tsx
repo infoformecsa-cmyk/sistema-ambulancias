@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
-/* 🎨 COLORES CONSOLA */
 const GRUPOS_COLORES:any = {
 G1: { nombre:"VERDE", color:"#22c55e" },
 G2: { nombre:"MORADO", color:"#a855f7" },
@@ -18,10 +17,6 @@ export default function Dashboard() {
 const router = useRouter()
 
 const [personal, setPersonal] = useState<any[]>([])
-const [archivos, setArchivos] = useState<any[]>([])
-const [loading, setLoading] = useState(true)
-
-const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
 
 const [formNuevo, setFormNuevo] = useState<any>({
@@ -31,28 +26,14 @@ guardia:"G1",
 ambulancia_codigo:""
 })
 
-useEffect(()=>{ iniciar() },[])
-
-const iniciar = async ()=>{
-await fetchData()
-setLoading(false)
-}
+useEffect(()=>{ fetchData() },[])
 
 const fetchData = async () => {
-const { data: p } = await supabase.from('personal').select('*')
-const { data: a } = await supabase.from('archivos_asistencia').select('*')
-
-if(p) setPersonal(p)
-if(a) setArchivos(a)
+const { data } = await supabase.from('personal').select('*')
+if(data) setPersonal(data)
 }
 
-const logout = () => {
-localStorage.clear()
-sessionStorage.clear()
-router.replace('/')
-}
-
-/* 🔥 CREAR NUEVO */
+/* 🔥 CREAR */
 const crearNuevo = async () => {
 
 if(!formNuevo.nombre){
@@ -60,7 +41,7 @@ alert("Nombre requerido")
 return
 }
 
-const { error } = await supabase.from('personal').insert([{
+await supabase.from('personal').insert([{
 nombre: formNuevo.nombre,
 tipo: formNuevo.tipo,
 guardia: formNuevo.guardia,
@@ -70,44 +51,39 @@ ambulancia_codigo: formNuevo.tipo === "ambulancia"
 estado:"Activo"
 }])
 
-if(error){
-console.error(error)
-alert("Error al crear")
-return
-}
-
 setNuevo(false)
-setFormNuevo({
-nombre:"",
-tipo:"ambulancia",
-guardia:"G1",
-ambulancia_codigo:""
-})
-
 fetchData()
 }
 
-/* 🔥 AGRUPAR */
-const agrupar = (data:any[])=>{
+/* 🔥 ORDEN ALFA */
+const ordenarAmbulancias = (a:string,b:string)=>{
+const numA = parseInt((a || "").replace(/\D/g,'')) || 999
+const numB = parseInt((b || "").replace(/\D/g,'')) || 999
+return numA - numB
+}
 
+/* 🔥 FILTROS */
+const getAmbulancias = (guardia:string)=>{
+return personal.filter(p=>p.guardia===guardia && p.tipo==="ambulancia")
+}
+
+const getConsola = (guardia:string)=>{
+return personal.filter(p=>p.guardia===guardia && p.tipo==="consola")
+}
+
+/* 🔥 AGRUPAR AMBULANCIAS */
+const agruparAmbulancias = (data:any[])=>{
 const grupos:any = {}
 
 data.forEach(p=>{
-
-let key = "SIN UNIDAD"
-
-if(p.tipo === "consola"){
-key = GRUPOS_COLORES[p.guardia]?.nombre || "CONSOLA"
-}else{
-key = p.ambulancia_codigo || "SIN UNIDAD"
-}
-
+const key = p.ambulancia_codigo || "SIN UNIDAD"
 if(!grupos[key]) grupos[key]=[]
 grupos[key].push(p)
-
 })
 
-return grupos
+return Object.keys(grupos)
+.sort(ordenarAmbulancias)
+.map(k=>({nombre:k, personas:grupos[k]}))
 }
 
 /* 🔥 COLOR ESTADO */
@@ -116,15 +92,9 @@ switch (estado) {
 case 'Activo': return 'bg-green-400'
 case 'Vacaciones': return 'bg-yellow-400'
 case 'Permiso': return 'bg-orange-400'
-case 'Reposo Médico': return 'bg-red-500 animate-pulse'
+case 'Reposo Médico': return 'bg-red-500'
 default: return 'bg-gray-400'
 }
-}
-
-if (loading) {
-return <div className="min-h-screen flex items-center justify-center bg-black text-white">
-🚑 Cargando sistema...
-</div>
 }
 
 const guardias = ['G1','G2','G3','G4','G5']
@@ -149,7 +119,7 @@ return (
 ➕ Nuevo
 </button>
 
-<button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">
+<button onClick={()=>router.replace('/')} className="bg-red-600 px-4 py-2 rounded-lg">
 🔐 Salir
 </button>
 
@@ -157,97 +127,69 @@ return (
 </div>
 
 {/* GRID */}
-<div className="grid grid-cols-3 gap-6">
-
-{/* IZQUIERDA */}
-<div className="col-span-2 grid grid-cols-2 gap-6">
+<div className="grid grid-cols-2 gap-6">
 
 {guardias.map(g=>{
 
-const data = personal.filter(p=>p.guardia===g)
-const grupos = agrupar(data)
+const ambulancias = agruparAmbulancias(getAmbulancias(g))
+const consola = getConsola(g)
 
 return(
 <div key={g} className="bg-gray-900 p-4 rounded-xl">
 
-<h2 className="text-cyan-400 mb-3">{g}</h2>
+<h2 className="text-cyan-400 mb-4">{g}</h2>
 
-{Object.keys(grupos).map(key=>{
+{/* 🚑 AMBULANCIAS */}
+{ambulancias.map(grupo=>(
+<div key={grupo.nombre} className="mb-4 border p-3 rounded">
 
-let color = "#38bdf8"
+<h3 className="text-cyan-300 mb-2">🚑 {grupo.nombre}</h3>
 
-/* COLOR CONSOLA */
-for(const k in GRUPOS_COLORES){
-if(GRUPOS_COLORES[k].nombre === key){
-color = GRUPOS_COLORES[k].color
-}
-}
-
-return(
-<div key={key} className="mb-3 border p-3 rounded">
-
-<h3 style={{color}}>
-{key.includes("VERDE") || key.includes("MORADO") || key.includes("AZUL")
-? "💻"
-: "🚑"} {key}
-</h3>
-
-{grupos[key].map((p:any)=>(
+{grupo.personas.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
 
 <span>{p.nombre}</span>
 
 <div className="flex gap-2 items-center">
-
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
-
-<button onClick={()=>setEditando(p)} className="bg-cyan-600 px-2 text-xs rounded">
-✏️
-</button>
-
-<button onClick={()=>supabase.from('personal').delete().eq('id',p.id).then(fetchData)}
-className="bg-red-600 px-2 text-xs rounded">
-🗑️
-</button>
-
 </div>
+
 </div>
 ))}
+
+</div>
+))}
+
+{/* 💻 CONSOLA */}
+{consola.length > 0 && (
+<div className="mt-4 border p-3 rounded">
+
+<h3 style={{color:GRUPOS_COLORES[g].color}}>
+💻 {GRUPOS_COLORES[g].nombre}
+</h3>
+
+{consola.map((p:any)=>(
+<div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
+
+<span>{p.nombre}</span>
+
+<div className="flex gap-2 items-center">
+<div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
+</div>
+
+</div>
+))}
+
+</div>
+)}
 
 </div>
 )
 })}
 
 </div>
-)
-})}
 
-</div>
-
-{/* DERECHA */}
-<div className="space-y-6">
-
-<div className="bg-red-900/40 p-4 rounded-xl">
-<h2 className="text-red-400">⚠ Críticos</h2>
-
-{personal.filter(p=>p.estado!=="Activo").map(p=>(
-<div key={p.id} className="text-sm">{p.nombre}</div>
-))}
-</div>
-
-<div className="bg-gray-900 p-4 rounded-xl">
-<h2 className="text-blue-400">📁 Reportes</h2>
-
-{archivos.map(a=>(
-<div key={a.id} className="text-sm">{a.nombre}</div>
-))}
-</div>
-
-</div>
-
-</div>
-
-{/* MODAL NUEVO */}
+{/* MODAL */}
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex justify-center items-center">
 
@@ -257,24 +199,17 @@ className="bg-red-600 px-2 text-xs rounded">
 
 <input placeholder="Nombre"
 className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.nombre}
 onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
 />
 
-<select
-className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.tipo}
-onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}
->
+<select className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}>
 <option value="ambulancia">Ambulancia</option>
 <option value="consola">Consola</option>
 </select>
 
-<select
-className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.guardia}
-onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
->
+<select className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G1</option>
 <option>G2</option>
 <option>G3</option>
@@ -282,13 +217,10 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
 <option>G5</option>
 </select>
 
-{formNuevo.tipo==="ambulancia" && (
-<input placeholder="Unidad (ej: ALFA 1)"
+<input placeholder="Unidad (solo ambulancia)"
 className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.ambulancia_codigo}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
 />
-)}
 
 <div className="flex justify-between mt-4">
 
