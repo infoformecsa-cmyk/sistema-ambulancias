@@ -20,6 +20,8 @@ const ORDEN = [
 "curaciones","medicamentos","trauma","proteccion"
 ]
 
+/* ========================= */
+
 export default function Checklist(){
 
 const [items,setItems] = useState<any[]>([])
@@ -34,7 +36,7 @@ const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
 
 /* ========================= */
-/* AUTOSAVE */
+/* 🔥 AUTOSAVE */
 /* ========================= */
 
 useEffect(()=>{
@@ -80,6 +82,7 @@ tipo_control: i.tipo_control || "stock"
 setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
 setKits(limpio.filter(i=>i.subcategoria==="kit_parto"))
 setAmbulancias(amb||[])
+
 }
 
 /* ========================= */
@@ -98,6 +101,10 @@ const copia = [...(datos[id]||[])]
 if(!copia[i]) copia[i] = {}
 copia[i][campo]=val
 setDatos({...datos,[id]:copia})
+}
+
+function setCheck(id:string,val:string){
+setDatos({...datos,[id]:[{estado:val}]})
 }
 
 function getMin(i:any){
@@ -145,6 +152,7 @@ fecha_registro: new Date().toISOString()
 continue
 }
 
+/* 🔥 VALIDACIÓN FLEXIBLE (LOTE OPCIONAL) */
 const tieneDatos =
 (l.lote && l.lote.trim() !== "") ||
 (l.cantidad && Number(l.cantidad) > 0) ||
@@ -177,7 +185,11 @@ fecha_registro: new Date().toISOString()
 
 }
 
-localStorage.clear()
+/* 🔥 LIMPIAR AUTOSAVE */
+localStorage.removeItem("checklist_datos")
+localStorage.removeItem("checklist_ambulancia")
+localStorage.removeItem("checklist_responsable")
+
 alert("✅ Checklist guardado correctamente")
 setDatos({})
 
@@ -198,12 +210,14 @@ return(
 <div style={container}>
 
 <div style={header}>
+
 <div>
 <h1>🚑 Checklist Clínico</h1>
 <span style={{color:"#9ca3af"}}>Control operativo en tiempo real</span>
 </div>
 
 <div style={panel}>
+
 <select value={ambulancia} onChange={(e)=>setAmbulancia(e.target.value)} style={input}>
 <option value="">Seleccionar ambulancia</option>
 {ambulancias.map(a=>(
@@ -217,7 +231,9 @@ value={responsable}
 onChange={(e)=>setResponsable(e.target.value)}
 style={input}
 />
+
 </div>
+
 </div>
 
 <h2 style={section}>🧬 Kits Obstétricos</h2>
@@ -230,6 +246,7 @@ const grupo = kits.filter(k=>k.kit_color===color)
 if(!grupo.length) return null
 
 return(
+
 <div key={color} style={{
 background:"#111827",
 borderRadius:12,
@@ -254,7 +271,6 @@ borderLeft:`6px solid ${COLORES_KIT[color]}`
 {(datos[k.id]||[]).map((l:any,i:number)=>(
 
 <div key={i} style={inputsRow}>
-
 <input style={input} value={l.lote || ""} placeholder="Lote"
 onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
 
@@ -272,34 +288,17 @@ onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}
 />
 
 </div>
+
 ))}
 
 </div>
+
 ))}
 
 </div>
+
 )
+
 })}
 
 </div>
-
-</div>
-)
-}
-
-/* ========================= */
-/* ESTILOS */
-/* ========================= */
-
-const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
-const header = {display:"flex",justifyContent:"space-between",marginBottom:25}
-const panel = {display:"flex",gap:10}
-const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
-const section = {marginTop:20,marginBottom:10}
-const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:15}
-const kitHeader = {padding:12,cursor:"pointer",display:"flex",justifyContent:"space-between"}
-const item = {padding:10,borderBottom:"1px solid #1f2937"}
-const rowTop = {display:"flex",justifyContent:"space-between"}
-const inputsRow = {display:"flex",gap:5,marginTop:6}
-const btnAdd = {marginTop:6,background:"#22c55e",border:"none",padding:"5px 10px",borderRadius:6,color:"black",cursor:"pointer"}
-const badge = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
