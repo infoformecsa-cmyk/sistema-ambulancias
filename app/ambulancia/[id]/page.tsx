@@ -22,7 +22,7 @@ const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 
 const [tipoMtto,setTipoMtto] = useState("")
-const [area,setArea] = useState<string[]>([]) // 🔥 MULTIPLE
+const [area,setArea] = useState<string[]>([])
 const [foto,setFoto] = useState<File | null>(null)
 
 const [loading,setLoading] = useState(false)
@@ -79,7 +79,6 @@ let fotoUrl = null
 
 try{
 
-/* SUBIR IMAGEN */
 if(foto){
 const nombre = `${Date.now()}_${foto.name}`
 
@@ -96,13 +95,11 @@ fotoUrl = url.publicUrl
 }
 }
 
-/* UPDATE ESTADO */
 await supabase
 .from("ambulancias")
 .update({ estado: estadoPendiente })
 .eq("id",id)
 
-/* EDITAR */
 if(editando){
 
 const { error } = await supabase
@@ -123,7 +120,6 @@ return
 
 }else{
 
-/* INSERTAR */
 const { error: insertError } = await supabase
 .from("historial_operativo")
 .insert({
@@ -144,7 +140,6 @@ return
 
 }
 
-/* RESET */
 setMostrarModal(false)
 setMotivoCambio("")
 setTipoMtto("")
@@ -307,19 +302,43 @@ style={textarea}
 <option value="correctivo">Correctivo</option>
 </select>
 
-<select
-multiple
-value={area}
+{/* 🔥 CHECKBOX MULTI ÁREA */}
+<div style={{marginTop:10}}>
+
+<p style={{marginBottom:5}}>Área</p>
+
+{[
+{label:"Mecánico", value:"mecanico"},
+{label:"Eléctrico", value:"electrico"},
+{label:"Aire acondicionado", value:"aire"}
+].map(op=>{
+
+const activo = area.includes(op.value)
+
+return(
+<label key={op.value} style={{display:"flex",gap:8,marginBottom:5,cursor:"pointer"}}>
+
+<input
+type="checkbox"
+checked={activo}
 onChange={(e)=>{
-const selected = Array.from(e.target.selectedOptions, o => o.value)
-setArea(selected)
+
+if(e.target.checked){
+setArea([...area, op.value])
+}else{
+setArea(area.filter(a=>a !== op.value))
+}
+
 }}
-style={{...input,height:120}}
->
-<option value="mecanico">Mecánico</option>
-<option value="electrico">Eléctrico</option>
-<option value="aire">Aire acondicionado</option>
-</select>
+/>
+
+{op.label}
+
+</label>
+)
+})}
+
+</div>
 
 <input type="file" onChange={(e)=>setFoto(e.target.files?.[0] || null)} />
 
