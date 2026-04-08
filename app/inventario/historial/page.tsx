@@ -21,7 +21,6 @@ cargarAmbulancias()
 async function cargarAmbulancias(){
 const { data } = await supabase.from("ambulancias").select("id,codigo_operativo")
 
-/* 🔥 ORDENAR BIEN */
 const ordenadas = (data || []).sort((a,b)=>
 a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
 )
@@ -35,7 +34,12 @@ async function cargarHistorial(id:string){
 
 let query = supabase
 .from("inventario_checklist")
-.select("*")
+.select(`
+*,
+inventario_items (
+  nombre
+)
+`)
 .eq("ambulancia_id", id)
 
 /* 🔥 FILTROS */
@@ -113,8 +117,8 @@ return
 const encabezados = ["Fecha","Item","Lote","Cantidad","Caducidad","Estado"]
 
 const filas = datos.map(d=>[
-new Date(d.fecha_registro).toLocaleString(),
-d.nombre || d.item_id,
+d.fecha_registro ? new Date(d.fecha_registro).toLocaleString() : "",
+d.inventario_items?.nombre || d.item_id,
 d.lote || "",
 d.cantidad,
 d.fecha_caducidad || "",
@@ -207,9 +211,13 @@ cargarHistorial(ambulancia)
 
 <div key={d.id} style={row}>
 
-<div>{new Date(d.fecha_registro).toLocaleString()}</div>
+<div>
+{d.fecha_registro
+? new Date(d.fecha_registro).toLocaleString()
+: "-"}
+</div>
 
-<div>{d.nombre || d.item_id}</div>
+<div>{d.inventario_items?.nombre || d.item_id}</div>
 
 <div>{d.lote || "-"}</div>
 
