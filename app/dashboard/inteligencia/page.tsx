@@ -23,7 +23,12 @@ async function cargar(){
 
 const { data } = await supabase
 .from("historial_operativo")
-.select("*")
+.select(`
+*,
+ambulancias (
+  codigo_operativo
+)
+`)
 .order("fecha_inicio",{ascending:false})
 
 procesar(data || [])
@@ -59,10 +64,19 @@ let registros:any[] = []
 recientes.forEach(r=>{
 if(Array.isArray(r.area)){
 r.area.forEach((a:string)=>{
-registros.push({...r, area_individual:a})
+if(!a) return
+registros.push({
+...r,
+area_individual:a,
+ambulancias:r.ambulancias
+})
 })
 }else if(r.area){
-registros.push({...r, area_individual:r.area})
+registros.push({
+...r,
+area_individual:r.area,
+ambulancias:r.ambulancias
+})
 }
 })
 
@@ -78,6 +92,7 @@ const key = `${r.ambulancia_id}-${r.area_individual}`
 if(!mapaAlertas[key]){
 mapaAlertas[key] = {
 ambulancia_id:r.ambulancia_id,
+ambulancias:r.ambulancias,
 area:r.area_individual,
 count:0
 }
@@ -98,6 +113,8 @@ setAlertas(alertasFinal)
 const mapaRanking:any = {}
 
 registros.forEach(r=>{
+if(!r.area_individual) return
+
 if(!mapaRanking[r.area_individual]){
 mapaRanking[r.area_individual] = 0
 }
@@ -126,6 +143,7 @@ const key = r.ambulancia_id
 if(!mapaRec[key]){
 mapaRec[key] = {
 ambulancia_id:r.ambulancia_id,
+ambulancias:r.ambulancias,
 areas:{}
 }
 }
@@ -167,7 +185,7 @@ Análisis automático de fallas en los últimos 30 días
 
 {alertas.map((a,i)=>(
 <div key={i}>
-🚑 {a.ambulancia_id} → {a.area} ({a.count} fallas)
+🚑 {a.ambulancias?.codigo_operativo || a.ambulancia_id} → {a.area} ({a.count} fallas)
 </div>
 ))}
 
@@ -191,7 +209,7 @@ Análisis automático de fallas en los últimos 30 días
 
 {recurrentes.map((r:any,i)=>(
 <div key={i} style={{marginBottom:10}}>
-<b>🚑 {r.ambulancia_id}</b>
+<b>🚑 {r.ambulancias?.codigo_operativo || r.ambulancia_id}</b>
 
 {Object.entries(r.areas).map(([area,count]:any)=>(
 <div key={area}>
