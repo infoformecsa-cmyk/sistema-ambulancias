@@ -9,25 +9,65 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState("")
 const [datos,setDatos] = useState<any[]>([])
 
+/* 🔥 NUEVO */
+const [fechaInicio,setFechaInicio] = useState("")
+const [fechaFin,setFechaFin] = useState("")
+const [soloUltimo,setSoloUltimo] = useState(false)
+
 useEffect(()=>{
 cargarAmbulancias()
 },[])
 
 async function cargarAmbulancias(){
 const { data } = await supabase.from("ambulancias").select("id,codigo_operativo")
-setAmbulancias(data || [])
+
+/* 🔥 ORDENAR BIEN */
+const ordenadas = (data || []).sort((a,b)=>
+a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
+)
+
+setAmbulancias(ordenadas)
 }
+
+/* ========================= */
 
 async function cargarHistorial(id:string){
 
-const { data } = await supabase
+let query = supabase
 .from("inventario_checklist")
 .select("*")
 .eq("ambulancia_id", id)
-.order("fecha_registro",{ascending:false})
 
-procesar(data || [])
+/* 🔥 FILTROS */
+if(fechaInicio){
+query = query.gte("fecha_registro", fechaInicio)
 }
+
+if(fechaFin){
+query = query.lte("fecha_registro", fechaFin)
+}
+
+const { data } = await query.order("fecha_registro",{ascending:false})
+
+let lista = data || []
+
+/* 🔥 SOLO ÚLTIMO */
+if(soloUltimo){
+const mapa:any = {}
+
+for(const item of lista){
+if(!mapa[item.item_id]){
+mapa[item.item_id] = item
+}
+}
+
+lista = Object.values(mapa)
+}
+
+procesar(lista)
+}
+
+/* ========================= */
 
 function procesar(data:any[]){
 
@@ -51,11 +91,54 @@ return {...i, estado}
 setDatos(procesado)
 }
 
+/* ========================= */
+
 function colorEstado(e:string){
 if(e==="VENCIDO") return "#7f1d1d"
 if(e==="POR_VENCER") return "#f59e0b"
 return "#22c55e"
 }
+
+/* ========================= */
+/* 🔥 EXPORTAR */
+/* ========================= */
+
+function exportarCSV(){
+
+if(datos.length === 0){
+alert("No hay datos")
+return
+}
+
+const encabezados = ["Fecha","Item","Lote","Cantidad","Caducidad","Estado"]
+
+const filas = datos.map(d=>[
+new Date(d.fecha_registro).toLocaleString(),
+d.nombre || d.item_id,
+d.lote || "",
+d.cantidad,
+d.fecha_caducidad || "",
+d.estado
+])
+
+const csv = [encabezados, ...filas]
+.map(e=>e.join(","))
+.join("\n")
+
+const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+
+const url = URL.createObjectURL(blob)
+
+const link = document.createElement("a")
+link.href = url
+link.setAttribute("download","historial_checklist.csv")
+document.body.appendChild(link)
+link.click()
+}
+
+/* ========================= */
+/* UI */
+/* ========================= */
 
 return(
 
@@ -77,6 +160,38 @@ style={input}
 ))}
 </select>
 
+{/* 🔥 FILTROS */}
+<div style={{display:"flex",gap:10,marginBottom:20}}>
+
+<input type="date" value={fechaInicio} onChange={e=>setFechaInicio(e.target.value)} style={input}/>
+<input type="date" value={fechaFin} onChange={e=>setFechaFin(e.target.value)} style={input}/>
+
+<button onClick={()=>cargarHistorial(ambulancia)} style={input}>
+Filtrar
+</button>
+
+<button onClick={()=>{
+setFechaInicio("")
+setFechaFin("")
+setSoloUltimo(false)
+cargarHistorial(ambulancia)
+}} style={input}>
+Reset
+</button>
+
+<button onClick={()=>{
+setSoloUltimo(!soloUltimo)
+cargarHistorial(ambulancia)
+}} style={input}>
+{soloUltimo ? "Ver todos" : "Solo último"}
+</button>
+
+<button onClick={exportarCSV} style={input}>
+⬇️ Exportar
+</button>
+
+</div>
+
 <div style={tabla}>
 
 <div style={headerRow}>
@@ -93,9 +208,13 @@ style={input}
 <div key={d.id} style={row}>
 
 <div>{new Date(d.fecha_registro).toLocaleString()}</div>
-<div>{d.item_id}</div>
+
+<div>{d.nombre || d.item_id}</div>
+
 <div>{d.lote || "-"}</div>
+
 <div>{d.cantidad}</div>
+
 <div>{d.fecha_caducidad || "-"}</div>
 
 <div style={{
@@ -117,7 +236,9 @@ textAlign:"center"
 )
 }
 
-/* ESTILOS */
+/* ========================= */
+/* ESTILOS (RESPETADOS) */
+/* ========================= */
 
 const container = {
 background:"#020617",
