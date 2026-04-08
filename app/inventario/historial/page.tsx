@@ -47,18 +47,19 @@ inventario_items (
   nombre
 )
 `)
-.eq("ambulancia_id", String(id)) // 🔥 FIX
+.eq("ambulancia_id", id)
 
-/* 🔥 FILTROS CORREGIDOS */
+/* 🔥 USAMOS created_at COMO BASE REAL */
 if(fechaInicio){
-query = query.gte("fecha_registro", `${fechaInicio}T00:00:00`)
+query = query.gte("created_at", `${fechaInicio}T00:00:00`)
 }
 
 if(fechaFin){
-query = query.lte("fecha_registro", `${fechaFin}T23:59:59`)
+query = query.lte("created_at", `${fechaFin}T23:59:59`)
 }
 
-const { data } = await query.order("fecha_registro",{ascending:false})
+/* 🔥 ORDEN CORREGIDO */
+const { data } = await query.order("created_at",{ascending:false})
 
 let lista = data || []
 
@@ -122,7 +123,9 @@ return
 const encabezados = ["Fecha","Item","Lote","Cantidad","Caducidad","Estado"]
 
 const filas = datos.map(d=>[
-d.fecha_registro ? new Date(d.fecha_registro).toLocaleString() : "",
+(d.fecha_registro || d.created_at)
+? new Date(d.fecha_registro || d.created_at).toLocaleString()
+: "",
 d.inventario_items?.nombre || d.item_id,
 d.lote || "",
 d.cantidad,
@@ -232,8 +235,8 @@ cargarHistorial(ambulancia)
 <div key={d.id} style={row}>
 
 <div>
-{d.fecha_registro
-? new Date(d.fecha_registro).toLocaleString()
+{(d.fecha_registro || d.created_at)
+? new Date(d.fecha_registro || d.created_at).toLocaleString()
 : "-"}
 </div>
 
