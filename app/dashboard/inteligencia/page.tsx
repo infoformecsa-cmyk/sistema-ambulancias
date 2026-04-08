@@ -14,6 +14,31 @@ const [ranking,setRanking] = useState<any[]>([])
 const [recurrentes,setRecurrentes] = useState<any[]>([])
 
 /* ========================= */
+/* 🔥 NORMALIZADOR */
+/* ========================= */
+
+function normalizarArea(area:string){
+
+const a = area?.toLowerCase().trim()
+
+if(!a) return null
+
+if(a.includes("aire") || a.includes("ac")){
+return "aire acondicionado"
+}
+
+if(a.includes("elect")){
+return "electrico"
+}
+
+if(a.includes("mec")){
+return "mecanico"
+}
+
+return a
+}
+
+/* ========================= */
 
 useEffect(()=>{
 cargar()
@@ -49,14 +74,30 @@ return f >= hace30
 let registros:any[] = []
 
 recientes.forEach(r=>{
+
 if(Array.isArray(r.area)){
+
 r.area.forEach((a:string)=>{
-if(!a) return
-registros.push({...r, area_individual:a})
+const areaNormalizada = normalizarArea(a)
+if(!areaNormalizada) return
+
+registros.push({
+...r,
+area_individual: areaNormalizada
 })
+})
+
 }else if(r.area){
-registros.push({...r, area_individual:r.area})
+
+const areaNormalizada = normalizarArea(r.area)
+if(!areaNormalizada) return
+
+registros.push({
+...r,
+area_individual: areaNormalizada
+})
 }
+
 })
 
 /* ================= ALERTAS ================= */
