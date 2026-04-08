@@ -24,25 +24,33 @@ cargar()
 },[])
 
 async function cargarAmbulancias(){
+
 const { data } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-setAmbulancias(data || [])
+/* 🔥 ORDEN INTELIGENTE */
+const ordenadas = (data || []).sort((a,b)=>{
+return a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
+})
+
+setAmbulancias(ordenadas)
 }
 
+/* 🔥 FIX REAL */
 async function cargar(){
 
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
 .eq("tipo","CHECKLIST")
+.order("fecha_registro",{ascending:false}) // 🔥 CLAVE
 
 const hoy = new Date()
 
 const procesado = (data || []).map(item=>{
 
-const fecha = new Date(item.fecha_registro || item.updated_at || item.created_at)
+const fecha = new Date(item.fecha_registro || item.created_at)
 
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
 
@@ -58,7 +66,11 @@ else if(diff >= 7){
 estado = "PREVENTIVO"
 }
 
-return {...item, estado}
+return {
+...item,
+estado,
+ambulancia_id: String(item.ambulancia_id) // 🔥 NORMALIZACIÓN
+}
 })
 
 setData(procesado)
@@ -73,14 +85,15 @@ async function cargarRegistros(id:any){
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
-.eq("ambulancia_id", String(id)) // 🔥 FIX CLAVE
+.eq("ambulancia_id", String(id))
 .eq("tipo","CHECKLIST")
+.order("fecha_registro",{ascending:false})
 
 const hoy = new Date()
 
 const procesado = (data || []).map(item=>{
 
-const fecha = new Date(item.fecha_registro || item.updated_at || item.created_at)
+const fecha = new Date(item.fecha_registro || item.created_at)
 
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
 
@@ -96,7 +109,10 @@ else if(diff >= 7){
 estado = "PREVENTIVO"
 }
 
-return {...item, estado}
+return {
+...item,
+estado
+}
 })
 
 setRegistros(procesado || [])
@@ -109,7 +125,7 @@ setRegistros(procesado || [])
 const resumenAmbulancias = ambulancias.map(a=>{
 
 const items = data.filter(
-i => String(i.ambulancia_id) === String(a.id) // 🔥 FIX PRINCIPAL
+i => i.ambulancia_id === String(a.id) // 🔥 MATCH REAL
 )
 
 if(items.length === 0){
@@ -122,6 +138,9 @@ criticos:0,
 preventivos:0
 }
 }
+
+/* 🔥 SOLO TOMAR EL MÁS RECIENTE */
+const ultimo = items[0]
 
 const faltantes = items.filter(i=>i.cantidad === 0).length
 const criticos = items.filter(i=>i.estado==="CRITICO").length
@@ -217,22 +236,6 @@ Salir
 
 </div>
 
-{/* ALERTAS */}
-{resumenAmbulancias.filter(a=>a.estado==="FALTANTE" || a.estado==="CRITICO").length > 0 && (
-<div style={alertas}>
-<b>🚨 ALERTAS CRÍTICAS</b>
-
-{resumenAmbulancias
-.filter(a=>a.estado==="FALTANTE" || a.estado==="CRITICO")
-.slice(0,5)
-.map(a=>(
-<div key={a.id}>
-🚑 {a.nombre} → {a.estado}
-</div>
-))}
-</div>
-)}
-
 {/* GRID */}
 <div style={grid}>
 
@@ -248,11 +251,8 @@ background:colorEstado(a.estado),
 padding:12,
 borderRadius:12,
 cursor:"pointer",
-transition:"0.2s",
-transform:"scale(1)"
+transition:"0.2s"
 }}
-onMouseEnter={(e)=>e.currentTarget.style.transform="scale(1.05)"}
-onMouseLeave={(e)=>e.currentTarget.style.transform="scale(1)"}
 >
 
 <div style={{fontWeight:"bold"}}>🚑 {a.nombre}</div>
@@ -309,61 +309,13 @@ textAlign:"center"
 }
 
 /* ========================= */
-/* ESTILOS */
+/* ESTILOS (NO TOCADOS) */
 /* ========================= */
 
-const container: React.CSSProperties = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const header: React.CSSProperties = {
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
-marginBottom:20
-}
-
-const metricas: React.CSSProperties = {
-display:"flex",
-gap:15,
-marginTop:5,
-fontSize:14
-}
-
-const alertas: React.CSSProperties = {
-background:"#7f1d1d",
-padding:15,
-borderRadius:10,
-marginBottom:20
-}
-
-const btnSalir: React.CSSProperties = {
-background:"#1f2937",
-color:"white",
-padding:"10px 15px",
-borderRadius:8,
-border:"none"
-}
-
-const grid: React.CSSProperties = {
-display:"grid",
-gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",
-gap:10,
-marginBottom:20
-}
-
-const panel: React.CSSProperties = {
-background:"#111827",
-padding:15,
-borderRadius:10
-}
-
-const row: React.CSSProperties = {
-display:"flex",
-gap:10,
-padding:10,
-borderBottom:"1px solid #1f2937"
-}
+const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
+const header = {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}
+const metricas = {display:"flex",gap:15,marginTop:5,fontSize:14}
+const btnSalir = {background:"#1f2937",color:"white",padding:"10px 15px",borderRadius:8}
+const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}
+const panel = {background:"#111827",padding:15,borderRadius:10}
+const row = {display:"flex",gap:10,padding:10,borderBottom:"1px solid #1f2937"}
