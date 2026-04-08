@@ -172,6 +172,7 @@ return(
 <button onClick={()=>router.push("/dashboard/nueva-ambulancia")} style={btnPrimary}>+ Ambulancia</button>
 <button onClick={()=>router.push("/dashboard/informe-flota")} style={btnAlt}>Informe</button>
 <button onClick={()=>router.push("/inventario/kilometrajes")} style={btnInfo}>KM Diario</button>
+<button onClick={()=>router.push("/dashboard/inteligencia")} style={btnPrimary}>🧠 Inteligencia de mantenimiento</button>
 </div>
 
 {mttoVencido.length>0 && (
