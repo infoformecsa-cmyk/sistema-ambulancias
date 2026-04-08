@@ -8,11 +8,11 @@ export default function Inteligencia(){
 
 const router = useRouter()
 
-const [data,setData] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
+const [alertas,setAlertas] = useState<any[]>([])
+const [ranking,setRanking] = useState<any[]>([])
+const [recurrentes,setRecurrentes] = useState<any[]>([])
 
-/* ========================= */
-/* CARGA */
 /* ========================= */
 
 useEffect(()=>{
@@ -25,9 +25,7 @@ const { data } = await supabase
 .from("historial_operativo")
 .select(`
 *,
-ambulancias (
-  codigo_operativo
-)
+ambulancias (codigo_operativo)
 `)
 .order("fecha_inicio",{ascending:false})
 
@@ -36,12 +34,6 @@ setLoading(false)
 }
 
 /* ========================= */
-/* PROCESAMIENTO */
-/* ========================= */
-
-const [alertas,setAlertas] = useState<any[]>([])
-const [ranking,setRanking] = useState<any[]>([])
-const [recurrentes,setRecurrentes] = useState<any[]>([])
 
 function procesar(lista:any[]){
 
@@ -49,15 +41,10 @@ const hoy = new Date()
 const hace30 = new Date()
 hace30.setDate(hoy.getDate() - 30)
 
-/* SOLO ÚLTIMOS 30 DÍAS */
 const recientes = lista.filter(i=>{
 const f = new Date(i.fecha_inicio)
 return f >= hace30
 })
-
-/* ========================= */
-/* 🔥 NORMALIZAR AREAS */
-/* ========================= */
 
 let registros:any[] = []
 
@@ -65,24 +52,14 @@ recientes.forEach(r=>{
 if(Array.isArray(r.area)){
 r.area.forEach((a:string)=>{
 if(!a) return
-registros.push({
-...r,
-area_individual:a,
-ambulancias:r.ambulancias
-})
+registros.push({...r, area_individual:a})
 })
 }else if(r.area){
-registros.push({
-...r,
-area_individual:r.area,
-ambulancias:r.ambulancias
-})
+registros.push({...r, area_individual:r.area})
 }
 })
 
-/* ========================= */
-/* 🚨 ALERTAS */
-/* ========================= */
+/* ================= ALERTAS ================= */
 
 const mapaAlertas:any = {}
 
@@ -91,8 +68,7 @@ const key = `${r.ambulancia_id}-${r.area_individual}`
 
 if(!mapaAlertas[key]){
 mapaAlertas[key] = {
-ambulancia_id:r.ambulancia_id,
-ambulancias:r.ambulancias,
+codigo:r.ambulancias?.codigo_operativo || r.ambulancia_id,
 area:r.area_individual,
 count:0
 }
@@ -101,67 +77,53 @@ count:0
 mapaAlertas[key].count++
 })
 
-const alertasFinal = Object.values(mapaAlertas)
+setAlertas(
+Object.values(mapaAlertas)
 .filter((a:any)=>a.count >= 3)
+.sort((a:any,b:any)=>b.count - a.count)
+)
 
-setAlertas(alertasFinal)
-
-/* ========================= */
-/* 📊 RANKING */
-/* ========================= */
+/* ================= RANKING ================= */
 
 const mapaRanking:any = {}
 
 registros.forEach(r=>{
 if(!r.area_individual) return
-
-if(!mapaRanking[r.area_individual]){
-mapaRanking[r.area_individual] = 0
-}
-mapaRanking[r.area_individual]++
+mapaRanking[r.area_individual] = (mapaRanking[r.area_individual] || 0) + 1
 })
 
 const total = registros.length || 1
 
-const rankingFinal = Object.keys(mapaRanking).map(area=>({
+setRanking(
+Object.keys(mapaRanking).map(area=>({
 area,
+valor: mapaRanking[area],
 porcentaje: Math.round((mapaRanking[area]/total)*100)
 }))
-.sort((a,b)=>b.porcentaje - a.porcentaje)
+.sort((a,b)=>b.valor - a.valor)
+)
 
-setRanking(rankingFinal)
-
-/* ========================= */
-/* 🔁 RECURRENTES */
-/* ========================= */
+/* ================= RECURRENTES ================= */
 
 const mapaRec:any = {}
 
 registros.forEach(r=>{
-const key = r.ambulancia_id
+const key = r.ambulancias?.codigo_operativo || r.ambulancia_id
 
 if(!mapaRec[key]){
-mapaRec[key] = {
-ambulancia_id:r.ambulancia_id,
-ambulancias:r.ambulancias,
-areas:{}
-}
+mapaRec[key] = { codigo:key, total:0 }
 }
 
-if(!mapaRec[key].areas[r.area_individual]){
-mapaRec[key].areas[r.area_individual] = 0
-}
-
-mapaRec[key].areas[r.area_individual]++
+mapaRec[key].total++
 })
 
-setRecurrentes(Object.values(mapaRec))
+setRecurrentes(
+Object.values(mapaRec).sort((a:any,b:any)=>b.total - a.total)
+)
 
 }
 
-/* ========================= */
-/* UI */
-/* ========================= */
+/* ================= UI ================= */
 
 if(loading){
 return <div style={container}>Cargando...</div>
@@ -171,61 +133,58 @@ return(
 
 <div style={container}>
 
-<h1>🧠 Inteligencia de mantenimiento</h1>
+<h1 style={title}>🧠 Inteligencia Operativa</h1>
 
-<p style={{opacity:0.7,marginBottom:20}}>
-Análisis automático de fallas en los últimos 30 días
-</p>
+{/* ALERTAS */}
+<div style={cardRed}>
+<h3>🚨 Alertas críticas</h3>
 
-{/* 🚨 ALERTAS */}
+{alertas.length === 0
+? <p>Sin alertas</p>
+: alertas.slice(0,5).map((a,i)=>(
+<div key={i} style={alertItem}>
+🚑 {a.codigo} — {a.area} ({a.count})
+</div>
+))
+}
+
+</div>
+
+{/* TOP AMBULANCIAS */}
 <div style={card}>
-<h3>🚨 Alertas</h3>
+<h3>🚑 Unidades con más fallas</h3>
 
-{alertas.length === 0 && <p>Sin alertas</p>}
-
-{alertas.map((a,i)=>(
-<div key={i}>
-🚑 {a.ambulancias?.codigo_operativo || a.ambulancia_id} → {a.area} ({a.count} fallas)
+{recurrentes.slice(0,8).map((r:any,i)=>(
+<div key={i} style={row}>
+<span>{r.codigo}</span>
+<span>{r.total}</span>
 </div>
 ))}
 
 </div>
 
-{/* 📊 RANKING */}
+{/* RANKING VISUAL */}
 <div style={card}>
-<h3>📊 Ranking de problemas</h3>
+<h3>📊 Distribución de fallas</h3>
 
 {ranking.map((r,i)=>(
-<div key={i}>
-{r.area} → {r.porcentaje}%
-</div>
-))}
-
-</div>
-
-{/* 🔁 RECURRENTES */}
-<div style={card}>
-<h3>🔁 Fallas por ambulancia</h3>
-
-{recurrentes.map((r:any,i)=>(
 <div key={i} style={{marginBottom:10}}>
-<b>🚑 {r.ambulancias?.codigo_operativo || r.ambulancia_id}</b>
 
-{Object.entries(r.areas).map(([area,count]:any)=>(
-<div key={area}>
-- {area} → {count}
+<div style={row}>
+<span>{r.area}</span>
+<span>{r.porcentaje}%</span>
+</div>
+
+<div style={barBg}>
+<div style={{...barFill,width:`${r.porcentaje}%`}}/>
+</div>
+
 </div>
 ))}
 
 </div>
-))}
 
-</div>
-
-<button
-onClick={()=>router.push("/dashboard")}
-style={btnBack}
->
+<button onClick={()=>router.push("/dashboard")} style={btnBack}>
 ⬅ Volver
 </button>
 
@@ -233,9 +192,7 @@ style={btnBack}
 )
 }
 
-/* ========================= */
-/* ESTILOS */
-/* ========================= */
+/* ================= ESTILOS ================= */
 
 const container = {
 background:"#020617",
@@ -244,11 +201,48 @@ minHeight:"100vh",
 padding:30
 }
 
+const title = {
+fontSize:28,
+marginBottom:20
+}
+
 const card = {
 background:"#0f172a",
-padding:15,
-borderRadius:10,
+padding:20,
+borderRadius:12,
 marginBottom:20
+}
+
+const cardRed = {
+background:"#7f1d1d",
+padding:20,
+borderRadius:12,
+marginBottom:20
+}
+
+const row = {
+display:"flex",
+justifyContent:"space-between",
+marginBottom:5
+}
+
+const alertItem = {
+padding:8,
+background:"#991b1b",
+borderRadius:6,
+marginTop:5
+}
+
+const barBg = {
+height:8,
+background:"#1e293b",
+borderRadius:10
+}
+
+const barFill = {
+height:8,
+background:"#22c55e",
+borderRadius:10
 }
 
 const btnBack = {
