@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
 export default function HistorialChecklist(){
+
+const router = useRouter()
 
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState("")
@@ -147,6 +150,23 @@ link.click()
 return(
 
 <div style={container}>
+
+{/* 🔥 BOTÓN VOLVER */}
+<div style={{marginBottom:20}}>
+<button
+onClick={()=>router.push("/bitacora/dashboard")}
+style={{
+background:"#1f2937",
+color:"white",
+padding:"10px 15px",
+borderRadius:8,
+border:"none",
+cursor:"pointer"
+}}
+>
+⬅ Volver
+</button>
+</div>
 
 <h1>📊 Historial Checklist</h1>
 
