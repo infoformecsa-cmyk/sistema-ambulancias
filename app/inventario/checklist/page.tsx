@@ -253,11 +253,8 @@ onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
 
 <input
 style={input}
-type={l.fecha ? "date" : "text"}
-placeholder="Fecha"
+type="date"
 value={l.fecha || ""}
-onFocus={(e)=>e.target.type='date'}
-onBlur={(e)=>!e.target.value && (e.target.type='text')}
 onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}
 />
 
@@ -274,7 +271,6 @@ onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}
 })}
 </div>
 
-{/* 🔥 CHECKLIST GENERAL INTACTO */}
 <h2 style={section}>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
@@ -308,11 +304,8 @@ onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
 
 <input
 style={input}
-type={l.fecha ? "date" : "text"}
-placeholder="Fecha"
+type="date"
 value={l.fecha || ""}
-onFocus={(e)=>e.target.type='date'}
-onBlur={(e)=>!e.target.value && (e.target.type='text')}
 onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}
 />
 
