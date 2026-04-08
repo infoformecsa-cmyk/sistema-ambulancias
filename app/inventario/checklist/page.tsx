@@ -151,6 +151,7 @@ const cantidadNum = Number(l.cantidad || 0)
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: String(ambulancia),
 item_id: itemId,
+nombre: item?.nombre,
 lote: l.lote || null,
 cantidad: cantidadNum,
 fecha_caducidad: l.fecha || null,
