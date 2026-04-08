@@ -29,7 +29,6 @@ const { data } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-/* 🔥 ORDEN INTELIGENTE */
 const ordenadas = (data || []).sort((a,b)=>{
 return a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
 })
@@ -37,14 +36,15 @@ return a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:
 setAmbulancias(ordenadas)
 }
 
-/* 🔥 FIX REAL */
+/* ========================= */
+
 async function cargar(){
 
 const { data } = await supabase
 .from("bitacora_items")
 .select("*")
 .eq("tipo","CHECKLIST")
-.order("fecha_registro",{ascending:false}) // 🔥 CLAVE
+.order("fecha_registro",{ascending:false})
 
 const hoy = new Date()
 
@@ -69,15 +69,13 @@ estado = "PREVENTIVO"
 return {
 ...item,
 estado,
-ambulancia_id: String(item.ambulancia_id) // 🔥 NORMALIZACIÓN
+ambulancia_id: String(item.ambulancia_id)
 }
 })
 
 setData(procesado)
 }
 
-/* ========================= */
-/* DETALLE */
 /* ========================= */
 
 async function cargarRegistros(id:any){
@@ -119,13 +117,11 @@ setRegistros(procesado || [])
 }
 
 /* ========================= */
-/* INTELIGENCIA */
-/* ========================= */
 
 const resumenAmbulancias = ambulancias.map(a=>{
 
 const items = data.filter(
-i => i.ambulancia_id === String(a.id) // 🔥 MATCH REAL
+i => i.ambulancia_id === String(a.id)
 )
 
 if(items.length === 0){
@@ -138,9 +134,6 @@ criticos:0,
 preventivos:0
 }
 }
-
-/* 🔥 SOLO TOMAR EL MÁS RECIENTE */
-const ultimo = items[0]
 
 const faltantes = items.filter(i=>i.cantidad === 0).length
 const criticos = items.filter(i=>i.estado==="CRITICO").length
@@ -163,8 +156,6 @@ preventivos
 
 })
 
-/* ========================= */
-/* MÉTRICAS */
 /* ========================= */
 
 const total = resumenAmbulancias.length
@@ -190,6 +181,11 @@ return "#22c55e"
 function cerrarSesion(){
 localStorage.clear()
 router.replace("/")
+}
+
+/* 🔥 NUEVO BOTÓN */
+function irHistorial(){
+router.push("/inventario/historial")
 }
 
 async function eliminarRegistro(id:string){
@@ -227,12 +223,18 @@ return(
 <span style={{color:"#ef4444"}}>Crit {critico}</span>
 <span style={{color:"#7f1d1d"}}>Falt {faltante}</span>
 </div>
-
 </div>
+
+{/* 🔥 SOLO ESTO SE AGREGA */}
+<div style={{display:"flex",gap:10}}>
+<button onClick={irHistorial} style={btnSalir}>
+📊 Historial
+</button>
 
 <button onClick={cerrarSesion} style={btnSalir}>
 Salir
 </button>
+</div>
 
 </div>
 
@@ -289,13 +291,8 @@ textAlign:"center"
 </div>
 
 <div style={{display:"flex",gap:5}}>
-
 <button onClick={()=>eliminarRegistro(r.id)}>🗑</button>
-
-<button onClick={()=>irChecklist(r.ambulancia_id)}>
-📋
-</button>
-
+<button onClick={()=>irChecklist(r.ambulancia_id)}>📋</button>
 </div>
 
 </div>
