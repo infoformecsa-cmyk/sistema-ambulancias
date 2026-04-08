@@ -22,12 +22,10 @@ const [estadoPendiente,setEstadoPendiente] = useState("")
 const [motivoCambio,setMotivoCambio] = useState("")
 
 const [tipoMtto,setTipoMtto] = useState("")
-const [area,setArea] = useState("")
+const [area,setArea] = useState<string[]>([]) // 🔥 MULTIPLE
 const [foto,setFoto] = useState<File | null>(null)
 
 const [loading,setLoading] = useState(false)
-
-/* 🔥 NUEVO SOLO PARA EDITAR */
 const [editando,setEditando] = useState<any>(null)
 
 /* ========================= */
@@ -59,7 +57,7 @@ setHistorial(data || [])
 /* ========================= */
 
 function abrirCambioEstado(estado:string){
-setEditando(null) // 🔥 IMPORTANTE
+setEditando(null)
 setEstadoPendiente(estado)
 setMostrarModal(true)
 }
@@ -81,7 +79,7 @@ let fotoUrl = null
 
 try{
 
-/* 🔥 SUBIR IMAGEN */
+/* SUBIR IMAGEN */
 if(foto){
 const nombre = `${Date.now()}_${foto.name}`
 
@@ -98,13 +96,13 @@ fotoUrl = url.publicUrl
 }
 }
 
-/* 🔥 UPDATE ESTADO */
+/* UPDATE ESTADO */
 await supabase
 .from("ambulancias")
 .update({ estado: estadoPendiente })
 .eq("id",id)
 
-/* 🔥 EDITAR O INSERTAR */
+/* EDITAR */
 if(editando){
 
 const { error } = await supabase
@@ -113,18 +111,19 @@ const { error } = await supabase
 estado: estadoPendiente,
 motivo: motivoCambio.trim(),
 tipo_mantenimiento: tipoMtto || null,
-area: area || null,
+area: area.length ? area : null,
 })
 .eq("id", editando.id)
 
 if(error){
 console.error(error)
-alert("❌ Error al actualizar")
+alert("❌ Error real: " + error.message)
 return
 }
 
 }else{
 
+/* INSERTAR */
 const { error: insertError } = await supabase
 .from("historial_operativo")
 .insert({
@@ -132,14 +131,14 @@ ambulancia_id: id,
 estado: estadoPendiente,
 motivo: motivoCambio.trim(),
 tipo_mantenimiento: tipoMtto || null,
-area: area || null,
+area: area.length ? area : null,
 foto_url: fotoUrl,
 fecha_inicio: new Date().toISOString()
 })
 
 if(insertError){
 console.error(insertError)
-alert("❌ Error al guardar historial")
+alert("❌ Error real: " + insertError.message)
 return
 }
 
@@ -149,11 +148,10 @@ return
 setMostrarModal(false)
 setMotivoCambio("")
 setTipoMtto("")
-setArea("")
+setArea([])
 setFoto(null)
 setEditando(null)
 
-/* REFRESH */
 await cargarTodo()
 
 }catch(err){
@@ -211,7 +209,6 @@ if(!ambulancia) return <div style={loadingStyle}>🚑 Cargando...</div>
 return(
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 <div>
 <h1 style={title}>🚑 {ambulancia.codigo_operativo}</h1>
@@ -223,33 +220,28 @@ return(
 </button>
 </div>
 
-{/* KPI */}
 <div style={grid}>
 <div style={card}><p>KM Actual</p><h2>{ambulancia.kilometraje_actual}</h2></div>
 <div style={card}><p>Estado</p><h2 style={{color:estadoColor()}}>{ambulancia.estado}</h2></div>
 <div style={card}><p>Próx. Mtto</p><h2>{ambulancia.kilometraje_mtto || "-"}</h2></div>
 </div>
 
-{/* ESTADO */}
 <div style={{...estadoBox,borderColor:estadoColor()}}>
 Estado: {ambulancia.estado.toUpperCase()}
 </div>
 
-{/* BOTONES */}
 <div style={acciones}>
 <button onClick={()=>abrirCambioEstado("operativa")} style={btn("#22c55e")}>Operativa</button>
 <button onClick={()=>abrirCambioEstado("mantenimiento")} style={btn("#f59e0b")}>Mtto</button>
 <button onClick={()=>abrirCambioEstado("no operativa")} style={btn("#ef4444")}>Fuera</button>
 </div>
 
-{/* KM */}
 <div style={section}>
 <h3>📏 Registro KM</h3>
 <input style={input} type="number" value={nuevoKm} onChange={(e)=>setNuevoKm(e.target.value)} />
 <button style={btnPrimary} onClick={actualizarKilometraje}>Actualizar</button>
 </div>
 
-{/* MTTO */}
 <div style={section}>
 <h3>🛠 Mantenimiento</h3>
 <p>Próximo: {ambulancia.kilometraje_mtto || "-"}</p>
@@ -257,7 +249,6 @@ Estado: {ambulancia.estado.toUpperCase()}
 <button style={btnPrimary} onClick={guardarMtto}>Guardar</button>
 </div>
 
-{/* HISTORIAL */}
 <div style={section}>
 <h3>📋 Historial</h3>
 
@@ -271,7 +262,7 @@ Estado: {ambulancia.estado.toUpperCase()}
 <div>{new Date(h.fecha_inicio).toLocaleString()}</div>
 <div style={{color:estadoColor()}}>{h.estado}</div>
 <div>{h.tipo_mantenimiento || "-"}</div>
-<div>{h.area || "-"}</div>
+<div>{Array.isArray(h.area) ? h.area.join(", ") : "-"}</div>
 <div>{h.motivo}</div>
 
 <div>{h.foto_url && <a href={h.foto_url} target="_blank">📷</a>}</div>
@@ -282,7 +273,7 @@ setEditando(h)
 setEstadoPendiente(h.estado)
 setMotivoCambio(h.motivo || "")
 setTipoMtto(h.tipo_mantenimiento || "")
-setArea(h.area || "")
+setArea(Array.isArray(h.area) ? h.area : [])
 setMostrarModal(true)
 }}>✏️</button>
 
@@ -316,8 +307,15 @@ style={textarea}
 <option value="correctivo">Correctivo</option>
 </select>
 
-<select value={area} onChange={(e)=>setArea(e.target.value)} style={input}>
-<option value="">Área</option>
+<select
+multiple
+value={area}
+onChange={(e)=>{
+const selected = Array.from(e.target.selectedOptions, o => o.value)
+setArea(selected)
+}}
+style={{...input,height:120}}
+>
 <option value="mecanico">Mecánico</option>
 <option value="electrico">Eléctrico</option>
 <option value="aire">Aire acondicionado</option>
