@@ -37,20 +37,24 @@ setAmbulancias(ordenadas)
 }
 
 /* ========================= */
+/* 🔥 FIX AQUÍ */
+/* ========================= */
 
 async function cargar(){
 
 const { data } = await supabase
-.from("bitacora_items")
-.select("*")
-.eq("tipo","CHECKLIST")
+.from("inventario_checklist")
+.select(`
+*,
+inventario_items (nombre)
+`)
 .order("fecha_registro",{ascending:false})
 
 const hoy = new Date()
 
 const procesado = (data || []).map(item=>{
 
-const fecha = new Date(item.fecha_registro || item.created_at)
+const fecha = new Date(item.fecha_registro)
 
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
 
@@ -67,7 +71,11 @@ estado = "PREVENTIVO"
 }
 
 return {
-...item,
+id: item.id,
+nombre: item.inventario_items?.nombre || "item",
+tipo: "CHECKLIST",
+lote: item.lote,
+cantidad: item.cantidad,
 estado,
 ambulancia_id: String(item.ambulancia_id)
 }
@@ -77,21 +85,25 @@ setData(procesado)
 }
 
 /* ========================= */
+/* 🔥 FIX AQUÍ */
+/* ========================= */
 
 async function cargarRegistros(id:any){
 
 const { data } = await supabase
-.from("bitacora_items")
-.select("*")
+.from("inventario_checklist")
+.select(`
+*,
+inventario_items (nombre)
+`)
 .eq("ambulancia_id", String(id))
-.eq("tipo","CHECKLIST")
 .order("fecha_registro",{ascending:false})
 
 const hoy = new Date()
 
 const procesado = (data || []).map(item=>{
 
-const fecha = new Date(item.fecha_registro || item.created_at)
+const fecha = new Date(item.fecha_registro)
 
 const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
 
@@ -108,8 +120,13 @@ estado = "PREVENTIVO"
 }
 
 return {
-...item,
-estado
+id: item.id,
+nombre: item.inventario_items?.nombre || "item",
+tipo: "CHECKLIST",
+lote: item.lote,
+cantidad: item.cantidad,
+estado,
+ambulancia_id: String(item.ambulancia_id)
 }
 })
 
@@ -183,7 +200,6 @@ localStorage.clear()
 router.replace("/")
 }
 
-/* 🔥 NUEVO BOTÓN */
 function irHistorial(){
 router.push("/inventario/historial")
 }
@@ -192,7 +208,8 @@ async function eliminarRegistro(id:string){
 
 if(!confirm("¿Eliminar registro?")) return
 
-await supabase.from("bitacora_items").delete().eq("id",id)
+/* 🔥 IMPORTANTE: eliminar de la tabla correcta */
+await supabase.from("inventario_checklist").delete().eq("id",id)
 
 cargar()
 if(ambulanciaSeleccionada){
@@ -225,7 +242,6 @@ return(
 </div>
 </div>
 
-{/* 🔥 SOLO ESTO SE AGREGA */}
 <div style={{display:"flex",gap:10}}>
 <button onClick={irHistorial} style={btnSalir}>
 📊 Historial
@@ -238,7 +254,6 @@ Salir
 
 </div>
 
-{/* GRID */}
 <div style={grid}>
 
 {resumenAmbulancias.map(a=>(
@@ -269,7 +284,6 @@ transition:"0.2s"
 
 </div>
 
-{/* DETALLE */}
 {ambulanciaSeleccionada && (
 <div style={panel}>
 
@@ -306,7 +320,7 @@ textAlign:"center"
 }
 
 /* ========================= */
-/* ESTILOS (NO TOCADOS) */
+/* ESTILOS */
 /* ========================= */
 
 const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}

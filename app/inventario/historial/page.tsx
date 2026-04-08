@@ -12,7 +12,6 @@ const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState("")
 const [datos,setDatos] = useState<any[]>([])
 
-/* 🔥 NUEVO */
 const [fechaInicio,setFechaInicio] = useState("")
 const [fechaFin,setFechaFin] = useState("")
 const [soloUltimo,setSoloUltimo] = useState(false)
@@ -35,6 +34,11 @@ setAmbulancias(ordenadas)
 
 async function cargarHistorial(id:string){
 
+if(!id){
+setDatos([])
+return
+}
+
 let query = supabase
 .from("inventario_checklist")
 .select(`
@@ -43,15 +47,15 @@ inventario_items (
   nombre
 )
 `)
-.eq("ambulancia_id", id)
+.eq("ambulancia_id", String(id)) // 🔥 FIX
 
-/* 🔥 FILTROS */
+/* 🔥 FILTROS CORREGIDOS */
 if(fechaInicio){
-query = query.gte("fecha_registro", fechaInicio)
+query = query.gte("fecha_registro", `${fechaInicio}T00:00:00`)
 }
 
 if(fechaFin){
-query = query.lte("fecha_registro", fechaFin)
+query = query.lte("fecha_registro", `${fechaFin}T23:59:59`)
 }
 
 const { data } = await query.order("fecha_registro",{ascending:false})
@@ -107,8 +111,6 @@ return "#22c55e"
 }
 
 /* ========================= */
-/* 🔥 EXPORTAR */
-/* ========================= */
 
 function exportarCSV(){
 
@@ -151,7 +153,6 @@ return(
 
 <div style={container}>
 
-{/* 🔥 BOTÓN VOLVER */}
 <div style={{marginBottom:20}}>
 <button
 onClick={()=>router.push("/bitacora/dashboard")}
@@ -184,7 +185,6 @@ style={input}
 ))}
 </select>
 
-{/* 🔥 FILTROS */}
 <div style={{display:"flex",gap:10,marginBottom:20}}>
 
 <input type="date" value={fechaInicio} onChange={e=>setFechaInicio(e.target.value)} style={input}/>
@@ -264,43 +264,9 @@ textAlign:"center"
 )
 }
 
-/* ========================= */
-/* ESTILOS (RESPETADOS) */
-/* ========================= */
-
-const container = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const input = {
-padding:10,
-marginBottom:20,
-borderRadius:8,
-background:"#1f2937",
-color:"white",
-border:"none"
-}
-
-const tabla = {
-background:"#111827",
-borderRadius:10,
-padding:10
-}
-
-const headerRow = {
-display:"grid",
-gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",
-fontWeight:"bold",
-padding:10,
-borderBottom:"1px solid #1f2937"
-}
-
-const row = {
-display:"grid",
-gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",
-padding:10,
-borderBottom:"1px solid #1f2937"
-}
+/* ESTILOS */
+const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
+const input = {padding:10,marginBottom:20,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
+const tabla = {background:"#111827",borderRadius:10,padding:10}
+const headerRow = {display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",fontWeight:"bold",padding:10,borderBottom:"1px solid #1f2937"}
+const row = {display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",padding:10,borderBottom:"1px solid #1f2937"}
