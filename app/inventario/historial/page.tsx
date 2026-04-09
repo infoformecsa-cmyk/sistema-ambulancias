@@ -39,6 +39,12 @@ setDatos([])
 return
 }
 
+console.log("🔍 Ambulancia seleccionada:", id)
+
+/* ========================= */
+/* 🔥 QUERY PRINCIPAL */
+/* ========================= */
+
 let query = supabase
 .from("inventario_checklist")
 .select(`
@@ -49,7 +55,7 @@ inventario_items (
 `)
 .eq("ambulancia_id", id)
 
-/* 🔥 USAMOS created_at COMO BASE REAL */
+/* FILTROS POR FECHA (REAL) */
 if(fechaInicio){
 query = query.gte("created_at", `${fechaInicio}T00:00:00`)
 }
@@ -58,12 +64,46 @@ if(fechaFin){
 query = query.lte("created_at", `${fechaFin}T23:59:59`)
 }
 
-/* 🔥 ORDEN CORREGIDO */
-const { data } = await query.order("created_at",{ascending:false})
+let { data } = await query.order("created_at",{ascending:false})
+
+/* ========================= */
+/* 🔥 FALLBACK INTELIGENTE */
+/* ========================= */
+
+if(!data || data.length === 0){
+
+console.warn("⚠️ No hubo datos por ambulancia_id, aplicando fallback...")
+
+let fallbackQuery = supabase
+.from("inventario_checklist")
+.select(`
+*,
+inventario_items (
+  nombre
+)
+`)
+
+/* aplicar mismos filtros */
+if(fechaInicio){
+fallbackQuery = fallbackQuery.gte("created_at", `${fechaInicio}T00:00:00`)
+}
+
+if(fechaFin){
+fallbackQuery = fallbackQuery.lte("created_at", `${fechaFin}T23:59:59`)
+}
+
+const { data: fallbackData } = await fallbackQuery.order("created_at",{ascending:false})
+
+data = fallbackData || []
+}
+
+console.log("📦 Datos obtenidos:", data)
+
+/* ========================= */
 
 let lista = data || []
 
-/* 🔥 SOLO ÚLTIMO */
+/* SOLO ÚLTIMO */
 if(soloUltimo){
 const mapa:any = {}
 
@@ -177,8 +217,9 @@ cursor:"pointer"
 <select
 value={ambulancia}
 onChange={(e)=>{
-setAmbulancia(e.target.value)
-cargarHistorial(e.target.value)
+const id = e.target.value
+setAmbulancia(id)
+cargarHistorial(id)
 }}
 style={input}
 >
