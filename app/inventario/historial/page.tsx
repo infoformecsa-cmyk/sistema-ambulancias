@@ -20,14 +20,26 @@ useEffect(()=>{
 cargarAmbulancias()
 },[])
 
-async function cargarAmbulancias(){
-const { data } = await supabase.from("ambulancias").select("id,codigo_operativo")
+/* ========================= */
 
-const ordenadas = (data || []).sort((a,b)=>
+async function cargarAmbulancias(){
+
+const { data, error } = await supabase
+.from("ambulancias")
+.select("id,codigo_operativo")
+
+if(error){
+console.error("❌ Error ambulancias:", error)
+return
+}
+
+console.log("🚑 Ambulancias:", data)
+
+setAmbulancias(
+(data || []).sort((a,b)=>
 a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
 )
-
-setAmbulancias(ordenadas)
+)
 }
 
 /* ========================= */
@@ -39,10 +51,16 @@ setDatos([])
 return
 }
 
-console.log("🔍 Ambulancia seleccionada:", id)
+console.log("🧪 ID seleccionado:", id)
 
-/* ========================= */
-/* 🔥 QUERY PRINCIPAL */
+/* 🔍 DEBUG REAL */
+const test = await supabase
+.from("inventario_checklist")
+.select("ambulancia_id")
+.limit(5)
+
+console.log("🧪 IDs BD:", test.data)
+
 /* ========================= */
 
 let query = supabase
@@ -53,9 +71,9 @@ inventario_items (
   nombre
 )
 `)
-.eq("ambulancia_id", id)
+.eq("ambulancia_id", id.trim())
 
-/* FILTROS POR FECHA (REAL) */
+/* FILTROS */
 if(fechaInicio){
 query = query.gte("created_at", `${fechaInicio}T00:00:00`)
 }
@@ -64,17 +82,18 @@ if(fechaFin){
 query = query.lte("created_at", `${fechaFin}T23:59:59`)
 }
 
-let { data } = await query.order("created_at",{ascending:false})
+let { data, error } = await query.order("created_at",{ascending:false})
 
-/* ========================= */
-/* 🔥 FALLBACK INTELIGENTE */
-/* ========================= */
+if(error){
+console.error("❌ Error query:", error)
+}
 
+/* 🚨 SI NO HAY DATOS → TRAER TODO */
 if(!data || data.length === 0){
 
-console.warn("⚠️ No hubo datos por ambulancia_id, aplicando fallback...")
+console.warn("⚠️ No coincidió ambulancia_id → mostrando todo")
 
-let fallbackQuery = supabase
+const { data: allData } = await supabase
 .from("inventario_checklist")
 .select(`
 *,
@@ -82,28 +101,17 @@ inventario_items (
   nombre
 )
 `)
+.order("created_at",{ascending:false})
 
-/* aplicar mismos filtros */
-if(fechaInicio){
-fallbackQuery = fallbackQuery.gte("created_at", `${fechaInicio}T00:00:00`)
+data = allData || []
 }
 
-if(fechaFin){
-fallbackQuery = fallbackQuery.lte("created_at", `${fechaFin}T23:59:59`)
-}
-
-const { data: fallbackData } = await fallbackQuery.order("created_at",{ascending:false})
-
-data = fallbackData || []
-}
-
-console.log("📦 Datos obtenidos:", data)
+console.log("📦 RESULTADO FINAL:", data)
 
 /* ========================= */
 
-let lista = data || []
+let lista = data
 
-/* SOLO ÚLTIMO */
 if(soloUltimo){
 const mapa:any = {}
 
@@ -163,8 +171,8 @@ return
 const encabezados = ["Fecha","Item","Lote","Cantidad","Caducidad","Estado"]
 
 const filas = datos.map(d=>[
-(d.fecha_registro || d.created_at)
-? new Date(d.fecha_registro || d.created_at).toLocaleString()
+(d.created_at)
+? new Date(d.created_at).toLocaleString()
 : "",
 d.inventario_items?.nombre || d.item_id,
 d.lote || "",
@@ -189,28 +197,14 @@ link.click()
 }
 
 /* ========================= */
-/* UI */
-/* ========================= */
 
 return(
 
 <div style={container}>
 
-<div style={{marginBottom:20}}>
-<button
-onClick={()=>router.push("/bitacora/dashboard")}
-style={{
-background:"#1f2937",
-color:"white",
-padding:"10px 15px",
-borderRadius:8,
-border:"none",
-cursor:"pointer"
-}}
->
+<button onClick={()=>router.push("/bitacora/dashboard")} style={btn}>
 ⬅ Volver
 </button>
-</div>
 
 <h1>📊 Historial Checklist</h1>
 
@@ -229,23 +223,19 @@ style={input}
 ))}
 </select>
 
-<div style={{display:"flex",gap:10,marginBottom:20}}>
+<div style={{display:"flex",gap:10}}>
 
 <input type="date" value={fechaInicio} onChange={e=>setFechaInicio(e.target.value)} style={input}/>
 <input type="date" value={fechaFin} onChange={e=>setFechaFin(e.target.value)} style={input}/>
 
-<button onClick={()=>cargarHistorial(ambulancia)} style={input}>
-Filtrar
-</button>
+<button onClick={()=>cargarHistorial(ambulancia)} style={input}>Filtrar</button>
 
 <button onClick={()=>{
 setFechaInicio("")
 setFechaFin("")
 setSoloUltimo(false)
 cargarHistorial(ambulancia)
-}} style={input}>
-Reset
-</button>
+}} style={input}>Reset</button>
 
 <button onClick={()=>{
 setSoloUltimo(!soloUltimo)
@@ -254,16 +244,14 @@ cargarHistorial(ambulancia)
 {soloUltimo ? "Ver todos" : "Solo último"}
 </button>
 
-<button onClick={exportarCSV} style={input}>
-⬇️ Exportar
-</button>
+<button onClick={exportarCSV} style={input}>⬇️ Exportar</button>
 
 </div>
 
 <div style={tabla}>
 
 <div style={headerRow}>
-<div>Fecha Registro</div>
+<div>Fecha</div>
 <div>Item</div>
 <div>Lote</div>
 <div>Cantidad</div>
@@ -275,18 +263,10 @@ cargarHistorial(ambulancia)
 
 <div key={d.id} style={row}>
 
-<div>
-{(d.fecha_registro || d.created_at)
-? new Date(d.fecha_registro || d.created_at).toLocaleString()
-: "-"}
-</div>
-
+<div>{d.created_at ? new Date(d.created_at).toLocaleString() : "-"}</div>
 <div>{d.inventario_items?.nombre || d.item_id}</div>
-
 <div>{d.lote || "-"}</div>
-
 <div>{d.cantidad}</div>
-
 <div>{d.fecha_caducidad || "-"}</div>
 
 <div style={{
@@ -310,7 +290,8 @@ textAlign:"center"
 
 /* ESTILOS */
 const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
-const input = {padding:10,marginBottom:20,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
-const tabla = {background:"#111827",borderRadius:10,padding:10}
-const headerRow = {display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",fontWeight:"bold",padding:10,borderBottom:"1px solid #1f2937"}
-const row = {display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",padding:10,borderBottom:"1px solid #1f2937"}
+const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
+const btn = {marginBottom:20,background:"#1f2937",color:"white",padding:10,borderRadius:8}
+const tabla = {background:"#111827",borderRadius:10,padding:10,marginTop:20}
+const headerRow = {display:"grid",gridTemplateColumns:"repeat(6,1fr)",fontWeight:"bold",padding:10}
+const row = {display:"grid",gridTemplateColumns:"repeat(6,1fr)",padding:10}
