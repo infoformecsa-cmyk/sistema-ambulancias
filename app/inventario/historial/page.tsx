@@ -33,8 +33,6 @@ console.error("❌ Error ambulancias:", error)
 return
 }
 
-console.log("🚑 Ambulancias:", data)
-
 setAmbulancias(
 (data || []).sort((a,b)=>
 a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
@@ -51,18 +49,6 @@ setDatos([])
 return
 }
 
-console.log("🧪 ID seleccionado:", id)
-
-/* 🔍 DEBUG REAL */
-const test = await supabase
-.from("inventario_checklist")
-.select("ambulancia_id")
-.limit(5)
-
-console.log("🧪 IDs BD:", test.data)
-
-/* ========================= */
-
 let query = supabase
 .from("inventario_checklist")
 .select(`
@@ -73,7 +59,6 @@ inventario_items (
 `)
 .eq("ambulancia_id", id.trim())
 
-/* FILTROS */
 if(fechaInicio){
 query = query.gte("created_at", `${fechaInicio}T00:00:00`)
 }
@@ -88,39 +73,25 @@ if(error){
 console.error("❌ Error query:", error)
 }
 
-/* 🚨 SI NO HAY DATOS → TRAER TODO */
+/* fallback */
 if(!data || data.length === 0){
-
-console.warn("⚠️ No coincidió ambulancia_id → mostrando todo")
-
 const { data: allData } = await supabase
 .from("inventario_checklist")
-.select(`
-*,
-inventario_items (
-  nombre
-)
-`)
+.select(`*, inventario_items ( nombre )`)
 .order("created_at",{ascending:false})
 
 data = allData || []
 }
 
-console.log("📦 RESULTADO FINAL:", data)
-
-/* ========================= */
-
 let lista = data
 
 if(soloUltimo){
 const mapa:any = {}
-
 for(const item of lista){
 if(!mapa[item.item_id]){
 mapa[item.item_id] = item
 }
 }
-
 lista = Object.values(mapa)
 }
 
@@ -160,6 +131,76 @@ return "#22c55e"
 }
 
 /* ========================= */
+/* 🔥 BORRAR POR AMBULANCIA */
+/* ========================= */
+
+async function eliminarRegistros(){
+
+if(!ambulancia){
+alert("Selecciona una ambulancia")
+return
+}
+
+const ok = confirm("⚠️ Esto eliminará los registros. ¿Continuar?")
+if(!ok) return
+
+let query = supabase
+.from("inventario_checklist")
+.delete()
+.eq("ambulancia_id", ambulancia)
+
+if(fechaInicio){
+query = query.gte("created_at", `${fechaInicio}T00:00:00`)
+}
+
+if(fechaFin){
+query = query.lte("created_at", `${fechaFin}T23:59:59`)
+}
+
+const { error } = await query
+
+if(error){
+alert("Error al eliminar")
+console.error(error)
+}else{
+alert("✅ Registros eliminados")
+cargarHistorial(ambulancia)
+}
+
+}
+
+/* ========================= */
+/* 🔥 BORRAR SOLO LO VISIBLE */
+/* ========================= */
+
+async function eliminarVisibles(){
+
+if(datos.length === 0){
+alert("No hay datos")
+return
+}
+
+const ok = confirm("Eliminar SOLO los registros visibles?")
+if(!ok) return
+
+const ids = datos.map(d=>d.id)
+
+const { error } = await supabase
+.from("inventario_checklist")
+.delete()
+.in("id", ids)
+
+if(error){
+console.error(error)
+alert("Error")
+}else{
+alert("✅ Eliminados")
+setDatos([])
+}
+
+}
+
+/* ========================= */
 
 function exportarCSV(){
 
@@ -171,9 +212,7 @@ return
 const encabezados = ["Fecha","Item","Lote","Cantidad","Caducidad","Estado"]
 
 const filas = datos.map(d=>[
-(d.created_at)
-? new Date(d.created_at).toLocaleString()
-: "",
+d.created_at ? new Date(d.created_at).toLocaleString() : "",
 d.inventario_items?.nombre || d.item_id,
 d.lote || "",
 d.cantidad,
@@ -186,7 +225,6 @@ const csv = [encabezados, ...filas]
 .join("\n")
 
 const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-
 const url = URL.createObjectURL(blob)
 
 const link = document.createElement("a")
@@ -223,7 +261,7 @@ style={input}
 ))}
 </select>
 
-<div style={{display:"flex",gap:10}}>
+<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
 
 <input type="date" value={fechaInicio} onChange={e=>setFechaInicio(e.target.value)} style={input}/>
 <input type="date" value={fechaFin} onChange={e=>setFechaFin(e.target.value)} style={input}/>
@@ -245,6 +283,15 @@ cargarHistorial(ambulancia)
 </button>
 
 <button onClick={exportarCSV} style={input}>⬇️ Exportar</button>
+
+{/* 🔥 NUEVOS BOTONES */}
+<button onClick={eliminarRegistros} style={btnDanger}>
+🗑️ Borrar por ambulancia
+</button>
+
+<button onClick={eliminarVisibles} style={btnDanger}>
+🔥 Borrar visibles
+</button>
 
 </div>
 
@@ -292,6 +339,7 @@ textAlign:"center"
 const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
 const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
 const btn = {marginBottom:20,background:"#1f2937",color:"white",padding:10,borderRadius:8}
+const btnDanger = {background:"#7f1d1d",color:"white",padding:10,borderRadius:8,border:"none",cursor:"pointer"}
 const tabla = {background:"#111827",borderRadius:10,padding:10,marginTop:20}
 const headerRow = {display:"grid",gridTemplateColumns:"repeat(6,1fr)",fontWeight:"bold",padding:10}
 const row = {display:"grid",gridTemplateColumns:"repeat(6,1fr)",padding:10}
