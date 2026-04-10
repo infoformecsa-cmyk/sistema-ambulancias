@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import React from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -9,185 +8,169 @@ export default function Dashboard(){
 
 const router = useRouter()
 
-const [data,setData] = useState<any[]>([])
-const [ambulancias,setAmbulancias] = useState<any[]>([])
-const [ambulanciaSeleccionada,setAmbulanciaSeleccionada] = useState<any>(null)
-const [registros,setRegistros] = useState<any[]>([])
+const [alertas,setAlertas] = useState<any[]>([])
+const [resumen,setResumen] = useState<any[]>([])
 
-/* ========================= */
-/* CARGA */
 /* ========================= */
 
 useEffect(()=>{
-cargarAmbulancias()
-cargar()
+init()
 },[])
 
-async function cargarAmbulancias(){
+async function init(){
+await cargarAlertas()
+await calcularPrioridad()
+}
+
+/* ========================= */
+/* 🔥 ALERTAS CADUCIDAD */
+/* ========================= */
+
+async function cargarAlertas(){
 
 const { data } = await supabase
+.from("inventario_checklist")
+.select(`
+ambulancia_id,
+fecha_caducidad,
+inventario_items (nombre)
+`)
+.not("fecha_caducidad","is",null)
+
+const hoy = new Date()
+
+const procesado = (data || []).map(i=>{
+
+const fecha = new Date(i.fecha_caducidad)
+const diff = (fecha.getTime() - hoy.getTime()) / (1000*60*60*24)
+
+let estado = "OK"
+
+if(diff <= 0) estado = "VENCIDO"
+else if(diff <= 30) estado = "CRITICO"
+else if(diff <= 90) estado = "PREVENTIVO"
+
+return {
+ambulancia: i.ambulancia_id,
+nombre: i.inventario_items?.nombre,
+estado,
+dias: Math.round(diff)
+}
+
+})
+
+const filtrado = procesado.filter(i=> i.estado !== "OK")
+
+filtrado.sort((a,b)=>{
+const prioridad = {VENCIDO:1,CRITICO:2,PREVENTIVO:3}
+return prioridad[a.estado] - prioridad[b.estado]
+})
+
+setAlertas(filtrado)
+
+}
+
+/* ========================= */
+/* 🔥 PRIORIDAD OPERATIVA */
+/* ========================= */
+
+async function calcularPrioridad(){
+
+const { data: base } = await supabase
+.from("inventario_base")
+.select("*")
+
+const { data: checklist } = await supabase
+.from("inventario_checklist")
+.select("*")
+
+const { data: ambulancias } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-const ordenadas = (data || []).sort((a,b)=>{
-return a.codigo_operativo.localeCompare(b.codigo_operativo, undefined, {numeric:true})
+if(!base || !checklist || !ambulancias) return
+
+const resultado = ambulancias.map(a=>{
+
+const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
+
+/* 🔥 ULTIMO CHECKLIST */
+const mapa:any = {}
+
+items.forEach(i=>{
+if(!mapa[i.item_id]){
+mapa[i.item_id] = i
+}
 })
 
-setAmbulancias(ordenadas)
+const ultimo = Object.values(mapa)
+
+/* 🔥 FALTANTES */
+let faltantes = 0
+
+base.forEach(b=>{
+
+const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
+
+if(!encontrado || encontrado.cantidad < b.cantidad_minima){
+faltantes++
 }
 
-/* ========================= */
-/* 🔥 FIX AQUÍ */
-/* ========================= */
+})
 
-async function cargar(){
-
-const { data } = await supabase
-.from("inventario_checklist")
-.select(`
-*,
-inventario_items (nombre)
-`)
-.order("fecha_registro",{ascending:false})
+/* 🔥 CADUCIDAD */
+let criticos = 0
+let vencidos = 0
 
 const hoy = new Date()
 
-const procesado = (data || []).map(item=>{
+ultimo.forEach((i:any)=>{
+if(!i.fecha_caducidad) return
 
-const fecha = new Date(item.fecha_registro)
+const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
-const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
-
-let estado = "OK"
-
-if(item.cantidad === 0){
-estado = "FALTANTE"
-}
-else if(diff >= 15){
-estado = "CRITICO"
-}
-else if(diff >= 7){
-estado = "PREVENTIVO"
-}
-
-return {
-id: item.id,
-nombre: item.inventario_items?.nombre || "item",
-tipo: "CHECKLIST",
-lote: item.lote,
-cantidad: item.cantidad,
-estado,
-ambulancia_id: String(item.ambulancia_id)
-}
+if(diff <= 0) vencidos++
+else if(diff <= 30) criticos++
 })
 
-setData(procesado)
-}
+/* 🔥 PRIORIDAD */
+let prioridad = "OK"
 
-/* ========================= */
-/* 🔥 FIX AQUÍ */
-/* ========================= */
-
-async function cargarRegistros(id:any){
-
-const { data } = await supabase
-.from("inventario_checklist")
-.select(`
-*,
-inventario_items (nombre)
-`)
-.eq("ambulancia_id", String(id))
-.order("fecha_registro",{ascending:false})
-
-const hoy = new Date()
-
-const procesado = (data || []).map(item=>{
-
-const fecha = new Date(item.fecha_registro)
-
-const diff = (hoy.getTime() - fecha.getTime()) / (1000*60*60*24)
-
-let estado = "OK"
-
-if(item.cantidad === 0){
-estado = "FALTANTE"
-}
-else if(diff >= 15){
-estado = "CRITICO"
-}
-else if(diff >= 7){
-estado = "PREVENTIVO"
-}
+if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
+else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
 
 return {
-id: item.id,
-nombre: item.inventario_items?.nombre || "item",
-tipo: "CHECKLIST",
-lote: item.lote,
-cantidad: item.cantidad,
-estado,
-ambulancia_id: String(item.ambulancia_id)
-}
-})
-
-setRegistros(procesado || [])
-}
-
-/* ========================= */
-
-const resumenAmbulancias = ambulancias.map(a=>{
-
-const items = data.filter(
-i => i.ambulancia_id === String(a.id)
-)
-
-if(items.length === 0){
-return {
-id:a.id,
-nombre:a.codigo_operativo,
-estado:"SIN_DATOS",
-faltantes:0,
-criticos:0,
-preventivos:0
-}
-}
-
-const faltantes = items.filter(i=>i.cantidad === 0).length
-const criticos = items.filter(i=>i.estado==="CRITICO").length
-const preventivos = items.filter(i=>i.estado==="PREVENTIVO").length
-
-let estado = "OK"
-
-if(faltantes > 0) estado = "FALTANTE"
-else if(criticos > 0) estado = "CRITICO"
-else if(preventivos > 0) estado = "PREVENTIVO"
-
-return {
-id:a.id,
-nombre:a.codigo_operativo,
-estado,
+nombre: a.codigo_operativo,
 faltantes,
 criticos,
-preventivos
+vencidos,
+prioridad
 }
 
 })
 
-/* ========================= */
+/* 🔥 ORDENAR */
+resultado.sort((a,b)=>{
+const orden = {ALTA:1,MEDIA:2,OK:3}
+return orden[a.prioridad] - orden[b.prioridad]
+})
 
-const total = resumenAmbulancias.length
-const ok = resumenAmbulancias.filter(a=>a.estado==="OK").length
-const critico = resumenAmbulancias.filter(a=>a.estado==="CRITICO").length
-const faltante = resumenAmbulancias.filter(a=>a.estado==="FALTANTE").length
-const preventivo = resumenAmbulancias.filter(a=>a.estado==="PREVENTIVO").length
+setResumen(resultado)
+
+}
 
 /* ========================= */
 
 function colorEstado(e:string){
-if(e==="FALTANTE") return "#7f1d1d"
+if(e==="ALTA") return "#7f1d1d"
+if(e==="MEDIA") return "#f59e0b"
+return "#22c55e"
+}
+
+function color(e:string){
+if(e==="VENCIDO") return "#7f1d1d"
 if(e==="CRITICO") return "#ef4444"
 if(e==="PREVENTIVO") return "#f59e0b"
-if(e==="SIN_DATOS") return "#374151"
 return "#22c55e"
 }
 
@@ -204,116 +187,81 @@ function irHistorial(){
 router.push("/inventario/historial")
 }
 
-async function eliminarRegistro(id:string){
-
-if(!confirm("¿Eliminar registro?")) return
-
-/* 🔥 IMPORTANTE: eliminar de la tabla correcta */
-await supabase.from("inventario_checklist").delete().eq("id",id)
-
-cargar()
-if(ambulanciaSeleccionada){
-cargarRegistros(ambulanciaSeleccionada.id)
-}
-}
-
-function irChecklist(ambulanciaId:any){
-router.push(`/inventario/checklist?ambulancia=${String(ambulanciaId)}`)
-}
-
-/* ========================= */
-/* UI */
 /* ========================= */
 
 return(
+
 <div style={container}>
 
+{/* HEADER */}
 <div style={header}>
 
 <div>
-<h1>🚑 Centro de Control Médico</h1>
-
-<div style={metricas}>
-<span>🚑 {total}</span>
-<span style={{color:"#22c55e"}}>OK {ok}</span>
-<span style={{color:"#f59e0b"}}>Prev {preventivo}</span>
-<span style={{color:"#ef4444"}}>Crit {critico}</span>
-<span style={{color:"#7f1d1d"}}>Falt {faltante}</span>
-</div>
+<h1>🚑 CENTRO DE CONTROL EMS</h1>
+<p style={{opacity:0.7}}>Prioridad operativa + alertas clínicas</p>
 </div>
 
 <div style={{display:"flex",gap:10}}>
-<button onClick={irHistorial} style={btnSalir}>
+<button onClick={irHistorial} style={btn}>
 📊 Historial
 </button>
 
-<button onClick={cerrarSesion} style={btnSalir}>
+<button onClick={cerrarSesion} style={btn}>
 Salir
 </button>
 </div>
 
 </div>
 
-<div style={grid}>
+{/* 🔥 PRIORIDAD POR AMBULANCIA */}
 
-{resumenAmbulancias.map(a=>(
-<div
-key={a.id}
-onClick={()=>{
-setAmbulanciaSeleccionada(a)
-cargarRegistros(a.id)
-}}
-style={{
-background:colorEstado(a.estado),
-padding:12,
-borderRadius:12,
-cursor:"pointer",
-transition:"0.2s"
-}}
->
+<h2>🚑 PRIORIDAD OPERATIVA</h2>
 
-<div style={{fontWeight:"bold"}}>🚑 {a.nombre}</div>
-<div style={{fontSize:12}}>{a.estado}</div>
+{resumen.map((a,i)=>(
 
-{a.faltantes > 0 && <div>❌ {a.faltantes}</div>}
-{a.criticos > 0 && <div>🚨 {a.criticos}</div>}
-{a.preventivos > 0 && <div>⚠ {a.preventivos}</div>}
-
-</div>
-))}
-
-</div>
-
-{ambulanciaSeleccionada && (
-<div style={panel}>
-
-<h2>🚑 {ambulanciaSeleccionada.nombre}</h2>
-
-{registros.map(r=>(
-<div key={r.id} style={row}>
-
-<div style={{flex:2}}>{r.nombre}</div>
-<div style={{flex:1}}>{r.tipo}</div>
-<div style={{flex:1}}>{r.lote || "-"}</div>
-
-<div style={{
-flex:1,
-background:colorEstado(r.estado),
-textAlign:"center"
+<div key={i} style={{
+background:colorEstado(a.prioridad),
+padding:15,
+marginBottom:10,
+borderRadius:10
 }}>
-{r.estado}
+
+<div><strong>{a.nombre}</strong></div>
+<div>❌ Faltantes: {a.faltantes}</div>
+<div>💊 Críticos: {a.criticos}</div>
+<div>🚨 Vencidos: {a.vencidos}</div>
+<div>⚡ PRIORIDAD: {a.prioridad}</div>
+
 </div>
 
-<div style={{display:"flex",gap:5}}>
-<button onClick={()=>eliminarRegistro(r.id)}>🗑</button>
-<button onClick={()=>irChecklist(r.ambulancia_id)}>📋</button>
-</div>
-
-</div>
 ))}
 
+{/* 🔥 ALERTAS */}
+
+<h2>🚨 ALERTAS CLÍNICAS</h2>
+
+{alertas.length === 0 && (
+<div style={okBox}>
+✅ Todo en regla
 </div>
 )}
+
+{alertas.map((a,i)=>(
+
+<div key={i} style={{
+background:color(a.estado),
+padding:15,
+marginBottom:10,
+borderRadius:10
+}}>
+
+<div>🚑 {a.ambulancia}</div>
+<div>💊 {a.nombre}</div>
+<div>⏳ {a.estado} ({a.dias} días)</div>
+
+</div>
+
+))}
 
 </div>
 )
@@ -323,10 +271,32 @@ textAlign:"center"
 /* ESTILOS */
 /* ========================= */
 
-const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
-const header = {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}
-const metricas = {display:"flex",gap:15,marginTop:5,fontSize:14}
-const btnSalir = {background:"#1f2937",color:"white",padding:"10px 15px",borderRadius:8}
-const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}
-const panel = {background:"#111827",padding:15,borderRadius:10}
-const row = {display:"flex",gap:10,padding:10,borderBottom:"1px solid #1f2937"}
+const container = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:30
+}
+
+const header = {
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:20
+}
+
+const btn = {
+background:"#1f2937",
+color:"white",
+padding:"10px 15px",
+borderRadius:8,
+border:"none",
+cursor:"pointer"
+}
+
+const okBox = {
+background:"#22c55e",
+padding:15,
+borderRadius:10,
+textAlign:"center"
+}
