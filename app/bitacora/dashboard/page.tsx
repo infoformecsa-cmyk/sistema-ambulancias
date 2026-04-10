@@ -103,11 +103,19 @@ const resultado = ambulancias.map(a=>{
 
 const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
 
+/* 🔥 TOMAR EL ÚLTIMO REGISTRO REAL */
 const mapa:any = {}
 
 items.forEach(i=>{
 if(!mapa[i.item_id]){
 mapa[i.item_id] = i
+}else{
+const actual = new Date(mapa[i.item_id].created_at)
+const nuevo = new Date(i.created_at)
+
+if(nuevo > actual){
+mapa[i.item_id] = i
+}
 }
 })
 
@@ -129,7 +137,10 @@ faltantes++
 
 faltantesDetalle.push({
 nombre: b.nombre,
-faltan: b.cantidad_minima - actual
+actual,
+minimo: b.cantidad_minima,
+faltan: b.cantidad_minima - actual,
+estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO"
 })
 
 }
@@ -139,6 +150,7 @@ faltan: b.cantidad_minima - actual
 /* 🔥 CADUCIDAD */
 let criticos = 0
 let vencidos = 0
+let vencidosDetalle:any[] = []
 
 const hoy = new Date()
 
@@ -147,8 +159,16 @@ if(!i.fecha_caducidad) return
 
 const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
-if(diff <= 0) vencidos++
-else if(diff <= 30) criticos++
+if(diff <= 0){
+vencidos++
+vencidosDetalle.push({
+nombre: i.inventario_items?.nombre || "Item",
+fecha: i.fecha_caducidad
+})
+}
+else if(diff <= 30){
+criticos++
+}
 })
 
 /* 🔥 PRIORIDAD */
@@ -163,7 +183,8 @@ faltantes,
 criticos,
 vencidos,
 prioridad,
-faltantesDetalle
+faltantesDetalle,
+vencidosDetalle
 }
 
 })
@@ -267,24 +288,41 @@ onClick={()=>toggle(a.nombre)}
 <div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
 
-{/* 🔥 SOLO SI ESTA ABIERTO */}
-{expandido === a.nombre && a.faltantesDetalle.length > 0 && (
-<div style={{
-marginTop:10,
-background:"#020617",
-padding:10,
-borderRadius:8
-}}>
+{/* 🔥 DETALLE */}
+{expandido === a.nombre && (
 
+<div style={{marginTop:10}}>
+
+{/* REABASTECER */}
+{a.faltantesDetalle.length > 0 && (
+<div style={{background:"#020617",padding:10,borderRadius:8,marginBottom:10}}>
 <strong>📦 Reabastecer:</strong>
 
 {a.faltantesDetalle.map((f:any,idx:number)=>(
 <div key={idx}>
-- {f.nombre} → faltan {f.faltan}
+- {f.nombre} → {f.actual}/{f.minimo} ({f.estado === "SIN STOCK" ? "❌ SIN STOCK" : "⚠ INCOMPLETO"})
 </div>
 ))}
 
 </div>
+)}
+
+{/* VENCIDOS */}
+{a.vencidosDetalle.length > 0 && (
+<div style={{background:"#450a0a",padding:10,borderRadius:8}}>
+<strong>🚨 Vencidos:</strong>
+
+{a.vencidosDetalle.map((v:any,idx:number)=>(
+<div key={idx}>
+- {v.nombre}
+</div>
+))}
+
+</div>
+)}
+
+</div>
+
 )}
 
 </div>
