@@ -12,6 +12,12 @@ const [alertas,setAlertas] = useState<any[]>([])
 const [resumen,setResumen] = useState<any[]>([])
 const [expandido,setExpandido] = useState<string | null>(null)
 
+/* 🔥 NUEVO */
+const [modal,setModal] = useState(false)
+const [itemSeleccionado,setItemSeleccionado] = useState<any>(null)
+const [cantidad,setCantidad] = useState("")
+const [lote,setLote] = useState("")
+
 /* ========================= */
 
 useEffect(()=>{
@@ -120,7 +126,6 @@ const resultado = ambulancias.map(a=>{
 
 const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
 
-/* 🔥 ÚLTIMO REGISTRO REAL */
 const mapa:any = {}
 
 items.forEach(i=>{
@@ -129,7 +134,6 @@ mapa[i.item_id] = i
 }else{
 const actual = new Date(mapa[i.item_id].created_at)
 const nuevo = new Date(i.created_at)
-
 if(nuevo > actual){
 mapa[i.item_id] = i
 }
@@ -145,7 +149,6 @@ let faltantesDetalle:any[] = []
 base.forEach(b=>{
 
 const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
-
 const actual = encontrado?.cantidad || 0
 
 if(actual < b.cantidad_minima){
@@ -153,11 +156,13 @@ if(actual < b.cantidad_minima){
 faltantes++
 
 faltantesDetalle.push({
+item_id: b.item_id,
 nombre: b.nombre,
 actual,
 minimo: b.cantidad_minima,
 faltan: b.cantidad_minima - actual,
-estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO"
+estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO",
+ambulancia_id: a.id
 })
 
 }
@@ -178,7 +183,6 @@ const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*
 
 if(diff <= 0){
 vencidos++
-
 vencidosDetalle.push({
 nombre: getNombre(i.inventario_items),
 fecha: i.fecha_caducidad
@@ -227,13 +231,37 @@ setResumen(resultado)
 }
 
 /* ========================= */
+/* 🔥 MODAL FUNCIONES */
+/* ========================= */
+
+function abrirModal(item:any){
+setItemSeleccionado(item)
+setModal(true)
+}
+
+async function guardarAbastecimiento(){
+
+if(!itemSeleccionado) return
+
+await supabase.from("inventario_checklist").insert({
+ambulancia_id: itemSeleccionado.ambulancia_id,
+item_id: itemSeleccionado.item_id,
+cantidad: Number(cantidad),
+lote: lote
+})
+
+setModal(false)
+setCantidad("")
+setLote("")
+setItemSeleccionado(null)
+
+await init()
+}
+
+/* ========================= */
 
 function toggle(nombre:string){
-if(expandido === nombre){
-setExpandido(null)
-}else{
-setExpandido(nombre)
-}
+setExpandido(expandido === nombre ? null : nombre)
 }
 
 /* ========================= */
@@ -315,9 +343,25 @@ onClick={()=>toggle(a.nombre)}
 <strong>📦 Reabastecer:</strong>
 
 {a.faltantesDetalle.map((f:any,idx:number)=>(
-<div key={idx}>
+
+<div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+
+<div>
 - {f.nombre} → {f.actual}/{f.minimo} ({f.estado === "SIN STOCK" ? "❌ SIN STOCK" : "⚠ INCOMPLETO"})
 </div>
+
+<button
+onClick={(e)=>{
+e.stopPropagation()
+abrirModal(f)
+}}
+style={btn}
+>
+➕ Abastecer
+</button>
+
+</div>
+
 ))}
 
 </div>
@@ -328,9 +372,7 @@ onClick={()=>toggle(a.nombre)}
 <strong>🚨 Vencidos:</strong>
 
 {a.vencidosDetalle.map((v:any,idx:number)=>(
-<div key={idx}>
-- {v.nombre}
-</div>
+<div key={idx}>- {v.nombre}</div>
 ))}
 
 </div>
@@ -343,6 +385,35 @@ onClick={()=>toggle(a.nombre)}
 </div>
 
 ))}
+
+{/* 🔥 MODAL */}
+
+{modal && (
+<div style={{
+position:"fixed",
+top:0,left:0,
+width:"100%",height:"100%",
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}}>
+
+<div style={{background:"#111827",padding:20,borderRadius:10,width:300}}>
+
+<h3>📦 Abastecer</h3>
+
+<p>{itemSeleccionado?.nombre}</p>
+
+<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
+<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={{width:"100%",marginBottom:10}} />
+
+<button onClick={guardarAbastecimiento} style={btn}>Guardar</button>
+<button onClick={()=>setModal(false)} style={btn}>Cancelar</button>
+
+</div>
+</div>
+)}
 
 <h2>🚨 ALERTAS CLÍNICAS</h2>
 
@@ -388,8 +459,8 @@ marginBottom:20
 const btn = {
 background:"#1f2937",
 color:"white",
-padding:"10px 15px",
-borderRadius:8,
+padding:"6px 10px",
+borderRadius:6,
 border:"none",
 cursor:"pointer"
 }
