@@ -11,8 +11,8 @@ const router = useRouter()
 const [ambulancias,setAmbulancias] = useState<any[]>([])
 const [ambulancia,setAmbulancia] = useState("")
 
-const [checklists,setChecklists] = useState<any[]>([]) // 🔥 LISTA AGRUPADA
-const [detalle,setDetalle] = useState<any[]>([]) // 🔥 DETALLE
+const [checklists,setChecklists] = useState<any[]>([])
+const [detalle,setDetalle] = useState<any>({})
 
 const [fechaInicio,setFechaInicio] = useState("")
 const [fechaFin,setFechaFin] = useState("")
@@ -24,15 +24,18 @@ cargarAmbulancias()
 /* ========================= */
 
 async function cargarAmbulancias(){
+
 const { data } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-setAmbulancias(data || [])
+const ordenadas = (data || []).sort((a,b)=>
+a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
+)
+
+setAmbulancias(ordenadas)
 }
 
-/* ========================= */
-/* 🔥 CARGAR CHECKLISTS AGRUPADOS */
 /* ========================= */
 
 async function cargarHistorial(id:string){
@@ -41,7 +44,13 @@ if(!id) return
 
 let query = supabase
 .from("inventario_checklist")
-.select("*")
+.select(`
+*,
+inventario_items (
+  nombre,
+  categoria
+)
+`)
 .eq("ambulancia_id", id)
 
 if(fechaInicio){
@@ -55,49 +64,62 @@ const { data } = await query.order("created_at",{ascending:false})
 
 if(!data) return
 
-/* 🔥 AGRUPAR POR CHECKLIST */
+/* 🔥 AGRUPAR POR MINUTO */
 const grupos:any = {}
 
 data.forEach(item=>{
-const key = new Date(item.created_at).toISOString()
+
+const fecha = new Date(item.created_at)
+fecha.setSeconds(0,0)
+
+const key = fecha.toISOString()
 
 if(!grupos[key]){
 grupos[key] = []
 }
 
 grupos[key].push(item)
+
 })
 
-/* 🔥 CONVERTIR A LISTA */
 const lista = Object.keys(grupos).map(fecha=>({
 fecha,
 items: grupos[fecha]
 }))
 
-/* 🔥 ORDEN DESC */
 lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
 
-/* 🔥 AUTO SELECCIONAR EL ÚLTIMO */
+/* auto seleccionar último */
 if(lista.length > 0){
-setDetalle(lista[0].items)
+procesarDetalle(lista[0].items)
 }
 
 }
 
 /* ========================= */
-/* 🔥 VER DETALLE */
+/* 🔥 AGRUPAR DETALLE POR CATEGORIA */
 /* ========================= */
 
-function verDetalle(items:any[]){
-setDetalle(items)
+function procesarDetalle(items:any[]){
+
+const grupos:any = {}
+
+items.forEach(i=>{
+
+const cat = i.inventario_items?.categoria || "Otros"
+
+if(!grupos[cat]){
+grupos[cat] = []
 }
 
-/* ========================= */
+grupos[cat].push(i)
 
-function colorEstado(){
-return "#22c55e"
+})
+
+setDetalle(grupos)
+
 }
 
 /* ========================= */
@@ -139,7 +161,7 @@ Filtrar
 </div>
 
 {/* ========================= */}
-{/* 🔥 LISTA DE CHECKLISTS */}
+{/* CHECKLISTS */}
 {/* ========================= */}
 
 <h2>🗂 Checklists</h2>
@@ -148,7 +170,7 @@ Filtrar
 
 {checklists.map((c,i)=>(
 
-<div key={i} style={rowClickable} onClick={()=>verDetalle(c.items)}>
+<div key={i} style={rowClickable} onClick={()=>procesarDetalle(c.items)}>
 
 <div>
 📅 {new Date(c.fecha).toLocaleString()}
@@ -165,38 +187,42 @@ Filtrar
 </div>
 
 {/* ========================= */}
-{/* 🔥 DETALLE */}
+{/* DETALLE POR CATEGORIA */}
 {/* ========================= */}
 
-<h2>📋 Detalle</h2>
+<h2>📋 Detalle por categoría</h2>
 
 <div style={tabla}>
 
-<div style={headerRow}>
-<div>Item</div>
-<div>Lote</div>
-<div>Cantidad</div>
-<div>Caducidad</div>
-<div>Estado</div>
-</div>
+{Object.keys(detalle).map((cat,i)=>(
 
-{detalle.map(d=>(
+<div key={i} style={{marginBottom:20}}>
+
+<h3 style={{color:"#38bdf8"}}>
+{cat} ({detalle[cat].length} items)
+</h3>
+
+{detalle[cat].map((d:any)=>(
 
 <div key={d.id} style={row}>
 
-<div>{d.item_id}</div>
+<div>{d.inventario_items?.nombre}</div>
 <div>{d.lote || "-"}</div>
 <div>{d.cantidad}</div>
 <div>{d.fecha_caducidad || "-"}</div>
 
 <div style={{
-background:colorEstado(),
+background:"#22c55e",
 padding:"5px",
 borderRadius:6,
 textAlign:"center"
 }}>
 OK
 </div>
+
+</div>
+
+))}
 
 </div>
 
@@ -215,13 +241,6 @@ const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",bord
 const btn = {marginBottom:20,background:"#1f2937",color:"white",padding:10,borderRadius:8}
 
 const tabla = {background:"#111827",borderRadius:10,padding:10,marginTop:20}
-
-const headerRow = {
-display:"grid",
-gridTemplateColumns:"repeat(5,1fr)",
-fontWeight:"bold",
-padding:10
-}
 
 const row = {
 display:"grid",
