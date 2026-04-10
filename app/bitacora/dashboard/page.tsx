@@ -23,8 +23,6 @@ await calcularPrioridad()
 }
 
 /* ========================= */
-/* 🔥 ALERTAS CADUCIDAD */
-/* ========================= */
 
 async function cargarAlertas(){
 
@@ -61,9 +59,15 @@ dias: Math.round(diff)
 
 const filtrado = procesado.filter(i=> i.estado !== "OK")
 
+/* 🔥 FIX TYPESCRIPT */
+const prioridad: Record<string, number> = {
+VENCIDO:1,
+CRITICO:2,
+PREVENTIVO:3
+}
+
 filtrado.sort((a,b)=>{
-const prioridad = {VENCIDO:1,CRITICO:2,PREVENTIVO:3}
-return prioridad[a.estado] - prioridad[b.estado]
+return (prioridad[a.estado] || 99) - (prioridad[b.estado] || 99)
 })
 
 setAlertas(filtrado)
@@ -71,22 +75,12 @@ setAlertas(filtrado)
 }
 
 /* ========================= */
-/* 🔥 PRIORIDAD OPERATIVA */
-/* ========================= */
 
 async function calcularPrioridad(){
 
-const { data: base } = await supabase
-.from("inventario_base")
-.select("*")
-
-const { data: checklist } = await supabase
-.from("inventario_checklist")
-.select("*")
-
-const { data: ambulancias } = await supabase
-.from("ambulancias")
-.select("id,codigo_operativo")
+const { data: base } = await supabase.from("inventario_base").select("*")
+const { data: checklist } = await supabase.from("inventario_checklist").select("*")
+const { data: ambulancias } = await supabase.from("ambulancias").select("id,codigo_operativo")
 
 if(!base || !checklist || !ambulancias) return
 
@@ -94,7 +88,6 @@ const resultado = ambulancias.map(a=>{
 
 const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
 
-/* 🔥 ULTIMO CHECKLIST */
 const mapa:any = {}
 
 items.forEach(i=>{
@@ -105,20 +98,17 @@ mapa[i.item_id] = i
 
 const ultimo:any[] = Object.values(mapa)
 
-/* 🔥 FALTANTES */
+/* FALTANTES */
 let faltantes = 0
 
 base.forEach(b=>{
-
 const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
-
 if(!encontrado || encontrado.cantidad < b.cantidad_minima){
 faltantes++
 }
-
 })
 
-/* 🔥 CADUCIDAD */
+/* CADUCIDAD */
 let criticos = 0
 let vencidos = 0
 
@@ -133,7 +123,7 @@ if(diff <= 0) vencidos++
 else if(diff <= 30) criticos++
 })
 
-/* 🔥 PRIORIDAD */
+/* PRIORIDAD */
 let prioridad = "OK"
 
 if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
@@ -149,9 +139,13 @@ prioridad
 
 })
 
-/* 🔥 ORDENAR */
+const orden: Record<string, number> = {
+ALTA:1,
+MEDIA:2,
+OK:3
+}
+
 resultado.sort((a,b)=>{
-const orden = {ALTA:1,MEDIA:2,OK:3}
 return orden[a.prioridad] - orden[b.prioridad]
 })
 
@@ -175,8 +169,6 @@ return "#22c55e"
 }
 
 /* ========================= */
-/* ACCIONES */
-/* ========================= */
 
 function cerrarSesion(){
 localStorage.clear()
@@ -193,7 +185,6 @@ return(
 
 <div style={container}>
 
-{/* HEADER */}
 <div style={header}>
 
 <div>
@@ -202,18 +193,11 @@ return(
 </div>
 
 <div style={{display:"flex",gap:10}}>
-<button onClick={irHistorial} style={btn}>
-📊 Historial
-</button>
-
-<button onClick={cerrarSesion} style={btn}>
-Salir
-</button>
+<button onClick={irHistorial} style={btn}>📊 Historial</button>
+<button onClick={cerrarSesion} style={btn}>Salir</button>
 </div>
 
 </div>
-
-{/* PRIORIDAD */}
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
@@ -236,15 +220,9 @@ borderRadius:10
 
 ))}
 
-{/* ALERTAS */}
-
 <h2>🚨 ALERTAS CLÍNICAS</h2>
 
-{alertas.length === 0 && (
-<div style={okBox}>
-✅ Todo en regla
-</div>
-)}
+{alertas.length === 0 && <div style={okBox}>✅ Todo en regla</div>}
 
 {alertas.map((a,i)=>(
 
