@@ -24,6 +24,20 @@ await calcularPrioridad()
 }
 
 /* ========================= */
+/* 🔥 HELPER NOMBRE */
+/* ========================= */
+
+function getNombre(item:any){
+if(Array.isArray(item)){
+return item[0]?.nombre || "Item"
+}
+if(item){
+return item.nombre || "Item"
+}
+return "Item"
+}
+
+/* ========================= */
 /* 🔥 ALERTAS */
 /* ========================= */
 
@@ -53,7 +67,7 @@ else if(diff <= 90) estado = "PREVENTIVO"
 
 return {
 ambulancia: i.ambulancia_id,
-nombre: i.inventario_items?.[0]?.nombre || "Item",
+nombre: getNombre(i.inventario_items),
 estado,
 dias: Math.round(diff)
 }
@@ -91,7 +105,10 @@ const { data: base } = await supabase
 
 const { data: checklist } = await supabase
 .from("inventario_checklist")
-.select("*")
+.select(`
+*,
+inventario_items (nombre)
+`)
 
 const { data: ambulancias } = await supabase
 .from("ambulancias")
@@ -103,7 +120,7 @@ const resultado = ambulancias.map(a=>{
 
 const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
 
-/* 🔥 TOMAR EL ÚLTIMO REGISTRO REAL */
+/* 🔥 ÚLTIMO REGISTRO REAL */
 const mapa:any = {}
 
 items.forEach(i=>{
@@ -161,8 +178,9 @@ const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*
 
 if(diff <= 0){
 vencidos++
+
 vencidosDetalle.push({
-nombre: i.inventario_items?.nombre || "Item",
+nombre: getNombre(i.inventario_items),
 fecha: i.fecha_caducidad
 })
 }
@@ -288,12 +306,10 @@ onClick={()=>toggle(a.nombre)}
 <div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
 
-{/* 🔥 DETALLE */}
 {expandido === a.nombre && (
 
 <div style={{marginTop:10}}>
 
-{/* REABASTECER */}
 {a.faltantesDetalle.length > 0 && (
 <div style={{background:"#020617",padding:10,borderRadius:8,marginBottom:10}}>
 <strong>📦 Reabastecer:</strong>
@@ -307,7 +323,6 @@ onClick={()=>toggle(a.nombre)}
 </div>
 )}
 
-{/* VENCIDOS */}
 {a.vencidosDetalle.length > 0 && (
 <div style={{background:"#450a0a",padding:10,borderRadius:8}}>
 <strong>🚨 Vencidos:</strong>
