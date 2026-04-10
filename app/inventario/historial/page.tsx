@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
+import type { CSSProperties } from "react"
 
 export default function HistorialChecklist(){
 
@@ -46,7 +47,7 @@ setDetalle({})
 return
 }
 
-/* 🔥 LIMPIAR ANTES DE CARGAR */
+/* 🔥 LIMPIAR ESTADO */
 setChecklists([])
 setDetalle({})
 
@@ -75,7 +76,6 @@ console.error(error)
 return
 }
 
-/* 🔥 SI NO HAY DATOS → VACÍO REAL */
 if(!data || data.length === 0){
 setChecklists([])
 setDetalle({})
@@ -83,7 +83,7 @@ return
 }
 
 /* ========================= */
-/* AGRUPAR POR MINUTO */
+/* 🔥 AGRUPAR POR MINUTO */
 /* ========================= */
 
 const grupos:any = {}
@@ -118,7 +118,7 @@ procesarDetalle(lista[0].items)
 }
 
 /* ========================= */
-/* DETALLE POR CATEGORIA */
+/* 🔥 DETALLE POR CATEGORIA */
 /* ========================= */
 
 function procesarDetalle(items:any[]){
@@ -151,7 +151,7 @@ return(
 ⬅ Volver
 </button>
 
-<h1>📊 Historial Checklist</h1>
+<h1>📊 HISTORIAL CHECKLIST</h1>
 
 <select
 value={ambulancia}
@@ -159,7 +159,7 @@ onChange={(e)=>{
 const id = e.target.value
 setAmbulancia(id)
 
-/* 🔥 LIMPIEZA INMEDIATA */
+/* 🔥 limpiar antes */
 setChecklists([])
 setDetalle({})
 
@@ -188,14 +188,12 @@ Filtrar
 {/* CHECKLISTS */}
 {/* ========================= */}
 
-<h2>🗂 CHECKLISTS</h2>
+<h2 style={tituloSeccion}>🗂 CHECKLISTS</h2>
 
 <div style={tabla}>
 
 {checklists.length === 0 && (
-<div style={{padding:20,opacity:0.6}}>
-Sin registros para esta ambulancia
-</div>
+<div style={empty}>Sin registros</div>
 )}
 
 {checklists.map((c,i)=>(
@@ -220,14 +218,12 @@ Sin registros para esta ambulancia
 {/* DETALLE */}
 {/* ========================= */}
 
-<h2>📋 DETALLE OPERATIVO</h2>
+<h2 style={tituloSeccion}>📋 DETALLE OPERATIVO</h2>
 
 <div style={tabla}>
 
 {Object.keys(detalle).length === 0 && (
-<div style={{padding:20,opacity:0.6}}>
-Selecciona un checklist
-</div>
+<div style={empty}>Selecciona un checklist</div>
 )}
 
 {Object.keys(detalle).map((cat,i)=>(
@@ -269,9 +265,14 @@ OK
 /* ESTILOS */
 /* ========================= */
 
-const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
+const container: CSSProperties = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:30
+}
 
-const input = {
+const input: CSSProperties = {
 padding:10,
 borderRadius:8,
 background:"#1f2937",
@@ -279,7 +280,7 @@ color:"white",
 border:"none"
 }
 
-const btn = {
+const btn: CSSProperties = {
 marginBottom:20,
 background:"#1f2937",
 color:"white",
@@ -287,21 +288,21 @@ padding:10,
 borderRadius:8
 }
 
-const tabla = {
+const tabla: CSSProperties = {
 background:"#111827",
 borderRadius:10,
 padding:10,
 marginTop:20
 }
 
-const row = {
+const row: CSSProperties = {
 display:"grid",
 gridTemplateColumns:"repeat(5,1fr)",
 padding:10,
 borderBottom:"1px solid #1f2937"
 }
 
-const rowClickable = {
+const rowClickable: CSSProperties = {
 display:"flex",
 justifyContent:"space-between",
 padding:12,
@@ -310,7 +311,7 @@ cursor:"pointer",
 background:"rgba(255,255,255,0.02)"
 }
 
-const bloqueCategoria = {
+const bloqueCategoria: CSSProperties = {
 marginBottom:25,
 padding:10,
 borderRadius:10,
@@ -318,19 +319,30 @@ background:"rgba(56,189,248,0.05)",
 border:"1px solid rgba(56,189,248,0.2)"
 }
 
-const tituloCategoria = {
+const tituloCategoria: CSSProperties = {
 color:"#38bdf8",
 fontWeight:"bold",
 letterSpacing:"1px",
 textTransform:"uppercase",
-marginBottom:10,
-textShadow:"0 0 8px rgba(56,189,248,0.6)"
+marginBottom:10
 }
 
-const estadoOK = {
+const estadoOK: CSSProperties = {
 background:"#22c55e",
 padding:"5px",
 borderRadius:6,
 textAlign:"center",
 fontWeight:"bold"
+}
+
+const tituloSeccion: CSSProperties = {
+marginTop:20,
+fontSize:18,
+fontWeight:"bold",
+letterSpacing:"1px"
+}
+
+const empty: CSSProperties = {
+padding:20,
+opacity:0.6
 }
