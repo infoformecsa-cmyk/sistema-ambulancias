@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
+import type { CSSProperties } from "react"
 
 export default function Dashboard(){
 
@@ -162,7 +163,6 @@ setModal(true)
 }
 
 async function retirarItem(item:any){
-
 await supabase
 .from("inventario_checklist")
 .update({ estado:"RETIRADO" })
@@ -178,7 +178,6 @@ alert("Cantidad y fecha son obligatorias")
 return
 }
 
-/* SI ES CAMBIO → retirar primero */
 if(modo==="CAMBIO" && itemSeleccionado?.id){
 await retirarItem(itemSeleccionado)
 }
@@ -212,7 +211,6 @@ return(
 
 <strong>{a.nombre}</strong>
 
-{/* FALTANTES */}
 {a.faltantesDetalle.map((f:any,idx:number)=>(
 
 <div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
@@ -228,7 +226,6 @@ abrirModal(f,"ABASTECER")
 
 ))}
 
-{/* VENCIDOS */}
 {a.vencidosDetalle.map((v:any,idx:number)=>(
 
 <div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
@@ -236,13 +233,8 @@ abrirModal(f,"ABASTECER")
 <span>{v.nombre}</span>
 
 <div style={{display:"flex",gap:5}}>
-
 <button onClick={()=>retirarItem(v)}>❌ Retirar</button>
-
-<button onClick={()=>abrirModal(v,"CAMBIO")}>
-🔄 Cambio
-</button>
-
+<button onClick={()=>abrirModal(v,"CAMBIO")}>🔄 Cambio</button>
 </div>
 
 </div>
@@ -281,7 +273,29 @@ abrirModal(f,"ABASTECER")
 }
 
 /* ========================= */
+/* 🔥 FIX TYPESCRIPT */
+/* ========================= */
 
-const container = {padding:20,color:"white",background:"#020617"}
-const modalStyle = {position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.7)",display:"flex",justifyContent:"center",alignItems:"center"}
-const modalBox = {background:"#111827",padding:20,borderRadius:10}
+const container: CSSProperties = {
+padding:20,
+color:"white",
+background:"#020617"
+}
+
+const modalStyle: CSSProperties = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.7)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}
+
+const modalBox: CSSProperties = {
+background:"#111827",
+padding:20,
+borderRadius:10
+}
