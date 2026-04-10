@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
-import type { CSSProperties } from "react"
 
 export default function Dashboard(){
 
@@ -13,15 +12,13 @@ const [alertas,setAlertas] = useState<any[]>([])
 const [resumen,setResumen] = useState<any[]>([])
 const [expandido,setExpandido] = useState<string | null>(null)
 
-/* 🔥 MODAL */
+/* 🔥 NUEVO */
 const [modal,setModal] = useState(false)
 const [itemSeleccionado,setItemSeleccionado] = useState<any>(null)
 const [cantidad,setCantidad] = useState("")
 const [lote,setLote] = useState("")
 const [fechaCaducidad,setFechaCaducidad] = useState("")
 const [modo,setModo] = useState<"ABASTECER" | "CAMBIO">("ABASTECER")
-
-/* ========================= */
 
 useEffect(()=>{ init() },[])
 
@@ -52,7 +49,6 @@ const { data } = await supabase
 const hoy = new Date()
 
 const procesado = (data || []).map(i=>{
-
 const fecha = new Date(i.fecha_caducidad)
 const diff = (fecha.getTime() - hoy.getTime()) / (1000*60*60*24)
 
@@ -69,7 +65,19 @@ dias: Math.round(diff)
 }
 })
 
-setAlertas(procesado.filter(i=> i.estado !== "OK"))
+const filtrado = procesado.filter(i=> i.estado !== "OK")
+
+filtrado.sort((a,b)=>{
+function prioridad(e:string){
+if(e==="VENCIDO") return 1
+if(e==="CRITICO") return 2
+if(e==="PREVENTIVO") return 3
+return 99
+}
+return prioridad(a.estado) - prioridad(b.estado)
+})
+
+setAlertas(filtrado)
 }
 
 /* ========================= */
@@ -123,6 +131,7 @@ const hoy = new Date()
 
 ultimo.forEach((i:any)=>{
 if(!i.fecha_caducidad) return
+
 const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
 if(diff <= 0){
@@ -146,7 +155,6 @@ prioridad,
 faltantesDetalle,
 vencidosDetalle
 }
-
 })
 
 setResumen(resultado)
@@ -178,6 +186,7 @@ alert("Cantidad y fecha son obligatorias")
 return
 }
 
+/* CAMBIO = reemplazo */
 if(modo==="CAMBIO" && itemSeleccionado?.id){
 await retirarItem(itemSeleccionado)
 }
@@ -199,11 +208,19 @@ await init()
 
 /* ========================= */
 
+function toggle(nombre:string){
+setExpandido(expandido === nombre ? null : nombre)
+}
+
+/* ========================= */
+
 return(
 
 <div style={container}>
 
+<div style={header}>
 <h1>🚑 CENTRO DE CONTROL EMS</h1>
+</div>
 
 {resumen.map((a,i)=>(
 
@@ -211,6 +228,7 @@ return(
 
 <strong>{a.nombre}</strong>
 
+{/* FALTANTES */}
 {a.faltantesDetalle.map((f:any,idx:number)=>(
 
 <div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
@@ -223,9 +241,9 @@ abrirModal(f,"ABASTECER")
 }}>➕ Abastecer</button>
 
 </div>
-
 ))}
 
+{/* VENCIDOS */}
 {a.vencidosDetalle.map((v:any,idx:number)=>(
 
 <div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
@@ -242,29 +260,36 @@ abrirModal(f,"ABASTECER")
 ))}
 
 </div>
-
 ))}
 
 {/* MODAL */}
-
 {modal && (
-<div style={modalStyle}>
+<div style={{
+position:"fixed" as const,
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}}>
 
-<div style={modalBox}>
+<div style={{background:"#111827",padding:20,borderRadius:10,width:300}}>
 
 <h3>{modo==="CAMBIO"?"🔄 Cambio":"📦 Abastecer"}</h3>
 
 <p>{itemSeleccionado?.nombre}</p>
 
-<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} />
-<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} />
-<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} />
+<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
+<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={{width:"100%",marginBottom:10}} />
+<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
 
-<button onClick={guardar}>Guardar</button>
-<button onClick={()=>setModal(false)}>Cancelar</button>
+<button onClick={guardar} style={btn}>Guardar</button>
+<button onClick={()=>setModal(false)} style={btn}>Cancelar</button>
 
 </div>
-
 </div>
 )}
 
@@ -273,29 +298,23 @@ abrirModal(f,"ABASTECER")
 }
 
 /* ========================= */
-/* 🔥 FIX TYPESCRIPT */
-/* ========================= */
 
-const container: CSSProperties = {
-padding:20,
+const container = {
+background:"#020617",
 color:"white",
-background:"#020617"
+minHeight:"100vh",
+padding:30
 }
 
-const modalStyle: CSSProperties = {
-position:"fixed",
-top:0,
-left:0,
-width:"100%",
-height:"100%",
-background:"rgba(0,0,0,0.7)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
+const header = {
+marginBottom:20
 }
 
-const modalBox: CSSProperties = {
-background:"#111827",
-padding:20,
-borderRadius:10
+const btn = {
+background:"#1f2937",
+color:"white",
+padding:"6px 10px",
+borderRadius:6,
+border:"none",
+cursor:"pointer"
 }
