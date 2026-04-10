@@ -52,7 +52,7 @@ else if(diff <= 90) estado = "PREVENTIVO"
 
 return {
 ambulancia: i.ambulancia_id,
-nombre: i.inventario_items?.nombre,
+nombre: i.inventario_items?.[0]?.nombre || "Item",
 estado,
 dias: Math.round(diff)
 }
@@ -103,7 +103,7 @@ mapa[i.item_id] = i
 }
 })
 
-const ultimo = Object.values(mapa)
+const ultimo:any[] = Object.values(mapa)
 
 /* 🔥 FALTANTES */
 let faltantes = 0
@@ -213,7 +213,7 @@ Salir
 
 </div>
 
-{/* 🔥 PRIORIDAD POR AMBULANCIA */}
+{/* PRIORIDAD */}
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
@@ -236,7 +236,7 @@ borderRadius:10
 
 ))}
 
-{/* 🔥 ALERTAS */}
+{/* ALERTAS */}
 
 <h2>🚨 ALERTAS CLÍNICAS</h2>
 
@@ -268,8 +268,6 @@ borderRadius:10
 }
 
 /* ========================= */
-/* ESTILOS */
-/* ========================= */
 
 const container = {
 background:"#020617",
@@ -298,5 +296,5 @@ const okBox = {
 background:"#22c55e",
 padding:15,
 borderRadius:10,
-textAlign:"center"
+textAlign:"center" as const
 }
