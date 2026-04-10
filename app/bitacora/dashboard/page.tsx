@@ -10,6 +10,7 @@ const router = useRouter()
 
 const [alertas,setAlertas] = useState<any[]>([])
 const [resumen,setResumen] = useState<any[]>([])
+const [expandido,setExpandido] = useState<string | null>(null)
 
 /* ========================= */
 
@@ -102,7 +103,6 @@ const resultado = ambulancias.map(a=>{
 
 const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
 
-/* 🔥 ULTIMO CHECKLIST */
 const mapa:any = {}
 
 items.forEach(i=>{
@@ -168,7 +168,6 @@ faltantesDetalle
 
 })
 
-/* 🔥 ORDEN INTELIGENTE */
 resultado.sort((a,b)=>{
 
 function orden(p:string){
@@ -186,6 +185,16 @@ return a.nombre.localeCompare(b.nombre, undefined, { numeric: true })
 
 setResumen(resultado)
 
+}
+
+/* ========================= */
+
+function toggle(nombre:string){
+if(expandido === nombre){
+setExpandido(null)
+}else{
+setExpandido(nombre)
+}
 }
 
 /* ========================= */
@@ -242,19 +251,31 @@ return(
 background:colorEstado(a.prioridad),
 padding:15,
 marginBottom:10,
-borderRadius:10
-}}>
+borderRadius:10,
+cursor:"pointer"
+}}
+onClick={()=>toggle(a.nombre)}
+>
 
-<div><strong>{a.nombre}</strong></div>
+<div style={{display:"flex",justifyContent:"space-between"}}>
+<strong>{a.nombre}</strong>
+<span>{expandido === a.nombre ? "▲" : "▼"}</span>
+</div>
 
 <div>❌ Faltantes: {a.faltantes}</div>
 <div>💊 Críticos: {a.criticos}</div>
 <div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
 
-{/* 🔥 DETALLE BRECHA */}
-{a.faltantesDetalle.length > 0 && (
-<div style={{marginTop:10,background:"#020617",padding:10,borderRadius:8}}>
+{/* 🔥 SOLO SI ESTA ABIERTO */}
+{expandido === a.nombre && a.faltantesDetalle.length > 0 && (
+<div style={{
+marginTop:10,
+background:"#020617",
+padding:10,
+borderRadius:8
+}}>
+
 <strong>📦 Reabastecer:</strong>
 
 {a.faltantesDetalle.map((f:any,idx:number)=>(
