@@ -23,6 +23,8 @@ await calcularPrioridad()
 }
 
 /* ========================= */
+/* 🔥 ALERTAS CADUCIDAD */
+/* ========================= */
 
 async function cargarAlertas(){
 
@@ -59,21 +61,26 @@ dias: Math.round(diff)
 
 const filtrado = procesado.filter(i=> i.estado !== "OK")
 
-/* 🔥 FIX TYPESCRIPT */
-const prioridad: Record<string, number> = {
-VENCIDO:1,
-CRITICO:2,
-PREVENTIVO:3
+/* 🔥 ORDEN SIN TYPESCRIPT PROBLEM */
+filtrado.sort((a,b)=>{
+
+function prioridad(e:string){
+if(e==="VENCIDO") return 1
+if(e==="CRITICO") return 2
+if(e==="PREVENTIVO") return 3
+return 99
 }
 
-filtrado.sort((a,b)=>{
-return (prioridad[a.estado] || 99) - (prioridad[b.estado] || 99)
+return prioridad(a.estado) - prioridad(b.estado)
+
 })
 
 setAlertas(filtrado)
 
 }
 
+/* ========================= */
+/* 🔥 PRIORIDAD OPERATIVA */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -139,14 +146,17 @@ prioridad
 
 })
 
-const orden: Record<string, number> = {
-ALTA:1,
-MEDIA:2,
-OK:3
+/* 🔥 ORDEN SIN TYPESCRIPT PROBLEM */
+resultado.sort((a,b)=>{
+
+function orden(p:string){
+if(p==="ALTA") return 1
+if(p==="MEDIA") return 2
+return 3
 }
 
-resultado.sort((a,b)=>{
-return orden[a.prioridad] - orden[b.prioridad]
+return orden(a.prioridad) - orden(b.prioridad)
+
 })
 
 setResumen(resultado)
