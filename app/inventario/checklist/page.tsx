@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
 const COLORES_KIT:any = {
@@ -31,19 +31,16 @@ const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
 
-/* ========================= */
-/* INIT */
+/* 🔥 refs para UX */
+const refAmbulancia = useRef<any>(null)
+const refResponsable = useRef<any>(null)
+
 /* ========================= */
 
-useEffect(()=>{
-cargar()
-},[])
+useEffect(()=>{ cargar() },[])
 
-/* 🔁 AUTO CARGAR BORRADOR */
 useEffect(()=>{
-if(ambulancia){
-cargarBorrador()
-}
+if(ambulancia){ cargarBorrador() }
 },[ambulancia])
 
 async function cargar(){
@@ -66,8 +63,6 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 setAmbulancias(ordenadas)
 }
 
-/* ========================= */
-/* 🔁 CONTINUAR BORRADOR */
 /* ========================= */
 
 async function cargarBorrador(){
@@ -95,8 +90,6 @@ fecha: d.fecha_caducidad
 })
 
 setDatos(reconstruido)
-
-alert("🔁 Se cargó un borrador existente")
 }
 
 /* ========================= */
@@ -122,58 +115,38 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 🚫 VALIDAR DUPLICADO */
+/* 🔒 VALIDACIÓN FUERTE */
 /* ========================= */
 
-async function yaExisteFinalizado(){
+function validarAntesFinalizar(){
 
-const inicio = new Date()
-inicio.setHours(0,0,0,0)
-
-const fin = new Date()
-fin.setHours(23,59,59,999)
-
-const { data } = await supabase
-.from("inventario_checklist")
-.select("id")
-.eq("ambulancia_id", ambulancia)
-.eq("estado","FINALIZADO")
-.gte("fecha_registro", inicio.toISOString())
-.lte("fecha_registro", fin.toISOString())
-.limit(1)
-
-return data && data.length > 0
+if(!ambulancia){
+alert("🚑 Debe seleccionar una ambulancia")
+refAmbulancia.current?.focus()
+return false
 }
 
-/* ========================= */
-/* 💾 GUARDAR (GENÉRICO) */
+if(!responsable || responsable.trim() === ""){
+alert("👤 Debe ingresar responsable")
+refResponsable.current?.focus()
+return false
+}
+
+return true
+}
+
 /* ========================= */
 
 async function guardar(tipo:"BORRADOR"|"FINALIZADO"){
 
-if(!ambulancia || !responsable){
-alert("⚠️ Complete datos")
-return
-}
-
+/* 🔥 SOLO BLOQUEA FINAL */
 if(tipo === "FINALIZADO"){
-const existe = await yaExisteFinalizado()
-if(existe){
-alert("🚫 Ya existe checklist FINALIZADO hoy")
-return
-}
+if(!validarAntesFinalizar()) return
 }
 
 setGuardando(true)
 
 try{
-
-/* 🔥 BORRAR BORRADOR ANTERIOR */
-await supabase
-.from("inventario_checklist")
-.delete()
-.eq("ambulancia_id", ambulancia)
-.eq("estado","BORRADOR")
 
 for(const itemId in datos){
 
@@ -185,7 +158,6 @@ for(const l of lotes){
 if(!l) continue
 
 const cantidadNum = Number(l.cantidad || 0)
-
 if(cantidadNum <= 0) continue
 
 await supabase.from("inventario_checklist").insert({
@@ -200,30 +172,11 @@ responsable,
 estado: tipo
 })
 
-/* SOLO SI FINALIZA → BITÁCORA */
-if(tipo === "FINALIZADO"){
-await supabase.from("bitacora_items").insert({
-ambulancia_id: ambulancia,
-nombre: item?.nombre,
-tipo: "CHECKLIST",
-cantidad: cantidadNum,
-lote: l.lote || null,
-fecha_registro: new Date().toISOString()
-})
 }
 
 }
 
-}
-
-if(tipo === "FINALIZADO"){
-setDatos({})
-setAmbulancia("")
-setResponsable("")
-alert("✅ Checklist FINALIZADO")
-}else{
-alert("💾 Borrador guardado")
-}
+alert(tipo === "FINALIZADO" ? "✅ Checklist FINALIZADO" : "💾 Borrador guardado")
 
 }catch(e){
 console.error(e)
@@ -242,25 +195,31 @@ return(
 <div style={container}>
 
 <div style={header}>
-<div>
-<h1>🚑 Checklist Clínico</h1>
-<span style={{color:"#9ca3af"}}>Control operativo en tiempo real</span>
-</div>
+
+<h1 style={{fontSize:20}}>🚑 Checklist Clínico</h1>
 
 <div style={panel}>
-<select value={ambulancia} onChange={(e)=>setAmbulancia(e.target.value)} style={input}>
-<option value="">Seleccionar ambulancia</option>
+
+<select
+ref={refAmbulancia}
+value={ambulancia}
+onChange={(e)=>setAmbulancia(e.target.value)}
+style={input}
+>
+<option value="">Ambulancia</option>
 {ambulancias.map(a=>(
 <option key={a.id} value={a.id}>{a.codigo_operativo}</option>
 ))}
 </select>
 
 <input
+ref={refResponsable}
 placeholder="Responsable"
 value={responsable}
 onChange={(e)=>setResponsable(e.target.value)}
 style={input}
 />
+
 </div>
 </div>
 
@@ -268,19 +227,21 @@ style={input}
 
 <div style={grid}>
 {["celeste","azul","amarillo","rojo"].map(color=>{
+
 const grupo = kits.filter(k=>k.kit_color===color)
 if(!grupo.length) return null
 
 return(
-<div key={color} style={{background:"#111827",borderRadius:12,borderLeft:`6px solid ${COLORES_KIT[color]}`}}>
+<div key={color} style={cardKit(color)}>
 
-<div onClick={()=>toggle(color)} style={kitHeader}>
-<span>Clave {color}</span>
+<div onClick={()=>toggle(color)} style={catHeader}>
+KIT {color.toUpperCase()}
 </div>
 
 {expandido[color] && grupo.map(k=>(
 
 <div key={k.id} style={item}>
+
 <div style={rowTop}>
 <span>{k.nombre}</span>
 <span style={badge}>Min {getMin(k)}</span>
@@ -291,13 +252,13 @@ return(
 {(datos[k.id]||[]).map((l:any,i:number)=>(
 
 <div key={i} style={inputsRow}>
-<input style={input} value={l.lote || ""} placeholder="Lote"
+<input style={inputFull} placeholder="Lote" value={l.lote || ""}
 onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
 
-<input style={input} type="number" value={l.cantidad || ""} placeholder="Cantidad"
+<input style={inputFull} type="number" placeholder="Cantidad" value={l.cantidad || ""}
 onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
 
-<input style={input} type="date"
+<input style={inputFull} type="date"
 value={l.fecha || ""}
 onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
 </div>
@@ -310,22 +271,27 @@ onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
 
 </div>
 )
+
 })}
 </div>
 
 <h2 style={section}>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
+
 const grupo = items.filter(i => i.categoria === cat)
 
 return(
 <div key={cat} style={card}>
+
 <div style={catHeader} onClick={()=>toggle(cat)}>
-{cat.toUpperCase()} ({grupo.length})
+{cat.toUpperCase()}
 </div>
 
 {expandido[cat] && grupo.map(i=>(
+
 <div key={i.id} style={item}>
+
 <div style={rowTop}>
 <span>{i.nombre}</span>
 <span style={badge}>Min {getMin(i)}</span>
@@ -336,13 +302,13 @@ return(
 {(datos[i.id]||[]).map((l:any,index:number)=>(
 
 <div key={index} style={inputsRow}>
-<input style={input} value={l.lote || ""} placeholder="Lote"
+<input style={inputFull} placeholder="Lote" value={l.lote || ""}
 onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
 
-<input style={input} type="number" value={l.cantidad || ""} placeholder="Cantidad"
+<input style={inputFull} type="number" placeholder="Cantidad" value={l.cantidad || ""}
 onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
 
-<input style={input} type="date"
+<input style={inputFull} type="date"
 value={l.fecha || ""}
 onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 </div>
@@ -350,27 +316,24 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 ))}
 
 </div>
+
 ))}
 
 </div>
 )
+
 })}
 
-/* 🔥 BOTONES */
+/* BOTONES */
 
-<div style={{display:"flex",gap:10,marginTop:30}}>
-
-<button onClick={()=>guardar("BORRADOR")} style={{
-...btnGuardar,
-background:"#f59e0b"
-}}>
-💾 Guardar borrador
+<div style={btnContainer}>
+<button onClick={()=>guardar("BORRADOR")} style={btnWarning}>
+💾 Borrador
 </button>
 
-<button onClick={()=>guardar("FINALIZADO")} style={btnGuardar}>
-{guardando ? "Guardando..." : "📤 Finalizar"}
+<button onClick={()=>guardar("FINALIZADO")} style={btnPrimary}>
+{guardando ? "Guardando..." : "Finalizar"}
 </button>
-
 </div>
 
 </div>
@@ -379,18 +342,118 @@ background:"#f59e0b"
 
 /* ========================= */
 
-const container = {background:"#020617",color:"white",minHeight:"100vh",padding:30}
-const header = {display:"flex",justifyContent:"space-between",marginBottom:25}
-const panel = {display:"flex",gap:10}
-const input = {padding:10,borderRadius:8,background:"#1f2937",color:"white",border:"none"}
-const section = {marginTop:20,marginBottom:10}
-const grid = {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:15}
-const kitHeader = {padding:12,cursor:"pointer"}
-const card = {background:"#111827",borderRadius:10,marginBottom:10}
-const catHeader = {background:"#1f2937",padding:10,cursor:"pointer"}
-const item = {padding:10,borderBottom:"1px solid #1f2937"}
-const rowTop = {display:"flex",justifyContent:"space-between"}
-const inputsRow = {display:"flex",gap:5,marginTop:6}
-const btnAdd = {marginTop:6,background:"#22c55e",border:"none",padding:"5px 10px",borderRadius:6,color:"black"}
-const badge = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
-const btnGuardar = {flex:1,background:"#22c55e",color:"black",padding:"18px",border:"none",borderRadius:"12px",fontWeight:"bold"}
+const container = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:"15px",
+maxWidth:"900px",
+margin:"0 auto"
+}
+
+const header = {
+display:"flex",
+flexDirection:"column",
+gap:10,
+marginBottom:20
+}
+
+const panel = {
+display:"flex",
+flexDirection:"column",
+gap:10
+}
+
+const input = {
+padding:"12px",
+borderRadius:10,
+background:"#1f2937",
+color:"white",
+border:"none",
+width:"100%"
+}
+
+const inputFull = {
+...input,
+marginTop:6
+}
+
+const grid = {
+display:"grid",
+gridTemplateColumns:"1fr",
+gap:10
+}
+
+const card = {
+background:"#111827",
+borderRadius:10,
+marginBottom:10
+}
+
+const cardKit = (color:any)=>({
+background:"#111827",
+borderRadius:10,
+borderLeft:`5px solid ${COLORES_KIT[color]}`
+})
+
+const catHeader = {
+background:"#1f2937",
+padding:12,
+cursor:"pointer"
+}
+
+const item = {
+padding:10,
+borderBottom:"1px solid #1f2937"
+}
+
+const rowTop = {
+display:"flex",
+justifyContent:"space-between",
+fontSize:14
+}
+
+const inputsRow = {
+display:"flex",
+flexDirection:"column",
+gap:6
+}
+
+const btnAdd = {
+marginTop:6,
+background:"#22c55e",
+border:"none",
+padding:"8px",
+borderRadius:8,
+color:"black"
+}
+
+const badge = {
+background:"#16a34a",
+padding:"2px 6px",
+borderRadius:5,
+fontSize:10
+}
+
+const btnContainer = {
+display:"flex",
+flexDirection:"column",
+gap:10,
+marginTop:20
+}
+
+const btnPrimary = {
+background:"#22c55e",
+padding:"18px",
+borderRadius:12,
+border:"none",
+fontWeight:"bold"
+}
+
+const btnWarning = {
+background:"#f59e0b",
+padding:"18px",
+borderRadius:12,
+border:"none",
+fontWeight:"bold"
+}
