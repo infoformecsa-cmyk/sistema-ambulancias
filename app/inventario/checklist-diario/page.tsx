@@ -30,33 +30,18 @@ const [responsable,setResponsable] = useState("")
 const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
+const [bloqueado,setBloqueado] = useState(false)
 
 /* ========================= */
 
 useEffect(()=>{
-const d = localStorage.getItem("checklist_simple")
-const a = localStorage.getItem("checklist_simple_ambulancia")
-const r = localStorage.getItem("checklist_simple_responsable")
-
-if(d) setDatos(JSON.parse(d))
-if(a) setAmbulancia(a)
-if(r) setResponsable(r)
-
 cargar()
 },[])
 
-/* AUTOGUARDADO */
-useEffect(()=>{
-const interval = setInterval(()=>{
-localStorage.setItem("checklist_simple", JSON.stringify(datos))
-localStorage.setItem("checklist_simple_ambulancia", ambulancia)
-localStorage.setItem("checklist_simple_responsable", responsable)
-},5000)
+/* ========================= */
+/* 🔥 CARGAR DATA */
+/* ========================= */
 
-return ()=>clearInterval(interval)
-},[datos,ambulancia,responsable])
-
-/* 🔥 AQUI ESTA EL FIX */
 async function cargar(){
 
 const {data} = await supabase.from("inventario_items").select("*")
@@ -70,16 +55,70 @@ categoria: (i.categoria || "").toLowerCase().trim()
 setKits(limpio.filter(i=>i.subcategoria==="kit_parto"))
 setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
 
-/* 🔥 ORDENAR AMBULANCIAS */
 const ordenadas = (amb || []).sort((a,b)=>{
 return a.codigo_operativo.localeCompare(
 b.codigo_operativo,
 undefined,
-{ numeric: true, sensitivity: "base" }
+{ numeric: true }
 )
 })
 
 setAmbulancias(ordenadas)
+}
+
+/* ========================= */
+/* 🔥 CONTINUAR CHECKLIST */
+/* ========================= */
+
+async function verificarChecklistExistente(idAmbulancia:string){
+
+if(!idAmbulancia) return
+
+const hoyInicio = new Date()
+hoyInicio.setHours(0,0,0,0)
+
+const hoyFin = new Date()
+hoyFin.setHours(23,59,59,999)
+
+/* 🔍 buscar FINALIZADO */
+const { data:finalizado } = await supabase
+.from("inventario_checklist")
+.select("*")
+.eq("ambulancia_id", idAmbulancia)
+.eq("estado","FINALIZADO")
+.gte("fecha_registro", hoyInicio.toISOString())
+.lte("fecha_registro", hoyFin.toISOString())
+.limit(1)
+
+if(finalizado && finalizado.length > 0){
+alert("🚫 Esta ambulancia ya tiene checklist FINALIZADO hoy")
+setBloqueado(true)
+setDatos({})
+return
+}
+
+/* 🔍 buscar BORRADOR */
+const { data:borrador } = await supabase
+.from("inventario_checklist")
+.select("*")
+.eq("ambulancia_id", idAmbulancia)
+.eq("estado","BORRADOR")
+.gte("fecha_registro", hoyInicio.toISOString())
+.lte("fecha_registro", hoyFin.toISOString())
+
+if(borrador && borrador.length > 0){
+
+const reconstruido:any = {}
+
+borrador.forEach((i:any)=>{
+reconstruido[i.item_id] = i.cantidad
+})
+
+setDatos(reconstruido)
+
+alert("📝 Continuando checklist en borrador")
+}
+
 }
 
 /* ========================= */
@@ -89,6 +128,7 @@ setExpandido((p:any)=>({...p,[k]:!p[k]}))
 }
 
 function actualizarCantidad(id:string,val:any){
+if(bloqueado) return
 setDatos({...datos,[id]:val})
 }
 
@@ -97,19 +137,51 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
+/* 💾 BORRADOR */
+/* ========================= */
 
-function guardarBorrador(){
-localStorage.setItem("checklist_simple", JSON.stringify(datos))
-localStorage.setItem("checklist_simple_ambulancia", ambulancia)
-localStorage.setItem("checklist_simple_responsable", responsable)
+async function guardarBorrador(){
 
-alert("💾 Borrador guardado")
+if(!ambulancia || !responsable.trim()){
+alert("⚠️ Complete ambulancia y responsable")
+return
 }
+
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
+
+for(const itemId in datos){
+
+await supabase.from("inventario_checklist").insert({
+ambulancia_id: ambulancia,
+item_id: itemId,
+cantidad: Number(datos[itemId] || 0),
+estado: "BORRADOR",
+fecha_registro: new Date().toISOString(),
+responsable: responsable.trim()
+})
+
+}
+
+alert("💾 Borrador actualizado")
+}
+
+/* ========================= */
+/* 📤 FINALIZAR */
+/* ========================= */
 
 async function guardar(){
 
-if(!ambulancia){
-alert("Seleccione ambulancia")
+if(!ambulancia || !responsable.trim()){
+alert("⚠️ Complete ambulancia y responsable")
+return
+}
+
+if(bloqueado){
+alert("🚫 No se puede modificar")
 return
 }
 
@@ -117,31 +189,34 @@ setGuardando(true)
 
 try{
 
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
+
 for(const itemId in datos){
 
 const cantidad = Number(datos[itemId] || 0)
-
 if(cantidad <= 0) continue
 
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: ambulancia,
 item_id: itemId,
-cantidad: cantidad,
+cantidad,
+estado: "FINALIZADO",
 fecha_registro: new Date().toISOString(),
-responsable
+responsable: responsable.trim()
 })
 
 }
 
-localStorage.removeItem("checklist_simple")
-localStorage.removeItem("checklist_simple_ambulancia")
-localStorage.removeItem("checklist_simple_responsable")
-
 setDatos({})
 setAmbulancia("")
 setResponsable("")
+setBloqueado(false)
 
-alert("✅ Checklist finalizado correctamente")
+alert("✅ Checklist finalizado")
 
 }catch(e){
 console.error(e)
@@ -159,15 +234,16 @@ return(
 
 <div style={container}>
 
-<h1 style={{fontSize:22,marginBottom:10}}>🚑 Checklist Operativo</h1>
+<h1 style={{fontSize:22}}>🚑 Checklist Operativo</h1>
 
-<div style={{
-display:"flex",
-gap:10,
-marginBottom:20,
-flexWrap:"wrap"
-}}>
-<select value={ambulancia} onChange={e=>setAmbulancia(e.target.value)} style={input}>
+<select
+value={ambulancia}
+onChange={(e)=>{
+setAmbulancia(e.target.value)
+verificarChecklistExistente(e.target.value)
+}}
+style={input}
+>
 <option value="">Ambulancia</option>
 {ambulancias.map(a=>(
 <option key={a.id} value={a.id}>{a.codigo_operativo}</option>
@@ -180,9 +256,8 @@ value={responsable}
 onChange={(e)=>setResponsable(e.target.value)}
 style={input}
 />
-</div>
 
-<h2 style={{marginBottom:10}}>🧬 Kits Obstétricos</h2>
+<h2>🧬 Kits Obstétricos</h2>
 
 {["celeste","azul","amarillo","rojo"].map(color=>{
 
@@ -190,32 +265,21 @@ const grupo = kits.filter(k=>k.kit_color===color)
 if(!grupo.length) return null
 
 return(
-<div key={color} style={{
-background:"#111827",
-borderRadius:10,
-marginBottom:10,
-borderLeft:`6px solid ${COLORES_KIT[color]}`
-}}>
-
+<div key={color} style={card}>
 <div style={catHeader} onClick={()=>toggle(color)}>
-KIT {color.toUpperCase()} ({grupo.length})
+KIT {color.toUpperCase()}
 </div>
 
 {expandido[color] && grupo.map(k=>(
 
 <div key={k.id} style={item}>
-
-<div style={{display:"flex",justifyContent:"space-between"}}>
 <span>{k.nombre}</span>
-<span style={badge}>Min {getMin(k)}</span>
-</div>
 
 <input
 type="number"
-placeholder="Cantidad"
 value={datos[k.id] || ""}
 onChange={e=>actualizarCantidad(k.id,e.target.value)}
-style={{...input,marginTop:8}}
+style={input}
 />
 
 </div>
@@ -227,7 +291,7 @@ style={{...input,marginTop:8}}
 
 })}
 
-<h2 style={{marginTop:20}}>📦 Checklist General</h2>
+<h2>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
 
@@ -237,24 +301,19 @@ return(
 <div key={cat} style={card}>
 
 <div style={catHeader} onClick={()=>toggle(cat)}>
-{cat.toUpperCase()} ({grupo.length})
+{cat.toUpperCase()}
 </div>
 
 {expandido[cat] && grupo.map(i=>(
 
 <div key={i.id} style={item}>
-
-<div style={{display:"flex",justifyContent:"space-between"}}>
 <span>{i.nombre}</span>
-<span style={badge}>Min {getMin(i)}</span>
-</div>
 
 <input
 type="number"
-placeholder="Cantidad"
 value={datos[i.id] || ""}
 onChange={e=>actualizarCantidad(i.id,e.target.value)}
-style={{...input,marginTop:8}}
+style={input}
 />
 
 </div>
@@ -266,25 +325,13 @@ style={{...input,marginTop:8}}
 
 })}
 
-<div style={{
-display:"flex",
-gap:10,
-marginTop:20,
-flexDirection:"column"
-}}>
-
-<button onClick={guardarBorrador} style={{
-...btnGuardar,
-background:"#f59e0b"
-}}>
+<button onClick={guardarBorrador} style={{...btnGuardar,background:"#f59e0b"}}>
 💾 Guardar borrador
 </button>
 
 <button onClick={guardar} style={btnGuardar}>
 {guardando ? "Guardando..." : "📤 Finalizar"}
 </button>
-
-</div>
 
 </div>
 )
@@ -296,52 +343,27 @@ const container = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
-padding:"20px",
-maxWidth:"900px",
-margin:"0 auto"
+padding:"20px"
 }
 
 const input = {
-padding:"12px",
-borderRadius:10,
+width:"100%",
+marginTop:10,
+padding:10,
 background:"#1f2937",
 color:"white",
-border:"none",
-width:"100%",
-fontSize:"16px"
+border:"none"
 }
 
-const card = {
-background:"#111827",
-borderRadius:10,
-marginBottom:10
-}
-
-const catHeader = {
-background:"#1f2937",
-padding:12,
-cursor:"pointer"
-}
-
-const item = {
-padding:12,
-borderBottom:"1px solid #1f2937"
-}
-
-const badge = {
-background:"#16a34a",
-padding:"2px 6px",
-borderRadius:5,
-fontSize:10
-}
+const card = {marginTop:10,background:"#111827"}
+const catHeader = {padding:10,background:"#1f2937"}
+const item = {padding:10}
 
 const btnGuardar = {
 width:"100%",
+marginTop:10,
+padding:15,
 background:"#22c55e",
-color:"black",
-padding:"18px",
 border:"none",
-borderRadius:"12px",
-fontWeight:"bold",
-fontSize:"16px"
+color:"black"
 }
