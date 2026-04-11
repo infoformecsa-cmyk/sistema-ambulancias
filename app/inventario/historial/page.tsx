@@ -83,7 +83,7 @@ return
 }
 
 /* ========================= */
-/* 🔥 AGRUPAR POR MINUTO */
+/* AGRUPAR */
 /* ========================= */
 
 const grupos:any = {}
@@ -111,13 +111,10 @@ items: grupos[fecha]
 lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
-
 procesarDetalle(lista[0].items)
 
 }
 
-/* ========================= */
-/* 🔥 DETALLE */
 /* ========================= */
 
 function procesarDetalle(items:any[]){
@@ -141,7 +138,7 @@ setDetalle(grupos)
 }
 
 /* ========================= */
-/* 🔥 ESTADO VISUAL */
+/* SEMÁFORO */
 /* ========================= */
 
 function getEstadoVisual(estado:string){
@@ -154,7 +151,36 @@ if(estado === "FINALIZADO"){
 return { label:"🟢 FINALIZADO", color:"#22c55e" }
 }
 
-return { label:"⚪ SIN ESTADO", color:"#6b7280" }
+return { label:"🔴 ERROR", color:"#ef4444" }
+
+}
+
+/* ========================= */
+/* 🔥 BORRAR CHECKLIST */
+/* ========================= */
+
+async function borrarChecklist(items:any[]){
+
+const confirmar = confirm("⚠️ ¿Eliminar este checklist completo?")
+if(!confirmar) return
+
+try{
+
+const ids = items.map(i=>i.id)
+
+await supabase
+.from("inventario_checklist")
+.delete()
+.in("id", ids)
+
+alert("🗑️ Checklist eliminado")
+
+cargarHistorial(ambulancia)
+
+}catch(e){
+console.error(e)
+alert("Error al eliminar")
+}
 
 }
 
@@ -213,22 +239,29 @@ const estadoVisual = getEstadoVisual(estado)
 
 return(
 
-<div key={i} style={rowClickable} onClick={()=>procesarDetalle(c.items)}>
+<div key={i} style={rowClickable}>
 
-<div>
+<div onClick={()=>procesarDetalle(c.items)}>
 📅 {new Date(c.fecha).toLocaleString()}
 </div>
 
-<div>
+<div onClick={()=>procesarDetalle(c.items)}>
 🧾 {c.items.length} items
 </div>
 
 <div style={{
 color:estadoVisual.color,
 fontWeight:"bold"
-}}>
+}} onClick={()=>procesarDetalle(c.items)}>
 {estadoVisual.label}
 </div>
+
+<button
+onClick={()=>borrarChecklist(c.items)}
+style={btnEliminar}
+>
+🗑️
+</button>
 
 </div>
 
@@ -294,8 +327,6 @@ fontWeight:"bold"
 }
 
 /* ========================= */
-/* ESTILOS */
-/* ========================= */
 
 const container: CSSProperties = {
 background:"#020617",
@@ -320,6 +351,15 @@ padding:10,
 borderRadius:8
 }
 
+const btnEliminar: CSSProperties = {
+background:"#ef4444",
+color:"white",
+border:"none",
+padding:"5px 10px",
+borderRadius:6,
+cursor:"pointer"
+}
+
 const tabla: CSSProperties = {
 background:"#111827",
 borderRadius:10,
@@ -336,10 +376,9 @@ borderBottom:"1px solid #1f2937"
 
 const rowClickable: CSSProperties = {
 display:"grid",
-gridTemplateColumns:"2fr 1fr 1fr",
+gridTemplateColumns:"2fr 1fr 1fr auto",
 padding:12,
 borderBottom:"1px solid #1f2937",
-cursor:"pointer",
 background:"rgba(255,255,255,0.02)"
 }
 
