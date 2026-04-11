@@ -12,7 +12,6 @@ const [alertas,setAlertas] = useState<any[]>([])
 const [resumen,setResumen] = useState<any[]>([])
 const [expandido,setExpandido] = useState<string | null>(null)
 
-/* 🔥 NUEVO */
 const [modal,setModal] = useState(false)
 const [itemSeleccionado,setItemSeleccionado] = useState<any>(null)
 const [cantidad,setCantidad] = useState("")
@@ -20,7 +19,6 @@ const [lote,setLote] = useState("")
 const [fechaCaducidad,setFechaCaducidad] = useState("")
 const [modo,setModo] = useState<"ABASTECER" | "CAMBIO">("ABASTECER")
 
-/* ✅ SOLO ESTO SE AGREGA */
 const [loading,setLoading] = useState(true)
 
 useEffect(()=>{
@@ -287,7 +285,6 @@ return(
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
-{/* ✅ SOLO ESTE BLOQUE ES NUEVO */}
 {loading && resumen.length === 0 && (
 <div style={{padding:10,opacity:0.6}}>
 Cargando datos...
@@ -381,7 +378,7 @@ abrirModal(v,"CAMBIO")
 </div>
 ))}
 
-/* MODAL (SIN CAMBIOS) */
+{/* ✅ FIX AQUI */}
 {modal && (
 <div style={{
 position:"fixed",
