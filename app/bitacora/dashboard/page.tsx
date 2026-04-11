@@ -20,7 +20,7 @@ const [lote,setLote] = useState("")
 const [fechaCaducidad,setFechaCaducidad] = useState("")
 const [modo,setModo] = useState<"ABASTECER" | "CAMBIO">("ABASTECER")
 
-/* ✅ FIX CLAVE */
+/* ✅ SOLO ESTO SE AGREGA */
 const [loading,setLoading] = useState(true)
 
 useEffect(()=>{
@@ -205,8 +205,6 @@ setResumen(resultado)
 }
 
 /* ========================= */
-/* FUNCIONES EXISTENTES */
-/* ========================= */
 
 function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
 setItemSeleccionado(item)
@@ -215,7 +213,11 @@ setModal(true)
 }
 
 async function retirarItem(item:any){
-await supabase.from("inventario_checklist").update({ cantidad: 0 }).eq("id", item.id)
+await supabase
+.from("inventario_checklist")
+.update({ cantidad: 0 })
+.eq("id", item.id)
+
 await init()
 }
 
@@ -285,14 +287,14 @@ return(
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
-{/* ✅ FIX VISUAL */}
-{loading && (
-<div style={{textAlign:"center",padding:20,opacity:0.7}}>
-Cargando inventario...
+{/* ✅ SOLO ESTE BLOQUE ES NUEVO */}
+{loading && resumen.length === 0 && (
+<div style={{padding:10,opacity:0.6}}>
+Cargando datos...
 </div>
 )}
 
-{!loading && resumen.map((a,i)=>(
+{resumen.map((a,i)=>(
 
 <div key={i} style={{
 background:colorEstado(a.prioridad),
@@ -304,10 +306,109 @@ cursor:"pointer"
 onClick={()=>toggle(a.nombre)}
 >
 
+<div style={{display:"flex",justifyContent:"space-between"}}>
 <strong>{a.nombre}</strong>
+<span>{expandido === a.nombre ? "▲" : "▼"}</span>
+</div>
+
+<div>❌ Faltantes: {a.faltantes}</div>
+<div>💊 Críticos: {a.criticos}</div>
+<div>🚨 Vencidos: {a.vencidos}</div>
+<div>⚡ PRIORIDAD: {a.prioridad}</div>
+
+{expandido === a.nombre && (
+
+<div style={{marginTop:10}}>
+
+<div style={{background:"#020617",padding:10,borderRadius:8,marginBottom:10}}>
+<strong>📦 Reabastecer:</strong>
+
+{a.faltantesDetalle.map((f:any,idx:number)=>(
+
+<div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+
+<div>
+- {f.nombre} → {f.actual}/{f.minimo}
+</div>
+
+<button onClick={(e)=>{
+e.stopPropagation()
+abrirModal(f,"ABASTECER")
+}} style={btn}>
+➕ Abastecer
+</button>
 
 </div>
 ))}
+</div>
+
+<div style={{background:"#450a0a",padding:10,borderRadius:8}}>
+<strong>🚨 Vencidos:</strong>
+
+{a.vencidosDetalle.map((v:any,idx:number)=>(
+
+<div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
+
+<span>- {getNombre(v.inventario_items)}</span>
+
+<div style={{display:"flex",gap:5}}>
+
+<button onClick={(e)=>{
+e.stopPropagation()
+retirarItem(v)
+}} style={btn}>
+❌ Retirar
+</button>
+
+<button onClick={(e)=>{
+e.stopPropagation()
+abrirModal(v,"CAMBIO")
+}} style={btn}>
+🔄 Cambio
+</button>
+
+</div>
+
+</div>
+))}
+
+</div>
+
+</div>
+
+)}
+
+</div>
+))}
+
+/* MODAL (SIN CAMBIOS) */
+{modal && (
+<div style={{
+position:"fixed",
+top:0,left:0,
+width:"100%",height:"100%",
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}}>
+
+<div style={{background:"#111827",padding:20,borderRadius:10,width:300}}>
+
+<h3>{modo==="CAMBIO" ? "🔄 Cambio" : "📦 Abastecer"}</h3>
+
+<p>{itemSeleccionado?.nombre}</p>
+
+<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
+<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={{width:"100%",marginBottom:10}} />
+<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
+
+<button onClick={guardar} style={btn}>Guardar</button>
+<button onClick={()=>setModal(false)} style={btn}>Cancelar</button>
+
+</div>
+</div>
+)}
 
 </div>
 )
