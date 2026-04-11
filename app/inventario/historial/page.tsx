@@ -47,7 +47,6 @@ setDetalle({})
 return
 }
 
-/* 🔥 LIMPIAR ESTADO */
 setChecklists([])
 setDetalle({})
 
@@ -55,6 +54,7 @@ let query = supabase
 .from("inventario_checklist")
 .select(`
 *,
+estado,
 inventario_items (
   nombre,
   categoria
@@ -112,13 +112,12 @@ lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
 
-/* auto seleccionar último */
 procesarDetalle(lista[0].items)
 
 }
 
 /* ========================= */
-/* 🔥 DETALLE POR CATEGORIA */
+/* 🔥 DETALLE */
 /* ========================= */
 
 function procesarDetalle(items:any[]){
@@ -142,6 +141,24 @@ setDetalle(grupos)
 }
 
 /* ========================= */
+/* 🔥 ESTADO VISUAL */
+/* ========================= */
+
+function getEstadoVisual(estado:string){
+
+if(estado === "BORRADOR"){
+return { label:"🟡 BORRADOR", color:"#f59e0b" }
+}
+
+if(estado === "FINALIZADO"){
+return { label:"🟢 FINALIZADO", color:"#22c55e" }
+}
+
+return { label:"⚪ SIN ESTADO", color:"#6b7280" }
+
+}
+
+/* ========================= */
 
 return(
 
@@ -158,11 +175,8 @@ value={ambulancia}
 onChange={(e)=>{
 const id = e.target.value
 setAmbulancia(id)
-
-/* 🔥 limpiar antes */
 setChecklists([])
 setDetalle({})
-
 cargarHistorial(id)
 }}
 style={input}
@@ -184,10 +198,6 @@ Filtrar
 
 </div>
 
-{/* ========================= */}
-{/* CHECKLISTS */}
-{/* ========================= */}
-
 <h2 style={tituloSeccion}>🗂 CHECKLISTS</h2>
 
 <div style={tabla}>
@@ -196,7 +206,12 @@ Filtrar
 <div style={empty}>Sin registros</div>
 )}
 
-{checklists.map((c,i)=>(
+{checklists.map((c,i)=>{
+
+const estado = c.items[0]?.estado
+const estadoVisual = getEstadoVisual(estado)
+
+return(
 
 <div key={i} style={rowClickable} onClick={()=>procesarDetalle(c.items)}>
 
@@ -208,15 +223,20 @@ Filtrar
 🧾 {c.items.length} items
 </div>
 
+<div style={{
+color:estadoVisual.color,
+fontWeight:"bold"
+}}>
+{estadoVisual.label}
 </div>
 
-))}
-
 </div>
 
-{/* ========================= */}
-{/* DETALLE */}
-{/* ========================= */}
+)
+
+})}
+
+</div>
 
 <h2 style={tituloSeccion}>📋 DETALLE OPERATIVO</h2>
 
@@ -234,7 +254,11 @@ Filtrar
 🧩 {cat.toUpperCase()} ({detalle[cat].length})
 </h3>
 
-{detalle[cat].map((d:any)=>(
+{detalle[cat].map((d:any)=>{
+
+const estadoVisual = getEstadoVisual(d.estado)
+
+return(
 
 <div key={d.id} style={row}>
 
@@ -243,13 +267,21 @@ Filtrar
 <div>{d.cantidad}</div>
 <div>{d.fecha_caducidad || "-"}</div>
 
-<div style={estadoOK}>
-OK
+<div style={{
+background:estadoVisual.color,
+padding:"5px",
+borderRadius:6,
+textAlign:"center",
+fontWeight:"bold"
+}}>
+{estadoVisual.label}
 </div>
 
 </div>
 
-))}
+)
+
+})}
 
 </div>
 
@@ -303,8 +335,8 @@ borderBottom:"1px solid #1f2937"
 }
 
 const rowClickable: CSSProperties = {
-display:"flex",
-justifyContent:"space-between",
+display:"grid",
+gridTemplateColumns:"2fr 1fr 1fr",
 padding:12,
 borderBottom:"1px solid #1f2937",
 cursor:"pointer",
@@ -325,14 +357,6 @@ fontWeight:"bold",
 letterSpacing:"1px",
 textTransform:"uppercase",
 marginBottom:10
-}
-
-const estadoOK: CSSProperties = {
-background:"#22c55e",
-padding:"5px",
-borderRadius:6,
-textAlign:"center",
-fontWeight:"bold"
 }
 
 const tituloSeccion: CSSProperties = {
