@@ -37,7 +37,9 @@ const [responsable,setResponsable] = useState("")
 
 const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
+const [guardando,setGuardando] = useState(false)
 
+/* MODAL */
 const [modal,setModal] = useState(false)
 const [itemSel,setItemSel] = useState<any>(null)
 const [cantidadAb,setCantidadAb] = useState("")
@@ -67,6 +69,8 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 setAmbulancias(ordenadas)
 }
 
+/* ========================= */
+
 function toggle(k:string){
 setExpandido((p:any)=>({...p,[k]:!p[k]}))
 }
@@ -78,6 +82,140 @@ setDatos({...datos,[id]:val})
 function getMin(i:any){
 return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
+
+/* ========================= */
+/* VALIDACIONES */
+/* ========================= */
+
+function validarFinal(){
+
+if(!ambulancia){
+alert("🚑 Seleccione ambulancia")
+return false
+}
+
+if(!responsable.trim()){
+alert("👤 Ingrese responsable")
+return false
+}
+
+return true
+}
+
+/* ========================= */
+/* GUARDAR BORRADOR */
+/* ========================= */
+
+async function guardarBorrador(){
+
+if(!ambulancia || !responsable.trim()){
+alert("⚠️ Complete ambulancia y responsable")
+return
+}
+
+try{
+
+for(const itemId in datos){
+
+const cantidad = Number(datos[itemId] || 0)
+
+await supabase.from("inventario_checklist").insert({
+ambulancia_id: ambulancia,
+item_id: itemId,
+cantidad,
+estado:"BORRADOR",
+fecha_registro: new Date().toISOString(),
+responsable
+})
+
+}
+
+alert("💾 Borrador guardado")
+
+}catch(e){
+console.error(e)
+alert("Error")
+}
+
+}
+
+/* ========================= */
+/* VALIDAR DUPLICADO */
+/* ========================= */
+
+async function yaExisteFinalizado(){
+
+const inicio = new Date()
+inicio.setHours(0,0,0,0)
+
+const fin = new Date()
+fin.setHours(23,59,59,999)
+
+const { data } = await supabase
+.from("inventario_checklist")
+.select("id")
+.eq("ambulancia_id", ambulancia)
+.eq("estado","FINALIZADO")
+.gte("fecha_registro", inicio.toISOString())
+.lte("fecha_registro", fin.toISOString())
+.limit(1)
+
+return data && data.length > 0
+}
+
+/* ========================= */
+/* FINALIZAR */
+/* ========================= */
+
+async function finalizar(){
+
+if(!validarFinal()) return
+
+const existe = await yaExisteFinalizado()
+
+if(existe){
+alert("🚫 Ya existe checklist FINALIZADO hoy")
+return
+}
+
+setGuardando(true)
+
+try{
+
+for(const itemId in datos){
+
+const cantidad = Number(datos[itemId] || 0)
+
+if(cantidad <= 0) continue
+
+await supabase.from("inventario_checklist").insert({
+ambulancia_id: ambulancia,
+item_id: itemId,
+cantidad,
+estado:"FINALIZADO",
+fecha_registro: new Date().toISOString(),
+responsable
+})
+
+}
+
+setDatos({})
+setAmbulancia("")
+setResponsable("")
+
+alert("✅ Checklist finalizado")
+
+}catch(e){
+console.error(e)
+alert("Error")
+}
+
+setGuardando(false)
+}
+
+/* ========================= */
+/* ABASTECER */
+/* ========================= */
 
 function abrirModal(item:any){
 if(!ambulancia){
@@ -102,8 +240,8 @@ cantidad: Number(cantidadAb),
 lote,
 fecha_caducidad: fecha,
 origen,
-estado: "ABASTECIMIENTO",
-tipo_movimiento: "ABASTECIMIENTO",
+estado:"ABASTECIMIENTO",
+tipo_movimiento:"ABASTECIMIENTO",
 fecha_registro: new Date().toISOString(),
 responsable
 })
@@ -116,6 +254,10 @@ setLote("")
 setFecha("")
 setOrigen("")
 }
+
+/* ========================= */
+/* UI */
+/* ========================= */
 
 return(
 
@@ -226,6 +368,22 @@ style={input}
 
 })}
 
+/* BOTONES */
+
+<div style={btnContainer}>
+
+<button onClick={guardarBorrador} style={btnWarning}>
+💾 Guardar borrador
+</button>
+
+<button onClick={finalizar} style={btnPrimary}>
+{guardando ? "Guardando..." : "📤 Finalizar"}
+</button>
+
+</div>
+
+/* MODAL */
+
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>
@@ -244,7 +402,7 @@ style={input}
 <option value="DONACION">Donación</option>
 </select>
 
-<button onClick={guardarAbastecimiento} style={btnGuardar}>Guardar</button>
+<button onClick={guardarAbastecimiento} style={btnPrimary}>Guardar</button>
 <button onClick={()=>setModal(false)} style={btnCancelar}>Cancelar</button>
 
 </div>
@@ -259,123 +417,21 @@ style={input}
 /* ESTILOS */
 /* ========================= */
 
-const container: CSSProperties = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:"15px",
-maxWidth:"900px",
-margin:"0 auto"
-}
-
-const title: CSSProperties = {
-fontSize:20,
-marginBottom:10
-}
-
-const section: CSSProperties = {
-marginTop:20,
-marginBottom:10,
-fontSize:16,
-fontWeight:"bold"
-}
-
-const formTop: CSSProperties = {
-display:"flex",
-flexDirection:"column",
-gap:10,
-marginBottom:20
-}
-
-const input: CSSProperties = {
-padding:"12px",
-borderRadius:10,
-background:"#1f2937",
-color:"white",
-border:"none",
-width:"100%"
-}
-
-const card: CSSProperties = {
-background:"#111827",
-borderRadius:10,
-marginBottom:10
-}
-
-const cardKit = (c:any): CSSProperties => ({
-background:"#111827",
-borderRadius:10,
-marginBottom:10,
-borderLeft:`6px solid ${COLORES_KIT[c]}`
-})
-
-const catHeader: CSSProperties = {
-background:"#1f2937",
-padding:12,
-cursor:"pointer"
-}
-
-const item: CSSProperties = {
-padding:12,
-borderBottom:"1px solid #1f2937"
-}
-
-const rowTop: CSSProperties = {
-display:"flex",
-justifyContent:"space-between"
-}
-
-const badge: CSSProperties = {
-background:"#16a34a",
-padding:"2px 6px",
-borderRadius:5,
-fontSize:10
-}
-
-const btnAdd: CSSProperties = {
-marginTop:8,
-background:"#3b82f6",
-padding:"10px",
-border:"none",
-borderRadius:8,
-color:"white",
-width:"100%"
-}
-
-const btnGuardar: CSSProperties = {
-marginTop:10,
-background:"#22c55e",
-padding:"14px",
-border:"none",
-borderRadius:10,
-width:"100%"
-}
-
-const btnCancelar: CSSProperties = {
-marginTop:5,
-background:"#ef4444",
-padding:"12px",
-border:"none",
-borderRadius:8,
-width:"100%"
-}
-
-const modalBg: CSSProperties = {
-position:"fixed",
-top:0,
-left:0,
-width:"100%",
-height:"100%",
-background:"rgba(0,0,0,0.6)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
-}
-
-const modalBox: CSSProperties = {
-background:"#111827",
-padding:20,
-borderRadius:10,
-width:"90%",
-maxWidth:"400px"
-}
+const container: CSSProperties = {background:"#020617",color:"white",minHeight:"100vh",padding:"15px",maxWidth:"900px",margin:"0 auto"}
+const title: CSSProperties = {fontSize:20,marginBottom:10}
+const section: CSSProperties = {marginTop:20,marginBottom:10,fontWeight:"bold"}
+const formTop: CSSProperties = {display:"flex",flexDirection:"column",gap:10,marginBottom:20}
+const input: CSSProperties = {padding:"12px",borderRadius:10,background:"#1f2937",color:"white",border:"none",width:"100%"}
+const card: CSSProperties = {background:"#111827",borderRadius:10,marginBottom:10}
+const cardKit = (c:any): CSSProperties => ({background:"#111827",borderRadius:10,marginBottom:10,borderLeft:`6px solid ${COLORES_KIT[c]}`})
+const catHeader: CSSProperties = {background:"#1f2937",padding:12,cursor:"pointer"}
+const item: CSSProperties = {padding:12,borderBottom:"1px solid #1f2937"}
+const rowTop: CSSProperties = {display:"flex",justifyContent:"space-between"}
+const badge: CSSProperties = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
+const btnAdd: CSSProperties = {marginTop:8,background:"#3b82f6",padding:"10px",border:"none",borderRadius:8,color:"white",width:"100%"}
+const btnContainer: CSSProperties = {display:"flex",flexDirection:"column",gap:10,marginTop:20}
+const btnPrimary: CSSProperties = {background:"#22c55e",padding:"14px",border:"none",borderRadius:10}
+const btnWarning: CSSProperties = {background:"#f59e0b",padding:"14px",border:"none",borderRadius:10}
+const btnCancelar: CSSProperties = {background:"#ef4444",padding:"12px",border:"none",borderRadius:8,marginTop:5}
+const modalBg: CSSProperties = {position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.6)",display:"flex",justifyContent:"center",alignItems:"center"}
+const modalBox: CSSProperties = {background:"#111827",padding:20,borderRadius:10,width:"90%",maxWidth:"400px"}
