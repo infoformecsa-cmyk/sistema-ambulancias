@@ -39,7 +39,6 @@ const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
 
-/* MODAL */
 const [modal,setModal] = useState(false)
 const [itemSel,setItemSel] = useState<any>(null)
 const [cantidadAb,setCantidadAb] = useState("")
@@ -68,8 +67,6 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 
 setAmbulancias(ordenadas)
 }
-
-/* ========================= */
 
 function toggle(k:string){
 setExpandido((p:any)=>({...p,[k]:!p[k]}))
@@ -113,8 +110,6 @@ alert("⚠️ Complete ambulancia y responsable")
 return
 }
 
-try{
-
 for(const itemId in datos){
 
 const cantidad = Number(datos[itemId] || 0)
@@ -131,36 +126,6 @@ responsable
 }
 
 alert("💾 Borrador guardado")
-
-}catch(e){
-console.error(e)
-alert("Error")
-}
-
-}
-
-/* ========================= */
-/* VALIDAR DUPLICADO */
-/* ========================= */
-
-async function yaExisteFinalizado(){
-
-const inicio = new Date()
-inicio.setHours(0,0,0,0)
-
-const fin = new Date()
-fin.setHours(23,59,59,999)
-
-const { data } = await supabase
-.from("inventario_checklist")
-.select("id")
-.eq("ambulancia_id", ambulancia)
-.eq("estado","FINALIZADO")
-.gte("fecha_registro", inicio.toISOString())
-.lte("fecha_registro", fin.toISOString())
-.limit(1)
-
-return data && data.length > 0
 }
 
 /* ========================= */
@@ -171,21 +136,11 @@ async function finalizar(){
 
 if(!validarFinal()) return
 
-const existe = await yaExisteFinalizado()
-
-if(existe){
-alert("🚫 Ya existe checklist FINALIZADO hoy")
-return
-}
-
 setGuardando(true)
-
-try{
 
 for(const itemId in datos){
 
 const cantidad = Number(datos[itemId] || 0)
-
 if(cantidad <= 0) continue
 
 await supabase.from("inventario_checklist").insert({
@@ -204,11 +159,6 @@ setAmbulancia("")
 setResponsable("")
 
 alert("✅ Checklist finalizado")
-
-}catch(e){
-console.error(e)
-alert("Error")
-}
 
 setGuardando(false)
 }
@@ -368,10 +318,7 @@ style={input}
 
 })}
 
-/* BOTONES */
-
 <div style={btnContainer}>
-
 <button onClick={guardarBorrador} style={btnWarning}>
 💾 Guardar borrador
 </button>
@@ -379,10 +326,7 @@ style={input}
 <button onClick={finalizar} style={btnPrimary}>
 {guardando ? "Guardando..." : "📤 Finalizar"}
 </button>
-
 </div>
-
-/* MODAL */
 
 {modal && (
 <div style={modalBg}>
