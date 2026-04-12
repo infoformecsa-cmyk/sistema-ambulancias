@@ -6,11 +6,20 @@ import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
+/* 🔥 CAMBIO DE COLOR PROFESIONAL */
 const COLORES_KIT:any = {
-celeste:"#06b6d4",
+celeste:"#8b5cf6", // morado clínico
 azul:"#3b82f6",
 rojo:"#ef4444",
 amarillo:"#f59e0b"
+}
+
+/* 🔥 NOMBRE PERSONALIZADO */
+const NOMBRES_KIT:any = {
+celeste:"DISPOSITIVO MÉDICO OBSTÉTRICO",
+azul:"KIT AZUL",
+rojo:"KIT ROJO",
+amarillo:"KIT AMARILLO"
 }
 
 const ORDEN = [
@@ -30,9 +39,8 @@ const [responsable,setResponsable] = useState("")
 
 const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
-const [guardando,setGuardando] = useState(false)
 
-/* 🔥 MODAL */
+/* MODAL */
 const [modal,setModal] = useState(false)
 const [itemSel,setItemSel] = useState<any>(null)
 const [cantidadAb,setCantidadAb] = useState("")
@@ -42,9 +50,7 @@ const [origen,setOrigen] = useState("")
 
 /* ========================= */
 
-useEffect(()=>{
-cargar()
-},[])
+useEffect(()=>{ cargar() },[])
 
 async function cargar(){
 
@@ -100,8 +106,6 @@ alert("Complete todos los campos")
 return
 }
 
-try{
-
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: ambulancia,
 item_id: itemSel.id,
@@ -122,23 +126,19 @@ setCantidadAb("")
 setLote("")
 setFecha("")
 setOrigen("")
-
-}catch(e){
-console.error(e)
-alert("Error")
 }
 
-}
-
+/* ========================= */
+/* UI */
 /* ========================= */
 
 return(
 
 <div style={container}>
 
-<h1 style={{fontSize:22,marginBottom:10}}>🚑 Checklist Operativo</h1>
+<h1 style={title}>🚑 Checklist Operativo</h1>
 
-<div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+<div style={formTop}>
 <select value={ambulancia} onChange={e=>setAmbulancia(e.target.value)} style={input}>
 <option value="">Ambulancia</option>
 {ambulancias.map(a=>(
@@ -154,7 +154,7 @@ style={input}
 />
 </div>
 
-<h2>🧬 Kits Obstétricos</h2>
+<h2 style={section}>🧬 Kits Obstétricos</h2>
 
 {["celeste","azul","amarillo","rojo"].map(color=>{
 
@@ -165,14 +165,14 @@ return(
 <div key={color} style={cardKit(color)}>
 
 <div style={catHeader} onClick={()=>toggle(color)}>
-KIT {color.toUpperCase()}
+{NOMBRES_KIT[color]}
 </div>
 
 {expandido[color] && grupo.map(k=>(
 
 <div key={k.id} style={item}>
 
-<div style={{display:"flex",justifyContent:"space-between"}}>
+<div style={rowTop}>
 <span>{k.nombre}</span>
 <span style={badge}>Min {getMin(k)}</span>
 </div>
@@ -182,7 +182,7 @@ type="number"
 placeholder="Cantidad"
 value={datos[k.id] || ""}
 onChange={e=>actualizarCantidad(k.id,e.target.value)}
-style={{...input,marginTop:8}}
+style={input}
 />
 
 <button onClick={()=>abrirModal(k)} style={btnAdd}>
@@ -198,7 +198,7 @@ style={{...input,marginTop:8}}
 
 })}
 
-<h2>📦 Checklist General</h2>
+<h2 style={section}>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
 
@@ -215,7 +215,7 @@ return(
 
 <div key={i.id} style={item}>
 
-<div style={{display:"flex",justifyContent:"space-between"}}>
+<div style={rowTop}>
 <span>{i.nombre}</span>
 <span style={badge}>Min {getMin(i)}</span>
 </div>
@@ -225,7 +225,7 @@ type="number"
 placeholder="Cantidad"
 value={datos[i.id] || ""}
 onChange={e=>actualizarCantidad(i.id,e.target.value)}
-style={{...input,marginTop:8}}
+style={input}
 />
 
 <button onClick={()=>abrirModal(i)} style={btnAdd}>
@@ -241,24 +241,13 @@ style={{...input,marginTop:8}}
 
 })}
 
-<div style={{display:"flex",gap:10,marginTop:20,flexDirection:"column"}}>
-
-<button style={{...btnGuardar,background:"#f59e0b"}}>
-💾 Guardar borrador
-</button>
-
-<button style={btnGuardar}>
-📤 Finalizar
-</button>
-
-</div>
+/* MODAL */
 
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>
 
 <h3>➕ Abastecer</h3>
-
 <p>{itemSel?.nombre}</p>
 
 <input placeholder="Cantidad" value={cantidadAb} onChange={e=>setCantidadAb(e.target.value)} style={input}/>
@@ -284,19 +273,102 @@ style={{...input,marginTop:8}}
 }
 
 /* ========================= */
-/* ESTILOS */
+/* ESTILOS MOBILE */
 /* ========================= */
 
-const container: CSSProperties = {background:"#020617",color:"white",minHeight:"100vh",padding:"20px"}
-const input: CSSProperties = {padding:"10px",borderRadius:8,background:"#1f2937",color:"white",border:"none",width:"100%",marginTop:5}
-const card: CSSProperties = {background:"#111827",borderRadius:10,marginBottom:10}
-const cardKit = (c:any): CSSProperties => ({background:"#111827",borderRadius:10,marginBottom:10,borderLeft:`5px solid ${COLORES_KIT[c]}`})
-const catHeader: CSSProperties = {background:"#1f2937",padding:10,cursor:"pointer"}
-const item: CSSProperties = {padding:10,borderBottom:"1px solid #1f2937"}
-const badge: CSSProperties = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
-const btnGuardar: CSSProperties = {width:"100%",background:"#22c55e",color:"black",padding:"15px",border:"none",borderRadius:10,marginTop:10}
-const btnAdd: CSSProperties = {marginTop:6,background:"#3b82f6",padding:"6px",border:"none",borderRadius:6,color:"white"}
-const btnCancelar: CSSProperties = {marginTop:5,background:"#ef4444",padding:"10px",border:"none",borderRadius:6,color:"white"}
+const container: CSSProperties = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:"15px",
+maxWidth:"900px",
+margin:"0 auto"
+}
+
+const title: CSSProperties = {
+fontSize:20,
+marginBottom:10
+}
+
+const formTop: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:10,
+marginBottom:20
+}
+
+const input: CSSProperties = {
+padding:"12px",
+borderRadius:10,
+background:"#1f2937",
+color:"white",
+border:"none",
+width:"100%"
+}
+
+const card: CSSProperties = {
+background:"#111827",
+borderRadius:10,
+marginBottom:10
+}
+
+const cardKit = (c:any): CSSProperties => ({
+background:"#111827",
+borderRadius:10,
+marginBottom:10,
+borderLeft:`6px solid ${COLORES_KIT[c]}`
+})
+
+const catHeader: CSSProperties = {
+background:"#1f2937",
+padding:12,
+cursor:"pointer"
+}
+
+const item: CSSProperties = {
+padding:12,
+borderBottom:"1px solid #1f2937"
+}
+
+const rowTop: CSSProperties = {
+display:"flex",
+justifyContent:"space-between"
+}
+
+const badge: CSSProperties = {
+background:"#16a34a",
+padding:"2px 6px",
+borderRadius:5,
+fontSize:10
+}
+
+const btnAdd: CSSProperties = {
+marginTop:8,
+background:"#3b82f6",
+padding:"10px",
+border:"none",
+borderRadius:8,
+color:"white",
+width:"100%"
+}
+
+const btnGuardar: CSSProperties = {
+marginTop:10,
+background:"#22c55e",
+padding:"14px",
+border:"none",
+borderRadius:10,
+width:"100%"
+}
+
+const btnCancelar: CSSProperties = {
+marginTop:5,
+background:"#ef4444",
+padding:"12px",
+border:"none",
+borderRadius:8,
+width:"100%"
+}
 
 const modalBg: CSSProperties = {
 position:"fixed",
