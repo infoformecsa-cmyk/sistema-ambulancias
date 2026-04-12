@@ -31,30 +31,19 @@ const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
 const [guardando,setGuardando] = useState(false)
 
+/* 🔥 MODAL */
+const [modal,setModal] = useState(false)
+const [itemSel,setItemSel] = useState<any>(null)
+const [cantidadAb,setCantidadAb] = useState("")
+const [lote,setLote] = useState("")
+const [fecha,setFecha] = useState("")
+const [origen,setOrigen] = useState("")
+
 /* ========================= */
 
 useEffect(()=>{
-const d = localStorage.getItem("checklist_simple")
-const a = localStorage.getItem("checklist_simple_ambulancia")
-const r = localStorage.getItem("checklist_simple_responsable")
-
-if(d) setDatos(JSON.parse(d))
-if(a) setAmbulancia(a)
-if(r) setResponsable(r)
-
 cargar()
 },[])
-
-/* AUTOGUARDADO LOCAL */
-useEffect(()=>{
-const interval = setInterval(()=>{
-localStorage.setItem("checklist_simple", JSON.stringify(datos))
-localStorage.setItem("checklist_simple_ambulancia", ambulancia)
-localStorage.setItem("checklist_simple_responsable", responsable)
-},5000)
-
-return ()=>clearInterval(interval)
-},[datos,ambulancia,responsable])
 
 /* ========================= */
 
@@ -71,13 +60,9 @@ categoria: (i.categoria || "").toLowerCase().trim()
 setKits(limpio.filter(i=>i.subcategoria==="kit_parto"))
 setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
 
-const ordenadas = (amb || []).sort((a,b)=>{
-return a.codigo_operativo.localeCompare(
-b.codigo_operativo,
-undefined,
-{ numeric: true, sensitivity: "base" }
+const ordenadas = (amb || []).sort((a,b)=>
+a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 )
-})
 
 setAmbulancias(ordenadas)
 }
@@ -97,126 +82,59 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 💾 GUARDAR BORRADOR EN SUPABASE */
+/* 🔥 ABRIR MODAL */
 /* ========================= */
 
-async function guardarBorrador(){
+function abrirModal(item:any){
+if(!ambulancia){
+alert("Seleccione ambulancia primero")
+return
+}
+setItemSel(item)
+setModal(true)
+}
 
-if(!ambulancia || !responsable.trim()){
-alert("⚠️ Complete ambulancia y responsable")
+/* ========================= */
+/* 🔥 GUARDAR ABASTECIMIENTO */
+/* ========================= */
+
+async function guardarAbastecimiento(){
+
+if(!cantidadAb || !lote || !fecha || !origen){
+alert("Complete todos los campos")
 return
 }
 
 try{
 
-for(const itemId in datos){
-
-const cantidad = Number(datos[itemId] || 0)
-
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: ambulancia,
-item_id: itemId,
-cantidad,
-estado: "BORRADOR",
+item_id: itemSel.id,
+cantidad: Number(cantidadAb),
+lote,
+fecha_caducidad: fecha,
+origen,
+estado: "ABASTECIMIENTO",
+tipo_movimiento: "ABASTECIMIENTO",
 fecha_registro: new Date().toISOString(),
-responsable: responsable.trim()
+responsable
 })
 
-}
+alert("✅ Abastecimiento registrado")
 
-alert("💾 Borrador guardado en sistema")
-
-}catch(e){
-console.error(e)
-alert("Error guardando borrador")
-}
-}
-
-/* ========================= */
-/* 🚫 VALIDAR DUPLICADO */
-/* ========================= */
-
-async function yaExisteChecklistHoy(){
-
-const hoyInicio = new Date()
-hoyInicio.setHours(0,0,0,0)
-
-const hoyFin = new Date()
-hoyFin.setHours(23,59,59,999)
-
-const { data } = await supabase
-.from("inventario_checklist")
-.select("id")
-.eq("ambulancia_id", ambulancia)
-.eq("estado", "FINALIZADO")
-.gte("fecha_registro", hoyInicio.toISOString())
-.lte("fecha_registro", hoyFin.toISOString())
-.limit(1)
-
-return data && data.length > 0
-}
-
-/* ========================= */
-/* 📤 FINALIZAR */
-/* ========================= */
-
-async function guardar(){
-
-if(!ambulancia || !responsable.trim()){
-alert("⚠️ Debe seleccionar ambulancia y escribir responsable")
-return
-}
-
-/* 🔥 VALIDAR DUPLICADO */
-const existe = await yaExisteChecklistHoy()
-
-if(existe){
-alert("🚫 Esta ambulancia ya tiene checklist FINALIZADO hoy")
-return
-}
-
-setGuardando(true)
-
-try{
-
-for(const itemId in datos){
-
-const cantidad = Number(datos[itemId] || 0)
-
-if(cantidad <= 0) continue
-
-await supabase.from("inventario_checklist").insert({
-ambulancia_id: ambulancia,
-item_id: itemId,
-cantidad,
-estado: "FINALIZADO",
-fecha_registro: new Date().toISOString(),
-responsable: responsable.trim()
-})
-
-}
-
-/* limpiar local */
-localStorage.removeItem("checklist_simple")
-localStorage.removeItem("checklist_simple_ambulancia")
-localStorage.removeItem("checklist_simple_responsable")
-
-setDatos({})
-setAmbulancia("")
-setResponsable("")
-
-alert("✅ Checklist finalizado correctamente")
+setModal(false)
+setCantidadAb("")
+setLote("")
+setFecha("")
+setOrigen("")
 
 }catch(e){
 console.error(e)
 alert("Error")
 }
 
-setGuardando(false)
 }
 
-/* ========================= */
-/* UI */
 /* ========================= */
 
 return(
@@ -241,7 +159,11 @@ style={input}
 />
 </div>
 
-<h2 style={{marginBottom:10}}>🧬 Kits Obstétricos</h2>
+{/* ========================= */}
+{/* KITS */}
+{/* ========================= */}
+
+<h2>🧬 Kits Obstétricos</h2>
 
 {["celeste","azul","amarillo","rojo"].map(color=>{
 
@@ -249,20 +171,16 @@ const grupo = kits.filter(k=>k.kit_color===color)
 if(!grupo.length) return null
 
 return(
-<div key={color} style={{
-background:"#111827",
-borderRadius:10,
-marginBottom:10,
-borderLeft:`6px solid ${COLORES_KIT[color]}`
-}}>
+<div key={color} style={cardKit(color)}>
 
 <div style={catHeader} onClick={()=>toggle(color)}>
-KIT {color.toUpperCase()} ({grupo.length})
+KIT {color.toUpperCase()}
 </div>
 
 {expandido[color] && grupo.map(k=>(
 
 <div key={k.id} style={item}>
+
 <div style={{display:"flex",justifyContent:"space-between"}}>
 <span>{k.nombre}</span>
 <span style={badge}>Min {getMin(k)}</span>
@@ -275,6 +193,11 @@ value={datos[k.id] || ""}
 onChange={e=>actualizarCantidad(k.id,e.target.value)}
 style={{...input,marginTop:8}}
 />
+
+<button onClick={()=>abrirModal(k)} style={btnAdd}>
+➕ Abastecer
+</button>
+
 </div>
 
 ))}
@@ -284,7 +207,11 @@ style={{...input,marginTop:8}}
 
 })}
 
-<h2 style={{marginTop:20}}>📦 Checklist General</h2>
+/* ========================= */
+/* GENERAL */
+/* ========================= */
+
+<h2>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
 
@@ -294,12 +221,13 @@ return(
 <div key={cat} style={card}>
 
 <div style={catHeader} onClick={()=>toggle(cat)}>
-{cat.toUpperCase()} ({grupo.length})
+{cat.toUpperCase()}
 </div>
 
 {expandido[cat] && grupo.map(i=>(
 
 <div key={i.id} style={item}>
+
 <div style={{display:"flex",justifyContent:"space-between"}}>
 <span>{i.nombre}</span>
 <span style={badge}>Min {getMin(i)}</span>
@@ -312,6 +240,11 @@ value={datos[i.id] || ""}
 onChange={e=>actualizarCantidad(i.id,e.target.value)}
 style={{...input,marginTop:8}}
 />
+
+<button onClick={()=>abrirModal(i)} style={btnAdd}>
+➕ Abastecer
+</button>
+
 </div>
 
 ))}
@@ -321,74 +254,70 @@ style={{...input,marginTop:8}}
 
 })}
 
+/* ========================= */
+/* BOTONES */
+/* ========================= */
+
 <div style={{display:"flex",gap:10,marginTop:20,flexDirection:"column"}}>
 
-<button onClick={guardarBorrador} style={{...btnGuardar,background:"#f59e0b"}}>
+<button style={{...btnGuardar,background:"#f59e0b"}}>
 💾 Guardar borrador
 </button>
 
-<button onClick={guardar} style={btnGuardar}>
-{guardando ? "Guardando..." : "📤 Finalizar"}
+<button style={btnGuardar}>
+📤 Finalizar
 </button>
 
 </div>
+
+{/* ========================= */}
+{/* MODAL */}
+{/* ========================= */}
+
+{modal && (
+<div style={modalBg}>
+<div style={modalBox}>
+
+<h3>➕ Abastecer</h3>
+
+<p>{itemSel?.nombre}</p>
+
+<input placeholder="Cantidad" value={cantidadAb} onChange={e=>setCantidadAb(e.target.value)} style={input}/>
+<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={input}/>
+<input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={input}/>
+
+<select value={origen} onChange={e=>setOrigen(e.target.value)} style={input}>
+<option value="">Origen</option>
+<option value="BODEGA">Bodega</option>
+<option value="HOSPITAL">Hospital</option>
+<option value="DONACION">Donación</option>
+</select>
+
+<button onClick={guardarAbastecimiento} style={btnGuardar}>Guardar</button>
+<button onClick={()=>setModal(false)} style={btnCancelar}>Cancelar</button>
+
+</div>
+</div>
+)}
 
 </div>
 )
 }
 
 /* ========================= */
+/* ESTILOS */
+/* ========================= */
 
-const container = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:"20px",
-maxWidth:"900px",
-margin:"0 auto"
-}
+const container = {background:"#020617",color:"white",minHeight:"100vh",padding:"20px"}
+const input = {padding:"10px",borderRadius:8,background:"#1f2937",color:"white",border:"none",width:"100%",marginTop:5}
+const card = {background:"#111827",borderRadius:10,marginBottom:10}
+const cardKit = (c:any)=>({background:"#111827",borderRadius:10,marginBottom:10,borderLeft:`5px solid ${COLORES_KIT[c]}`})
+const catHeader = {background:"#1f2937",padding:10,cursor:"pointer"}
+const item = {padding:10,borderBottom:"1px solid #1f2937"}
+const badge = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
+const btnGuardar = {width:"100%",background:"#22c55e",color:"black",padding:"15px",border:"none",borderRadius:10,marginTop:10}
+const btnAdd = {marginTop:6,background:"#3b82f6",padding:"6px",border:"none",borderRadius:6,color:"white"}
+const btnCancelar = {marginTop:5,background:"#ef4444",padding:"10px",border:"none",borderRadius:6,color:"white"}
 
-const input = {
-padding:"12px",
-borderRadius:10,
-background:"#1f2937",
-color:"white",
-border:"none",
-width:"100%",
-fontSize:"16px"
-}
-
-const card = {
-background:"#111827",
-borderRadius:10,
-marginBottom:10
-}
-
-const catHeader = {
-background:"#1f2937",
-padding:12,
-cursor:"pointer"
-}
-
-const item = {
-padding:12,
-borderBottom:"1px solid #1f2937"
-}
-
-const badge = {
-background:"#16a34a",
-padding:"2px 6px",
-borderRadius:5,
-fontSize:10
-}
-
-const btnGuardar = {
-width:"100%",
-background:"#22c55e",
-color:"black",
-padding:"18px",
-border:"none",
-borderRadius:"12px",
-fontWeight:"bold",
-fontSize:"16px"
-}
+const modalBg = {position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.6)",display:"flex",justifyContent:"center",alignItems:"center"}
+const modalBox = {background:"#111827",padding:20,borderRadius:10,width:300}
