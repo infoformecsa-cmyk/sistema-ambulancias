@@ -6,15 +6,13 @@ import { useEffect, useState } from "react"
 import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
-/* 🔥 CAMBIO DE COLOR PROFESIONAL */
 const COLORES_KIT:any = {
-celeste:"#8b5cf6", // morado clínico
+celeste:"#8b5cf6",
 azul:"#3b82f6",
 rojo:"#ef4444",
 amarillo:"#f59e0b"
 }
 
-/* 🔥 NOMBRE PERSONALIZADO */
 const NOMBRES_KIT:any = {
 celeste:"DISPOSITIVO MÉDICO OBSTÉTRICO",
 azul:"KIT AZUL",
@@ -40,15 +38,12 @@ const [responsable,setResponsable] = useState("")
 const [expandido,setExpandido] = useState<any>({})
 const [datos,setDatos] = useState<any>({})
 
-/* MODAL */
 const [modal,setModal] = useState(false)
 const [itemSel,setItemSel] = useState<any>(null)
 const [cantidadAb,setCantidadAb] = useState("")
 const [lote,setLote] = useState("")
 const [fecha,setFecha] = useState("")
 const [origen,setOrigen] = useState("")
-
-/* ========================= */
 
 useEffect(()=>{ cargar() },[])
 
@@ -72,8 +67,6 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 setAmbulancias(ordenadas)
 }
 
-/* ========================= */
-
 function toggle(k:string){
 setExpandido((p:any)=>({...p,[k]:!p[k]}))
 }
@@ -86,8 +79,6 @@ function getMin(i:any){
 return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
-/* ========================= */
-
 function abrirModal(item:any){
 if(!ambulancia){
 alert("Seleccione ambulancia primero")
@@ -96,8 +87,6 @@ return
 setItemSel(item)
 setModal(true)
 }
-
-/* ========================= */
 
 async function guardarAbastecimiento(){
 
@@ -127,10 +116,6 @@ setLote("")
 setFecha("")
 setOrigen("")
 }
-
-/* ========================= */
-/* UI */
-/* ========================= */
 
 return(
 
@@ -241,8 +226,6 @@ style={input}
 
 })}
 
-/* MODAL */
-
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>
@@ -273,7 +256,7 @@ style={input}
 }
 
 /* ========================= */
-/* ESTILOS MOBILE */
+/* ESTILOS */
 /* ========================= */
 
 const container: CSSProperties = {
@@ -288,6 +271,13 @@ margin:"0 auto"
 const title: CSSProperties = {
 fontSize:20,
 marginBottom:10
+}
+
+const section: CSSProperties = {
+marginTop:20,
+marginBottom:10,
+fontSize:16,
+fontWeight:"bold"
 }
 
 const formTop: CSSProperties = {
