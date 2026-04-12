@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic"
 
 import { useEffect, useState } from "react"
+import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
 const COLORES_KIT:any = {
@@ -45,8 +46,6 @@ useEffect(()=>{
 cargar()
 },[])
 
-/* ========================= */
-
 async function cargar(){
 
 const {data} = await supabase.from("inventario_items").select("*")
@@ -82,8 +81,6 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* 🔥 ABRIR MODAL */
-/* ========================= */
 
 function abrirModal(item:any){
 if(!ambulancia){
@@ -94,8 +91,6 @@ setItemSel(item)
 setModal(true)
 }
 
-/* ========================= */
-/* 🔥 GUARDAR ABASTECIMIENTO */
 /* ========================= */
 
 async function guardarAbastecimiento(){
@@ -159,10 +154,6 @@ style={input}
 />
 </div>
 
-{/* ========================= */}
-{/* KITS */}
-{/* ========================= */}
-
 <h2>🧬 Kits Obstétricos</h2>
 
 {["celeste","azul","amarillo","rojo"].map(color=>{
@@ -207,10 +198,6 @@ style={{...input,marginTop:8}}
 
 })}
 
-/* ========================= */
-/* GENERAL */
-/* ========================= */
-
 <h2>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
@@ -254,10 +241,6 @@ style={{...input,marginTop:8}}
 
 })}
 
-/* ========================= */
-/* BOTONES */
-/* ========================= */
-
 <div style={{display:"flex",gap:10,marginTop:20,flexDirection:"column"}}>
 
 <button style={{...btnGuardar,background:"#f59e0b"}}>
@@ -269,10 +252,6 @@ style={{...input,marginTop:8}}
 </button>
 
 </div>
-
-{/* ========================= */}
-{/* MODAL */}
-{/* ========================= */}
 
 {modal && (
 <div style={modalBg}>
@@ -308,16 +287,33 @@ style={{...input,marginTop:8}}
 /* ESTILOS */
 /* ========================= */
 
-const container = {background:"#020617",color:"white",minHeight:"100vh",padding:"20px"}
-const input = {padding:"10px",borderRadius:8,background:"#1f2937",color:"white",border:"none",width:"100%",marginTop:5}
-const card = {background:"#111827",borderRadius:10,marginBottom:10}
-const cardKit = (c:any)=>({background:"#111827",borderRadius:10,marginBottom:10,borderLeft:`5px solid ${COLORES_KIT[c]}`})
-const catHeader = {background:"#1f2937",padding:10,cursor:"pointer"}
-const item = {padding:10,borderBottom:"1px solid #1f2937"}
-const badge = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
-const btnGuardar = {width:"100%",background:"#22c55e",color:"black",padding:"15px",border:"none",borderRadius:10,marginTop:10}
-const btnAdd = {marginTop:6,background:"#3b82f6",padding:"6px",border:"none",borderRadius:6,color:"white"}
-const btnCancelar = {marginTop:5,background:"#ef4444",padding:"10px",border:"none",borderRadius:6,color:"white"}
+const container: CSSProperties = {background:"#020617",color:"white",minHeight:"100vh",padding:"20px"}
+const input: CSSProperties = {padding:"10px",borderRadius:8,background:"#1f2937",color:"white",border:"none",width:"100%",marginTop:5}
+const card: CSSProperties = {background:"#111827",borderRadius:10,marginBottom:10}
+const cardKit = (c:any): CSSProperties => ({background:"#111827",borderRadius:10,marginBottom:10,borderLeft:`5px solid ${COLORES_KIT[c]}`})
+const catHeader: CSSProperties = {background:"#1f2937",padding:10,cursor:"pointer"}
+const item: CSSProperties = {padding:10,borderBottom:"1px solid #1f2937"}
+const badge: CSSProperties = {background:"#16a34a",padding:"2px 6px",borderRadius:5,fontSize:10}
+const btnGuardar: CSSProperties = {width:"100%",background:"#22c55e",color:"black",padding:"15px",border:"none",borderRadius:10,marginTop:10}
+const btnAdd: CSSProperties = {marginTop:6,background:"#3b82f6",padding:"6px",border:"none",borderRadius:6,color:"white"}
+const btnCancelar: CSSProperties = {marginTop:5,background:"#ef4444",padding:"10px",border:"none",borderRadius:6,color:"white"}
 
-const modalBg = {position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.6)",display:"flex",justifyContent:"center",alignItems:"center"}
-const modalBox = {background:"#111827",padding:20,borderRadius:10,width:300}
+const modalBg: CSSProperties = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}
+
+const modalBox: CSSProperties = {
+background:"#111827",
+padding:20,
+borderRadius:10,
+width:"90%",
+maxWidth:"400px"
+}
