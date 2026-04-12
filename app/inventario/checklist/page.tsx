@@ -6,8 +6,9 @@ import { useEffect, useState, useRef } from "react"
 import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
+/* 🔥 SOLO CAMBIO AQUÍ */
 const COLORES_KIT:any = {
-celeste:"#06b6d4",
+celeste:"#8b5cf6", // ← morado clínico
 azul:"#3b82f6",
 rojo:"#ef4444",
 amarillo:"#f59e0b"
@@ -229,7 +230,7 @@ return(
 <div key={color} style={cardKit(color)}>
 
 <div onClick={()=>toggle(color)} style={catHeader}>
-KIT {color.toUpperCase()}
+{color === "celeste" ? "DISPOSITIVO MÉDICO OBSTÉTRICO" : `KIT ${color.toUpperCase()}`}
 </div>
 
 {expandido[color] && grupo.map(k=>(
@@ -333,7 +334,7 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 }
 
 /* ========================= */
-/* ESTILOS TIPADOS */
+/* ESTILOS (SIN CAMBIOS) */
 /* ========================= */
 
 const container: CSSProperties = {
