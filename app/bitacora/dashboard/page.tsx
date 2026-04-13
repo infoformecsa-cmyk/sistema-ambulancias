@@ -21,9 +21,7 @@ const [modo,setModo] = useState<"ABASTECER" | "CAMBIO">("ABASTECER")
 
 const [loading,setLoading] = useState(true)
 
-useEffect(()=>{
-init()
-},[])
+useEffect(()=>{ init() },[])
 
 async function init(){
 setLoading(true)
@@ -35,12 +33,8 @@ setLoading(false)
 /* ========================= */
 
 function getNombre(item:any){
-if(Array.isArray(item)){
-return item[0]?.nombre || "Item"
-}
-if(item){
-return item.nombre || "Item"
-}
+if(Array.isArray(item)) return item[0]?.nombre || "Item"
+if(item) return item.nombre || "Item"
 return "Item"
 }
 
@@ -135,9 +129,16 @@ const ultimo:any[] = Object.values(mapa)
 let faltantes = 0
 let faltantesDetalle:any[] = []
 
+let totalItems = base.length
+let itemsOK = 0
+
 base.forEach(b=>{
 const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
 const actual = encontrado?.cantidad || 0
+
+if(actual >= b.cantidad_minima){
+itemsOK++
+}
 
 if(actual < b.cantidad_minima){
 faltantes++
@@ -176,6 +177,8 @@ let prioridad = "OK"
 if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
 else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
 
+const porcentaje = Math.round((itemsOK / totalItems) * 100)
+
 return {
 nombre: a.codigo_operativo,
 faltantes,
@@ -183,7 +186,8 @@ criticos,
 vencidos,
 prioridad,
 faltantesDetalle,
-vencidosDetalle
+vencidosDetalle,
+porcentaje
 }
 
 })
@@ -207,8 +211,16 @@ setResumen(resultado)
 function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
 setItemSeleccionado(item)
 setModo(tipo)
+
+/* 🔥 RESET */
+setCantidad("")
+setLote("")
+setFechaCaducidad("")
+
 setModal(true)
 }
+
+/* ========================= */
 
 async function retirarItem(item:any){
 await supabase
@@ -218,6 +230,8 @@ await supabase
 
 await init()
 }
+
+/* ========================= */
 
 async function guardar(){
 
@@ -230,15 +244,18 @@ await retirarItem(itemSeleccionado)
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: itemSeleccionado.ambulancia_id,
 item_id: itemSeleccionado.item_id,
-cantidad: Number(cantidad),
-lote,
-fecha_caducidad: fechaCaducidad
+cantidad: Number(cantidad || 0),
+lote: lote || null,
+fecha_caducidad: fechaCaducidad || null,
+fecha_registro: new Date().toISOString(),
+estado: "ABASTECIMIENTO"
 })
 
 setModal(false)
 setCantidad("")
 setLote("")
 setFechaCaducidad("")
+
 await init()
 }
 
@@ -312,6 +329,7 @@ onClick={()=>toggle(a.nombre)}
 <div>💊 Críticos: {a.criticos}</div>
 <div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
+<div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
 
 {expandido === a.nombre && (
 
@@ -378,27 +396,19 @@ abrirModal(v,"CAMBIO")
 </div>
 ))}
 
-{/* ✅ FIX AQUI */}
+{/* MODAL */}
 {modal && (
-<div style={{
-position:"fixed",
-top:0,left:0,
-width:"100%",height:"100%",
-background:"rgba(0,0,0,0.6)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
-}}>
+<div style={modalBg}>
 
-<div style={{background:"#111827",padding:20,borderRadius:10,width:300}}>
+<div style={modalBox}>
 
 <h3>{modo==="CAMBIO" ? "🔄 Cambio" : "📦 Abastecer"}</h3>
 
 <p>{itemSeleccionado?.nombre}</p>
 
-<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
-<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={{width:"100%",marginBottom:10}} />
-<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} style={{width:"100%",marginBottom:10}} />
+<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={inputModal}/>
+<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={inputModal}/>
+<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} style={inputModal}/>
 
 <button onClick={guardar} style={btn}>Guardar</button>
 <button onClick={()=>setModal(false)} style={btn}>Cancelar</button>
@@ -434,4 +444,33 @@ padding:"6px 10px",
 borderRadius:6,
 border:"none",
 cursor:"pointer"
+}
+
+const modalBg = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}
+
+const modalBox = {
+background:"#111827",
+padding:20,
+borderRadius:10,
+width:300
+}
+
+const inputModal = {
+width:"100%",
+marginBottom:10,
+padding:"10px",
+borderRadius:6,
+border:"none",
+background:"#1f2937",
+color:"white"
 }
