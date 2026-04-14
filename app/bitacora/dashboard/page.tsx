@@ -40,18 +40,6 @@ return "Item"
 }
 
 /* ========================= */
-/* 🔥 NUEVO: AGRUPADOR */
-function agrupar(lista:any[]){
-const grupos:any = {}
-lista.forEach(i=>{
-const cat = (i.categoria || "OTROS").toUpperCase()
-if(!grupos[cat]) grupos[cat] = []
-grupos[cat].push(i)
-})
-return grupos
-}
-
-/* ========================= */
 
 async function cargarAlertas(){
 
@@ -84,6 +72,16 @@ dias: Math.round(diff)
 })
 
 const filtrado = procesado.filter(i=> i.estado !== "OK")
+
+filtrado.sort((a,b)=>{
+function prioridad(e:string){
+if(e==="VENCIDO") return 1
+if(e==="CRITICO") return 2
+if(e==="PREVENTIVO") return 3
+return 99
+}
+return prioridad(a.estado) - prioridad(b.estado)
+})
 
 setAlertas(filtrado)
 }
@@ -132,7 +130,6 @@ let faltantesDetalle:any[] = []
 let totalItems = base.length
 let itemsOK = 0
 
-/* 🔥 NUEVO */
 let totalMed = 0
 let okMed = 0
 let totalOtros = 0
@@ -142,8 +139,7 @@ base.forEach(b=>{
 const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
 const actual = encontrado?.cantidad || 0
 
-const cat = (b.categoria || "").toLowerCase()
-const esMed = cat === "medicamentos"
+const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -162,32 +158,50 @@ faltantes++
 faltantesDetalle.push({
 item_id: b.item_id,
 nombre: b.nombre,
-categoria: b.categoria,
 actual,
 minimo: b.cantidad_minima,
+estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO",
 ambulancia_id: a.id
 })
 }
 })
 
+let criticos = 0
+let vencidos = 0
+let vencidosDetalle:any[] = []
+
+const hoy = new Date()
+
+ultimo.forEach((i:any)=>{
+if(!i.fecha_caducidad) return
+
+const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
+
+if(diff <= 0){
+vencidos++
+vencidosDetalle.push(i)
+}
+else if(diff <= 30){
+criticos++
+}
+})
+
 let prioridad = "OK"
-if(faltantes > 5) prioridad = "ALTA"
-else if(faltantes > 0) prioridad = "MEDIA"
+if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
+else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
 
 const porcentaje = totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0
-
-/* 🔥 NUEVO */
 const porcMed = totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0
 const porcOtros = totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
 return {
 nombre: a.codigo_operativo,
 faltantes,
-criticos:0,
-vencidos:0,
+criticos,
+vencidos,
 prioridad,
 faltantesDetalle,
-vencidosDetalle:[],
+vencidosDetalle,
 porcentaje,
 porcMed,
 porcOtros
@@ -195,13 +209,18 @@ porcOtros
 
 })
 
+resultado.sort((a,b)=>
+a.nombre.localeCompare(b.nombre, undefined, { numeric:true })
+)
+
 setResumen(resultado)
 }
 
 /* ========================= */
 
-function abrirModal(item:any){
+function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
 setItemSeleccionado(item)
+setModo(tipo)
 setCantidad("")
 setLote("")
 setFechaCaducidad("")
@@ -210,24 +229,40 @@ setModal(true)
 
 /* ========================= */
 
+async function retirarItem(item:any){
+await supabase
+.from("inventario_checklist")
+.update({ cantidad: 0 })
+.eq("id", item.id)
+
+await init()
+}
+
+/* ========================= */
+
 async function guardar(){
 
 if(!itemSeleccionado) return
+
+if(modo === "CAMBIO"){
+await retirarItem(itemSeleccionado)
+}
 
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: itemSeleccionado.ambulancia_id,
 item_id: itemSeleccionado.item_id,
 cantidad: Number(cantidad || 0),
-
-/* 🔥 FIX CLAVE */
 lote: lote?.trim() ? lote : null,
 fecha_caducidad: fechaCaducidad?.trim() ? fechaCaducidad : null,
-
 fecha_registro: new Date().toISOString(),
 estado: "ABASTECIMIENTO"
 })
 
 setModal(false)
+setCantidad("")
+setLote("")
+setFechaCaducidad("")
+
 await init()
 }
 
@@ -258,7 +293,6 @@ return(
 
 <div style={container}>
 
-{/* 🔥 NUEVO HEADER */}
 <div style={{marginBottom:10}}>
 <h1 style={{fontSize:22,fontWeight:"bold"}}>
 🚑 BITACORA SANITARIA - SALUD MOVIL
@@ -282,25 +316,35 @@ DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
+{loading && resumen.length === 0 && (
+<div style={{padding:10,opacity:0.6}}>
+Cargando datos...
+</div>
+)}
+
 {resumen.map((a,i)=>(
 
 <div key={i} style={{
 background:colorEstado(a.prioridad),
 padding:15,
 marginBottom:10,
-borderRadius:10
-}}>
+borderRadius:10,
+cursor:"pointer"
+}}
+onClick={()=>toggle(a.nombre)}
+>
 
 <div style={{display:"flex",justifyContent:"space-between"}}>
 <strong>{a.nombre}</strong>
+<span>{expandido === a.nombre ? "▲" : "▼"}</span>
 </div>
 
 <div>❌ Faltantes: {a.faltantes}</div>
+<div>💊 Críticos: {a.criticos}</div>
+<div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
 
 <div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
-
-{/* 🔥 NUEVO */}
 <div>💊 Medicamentos: {a.porcMed}% / 100%</div>
 <div>🧰 Insumos/Equipos: {a.porcOtros}% / 100%</div>
 
@@ -308,30 +352,54 @@ borderRadius:10
 
 <div style={{marginTop:10}}>
 
-<div style={{background:"#020617",padding:10,borderRadius:8}}>
-
+<div style={{background:"#020617",padding:10,borderRadius:8,marginBottom:10}}>
 <strong>📦 Reabastecer:</strong>
 
-{Object.entries(agrupar(a.faltantesDetalle)).map(([cat,items]:any)=>(
-<div key={cat}>
+{a.faltantesDetalle.map((f:any,idx:number)=>(
 
-<div style={{marginTop:8,fontWeight:"bold",opacity:0.7}}>
-{cat}
+<div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+
+<div>
+- {f.nombre} → {f.actual}/{f.minimo}
 </div>
 
-{items.map((f:any,idx:number)=>(
-
-<div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
-
-<div>- {f.nombre} → {f.actual}/{f.minimo}</div>
-
-<button onClick={()=>abrirModal(f)} style={btn}>
+<button onClick={(e)=>{
+e.stopPropagation()
+abrirModal(f,"ABASTECER")
+}} style={btn}>
 ➕ Abastecer
 </button>
 
 </div>
-
 ))}
+</div>
+
+<div style={{background:"#450a0a",padding:10,borderRadius:8}}>
+<strong>🚨 Vencidos:</strong>
+
+{a.vencidosDetalle.map((v:any,idx:number)=>(
+
+<div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
+
+<span>- {getNombre(v.inventario_items)}</span>
+
+<div style={{display:"flex",gap:5}}>
+
+<button onClick={(e)=>{
+e.stopPropagation()
+retirarItem(v)
+}} style={btn}>
+❌ Retirar
+</button>
+
+<button onClick={(e)=>{
+e.stopPropagation()
+abrirModal(v,"CAMBIO")
+}} style={btn}>
+🔄 Cambio
+</button>
+
+</div>
 
 </div>
 ))}
@@ -349,7 +417,9 @@ borderRadius:10
 <div style={modalBg}>
 <div style={modalBox}>
 
-<h3>📦 Abastecer</h3>
+<h3>{modo==="CAMBIO" ? "🔄 Cambio" : "📦 Abastecer"}</h3>
+
+<p>{itemSeleccionado?.nombre}</p>
 
 <input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={inputModal}/>
 <input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={inputModal}/>
