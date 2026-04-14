@@ -240,8 +240,11 @@ await supabase.from("inventario_checklist").insert({
 ambulancia_id: itemSeleccionado.ambulancia_id,
 item_id: itemSeleccionado.item_id,
 cantidad: Number(cantidad || 0),
-lote: lote || null,
-fecha_caducidad: fechaCaducidad || null,
+
+/* 🔥 FIX DEFINITIVO */
+lote: lote?.trim() ? lote : null,
+fecha_caducidad: fechaCaducidad?.trim() ? fechaCaducidad : null,
+
 fecha_registro: new Date().toISOString(),
 estado: "ABASTECIMIENTO"
 })
