@@ -33,57 +33,14 @@ setLoading(false)
 
 /* ========================= */
 
-function getNombre(item:any){
-if(Array.isArray(item)) return item[0]?.nombre || "Item"
-if(item) return item.nombre || "Item"
-return "Item"
-}
-
-/* ========================= */
-
-async function cargarAlertas(){
-
-const { data } = await supabase
-.from("inventario_checklist")
-.select(`
-ambulancia_id,
-fecha_caducidad,
-inventario_items (nombre)
-`)
-.not("fecha_caducidad","is",null)
-
-const hoy = new Date()
-
-const procesado = (data || []).map(i=>{
-const fecha = new Date(i.fecha_caducidad)
-const diff = (fecha.getTime() - hoy.getTime()) / (1000*60*60*24)
-
-let estado = "OK"
-if(diff <= 0) estado = "VENCIDO"
-else if(diff <= 30) estado = "CRITICO"
-else if(diff <= 90) estado = "PREVENTIVO"
-
-return {
-ambulancia: i.ambulancia_id,
-nombre: getNombre(i.inventario_items),
-estado,
-dias: Math.round(diff)
-}
+function agruparPorCategoria(lista:any[]){
+const grupos:any = {}
+lista.forEach(i=>{
+const cat = (i.categoria || "OTROS").toUpperCase()
+if(!grupos[cat]) grupos[cat] = []
+grupos[cat].push(i)
 })
-
-const filtrado = procesado.filter(i=> i.estado !== "OK")
-
-filtrado.sort((a,b)=>{
-function prioridad(e:string){
-if(e==="VENCIDO") return 1
-if(e==="CRITICO") return 2
-if(e==="PREVENTIVO") return 3
-return 99
-}
-return prioridad(a.estado) - prioridad(b.estado)
-})
-
-setAlertas(filtrado)
+return grupos
 }
 
 /* ========================= */
@@ -130,7 +87,6 @@ let faltantesDetalle:any[] = []
 let totalItems = base.length
 let itemsOK = 0
 
-/* 🔥 NUEVO */
 let totalMed = 0, okMed = 0
 let totalOtros = 0, okOtros = 0
 
@@ -138,10 +94,10 @@ base.forEach(b=>{
 const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
 const actual = encontrado?.cantidad || 0
 
-const categoria = (b.categoria || "").toLowerCase()
-const esMedicamento = categoria === "medicamentos"
+const cat = (b.categoria || "").toLowerCase()
+const esMed = cat === "medicamentos"
 
-if(esMedicamento){
+if(esMed){
 totalMed++
 if(actual >= b.cantidad_minima) okMed++
 }else{
@@ -158,18 +114,15 @@ faltantes++
 faltantesDetalle.push({
 item_id: b.item_id,
 nombre: b.nombre,
-categoria: b.categoria || "otros",
+categoria: b.categoria,
 actual,
 minimo: b.cantidad_minima,
-estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO",
 ambulancia_id: a.id
 })
 }
 })
 
-const porcentaje = totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0
-
-/* 🔥 NUEVOS */
+const porcentaje = Math.round((itemsOK / totalItems) * 100)
 const porcMed = totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0
 const porcOtros = totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
@@ -193,21 +146,8 @@ setResumen(resultado)
 
 /* ========================= */
 
-function agruparFaltantes(lista:any[]){
-const grupos:any = {}
-lista.forEach(i=>{
-const cat = (i.categoria || "OTROS").toUpperCase()
-if(!grupos[cat]) grupos[cat] = []
-grupos[cat].push(i)
-})
-return grupos
-}
-
-/* ========================= */
-
-function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
+function abrirModal(item:any){
 setItemSeleccionado(item)
-setModo(tipo)
 setCantidad("")
 setLote("")
 setFechaCaducidad("")
@@ -240,19 +180,6 @@ function toggle(nombre:string){
 setExpandido(expandido === nombre ? null : nombre)
 }
 
-function colorEstado(e:string){
-if(e==="ALTA") return "#7f1d1d"
-if(e==="MEDIA") return "#f59e0b"
-return "#22c55e"
-}
-
-/* ========================= */
-
-function cerrarSesion(){
-localStorage.clear()
-router.replace("/")
-}
-
 function irHistorial(){
 router.push("/inventario/historial")
 }
@@ -263,51 +190,52 @@ return(
 
 <div style={container}>
 
+{/* 🔥 NUEVO HEADER PROFESIONAL */}
+<div style={{marginBottom:15}}>
+<h1 style={{fontSize:22,fontWeight:"bold"}}>
+🚑 BITACORA SANITARIA - SALUD MOVIL
+</h1>
+<p style={{fontSize:14,opacity:0.7}}>
+DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
+</p>
+</div>
+
 <div style={header}>
 <div>
-<h1>🚑 BITACORA SANITARIA - SALUD MOVIL</h1>
-<p style={{opacity:0.7}}>DIRECCION PROVINCIAL DE SALUD DEL GUAYAS</p>
+<h1>🚑 CENTRO DE CONTROL EMS</h1>
+<p style={{opacity:0.7}}>Prioridad + abastecimiento inteligente</p>
 </div>
 
 <div style={{display:"flex",gap:10}}>
 <button onClick={irHistorial} style={btn}>📊 Historial</button>
-<button onClick={cerrarSesion} style={btn}>Salir</button>
 </div>
 </div>
-
-<h2>🚑 PRIORIDAD OPERATIVA</h2>
 
 {resumen.map((a,i)=>(
 
 <div key={i} style={{
-background:colorEstado(a.prioridad),
+background:"#7f1d1d",
 padding:15,
 marginBottom:10,
-borderRadius:10,
-cursor:"pointer"
-}}
-onClick={()=>toggle(a.nombre)}
->
+borderRadius:10
+}}>
 
-<div style={{display:"flex",justifyContent:"space-between"}}>
-<strong>{a.nombre}</strong>
-</div>
+<div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
 
-<div>📊 Abastecimiento total: {a.porcentaje}%</div>
+{/* 🔥 NUEVO */}
 <div>💊 Medicamentos: {a.porcMed}%</div>
 <div>🧰 Insumos/equipos: {a.porcOtros}%</div>
 
-{expandido === a.nombre && (
-
 <div style={{marginTop:10}}>
-
-<div style={{background:"#020617",padding:10,borderRadius:8}}>
 
 <strong>📦 Reabastecer:</strong>
 
-{Object.entries(agruparFaltantes(a.faltantesDetalle)).map(([cat,items]:any)=>(
+{Object.entries(agruparPorCategoria(a.faltantesDetalle)).map(([cat,items]:any)=>(
 <div key={cat}>
-<strong>{cat}</strong>
+
+<div style={{marginTop:8,fontWeight:"bold",opacity:0.8}}>
+{cat}
+</div>
 
 {items.map((f:any,idx:number)=>(
 
@@ -315,10 +243,7 @@ onClick={()=>toggle(a.nombre)}
 
 <div>- {f.nombre} → {f.actual}/{f.minimo}</div>
 
-<button onClick={(e)=>{
-e.stopPropagation()
-abrirModal(f)
-}} style={btn}>
+<button onClick={()=>abrirModal(f)} style={btn}>
 ➕ Abastecer
 </button>
 
@@ -330,10 +255,6 @@ abrirModal(f)
 ))}
 
 </div>
-
-</div>
-
-)}
 
 </div>
 ))}
@@ -363,7 +284,6 @@ padding:30
 const header: CSSProperties = {
 display:"flex",
 justifyContent:"space-between",
-alignItems:"center",
 marginBottom:20
 }
 
@@ -393,7 +313,6 @@ width:300
 
 const inputModal: CSSProperties = {
 width:"100%",
-marginBottom:10,
 padding:"10px",
 background:"#1f2937",
 color:"white"
