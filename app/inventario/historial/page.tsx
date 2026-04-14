@@ -138,7 +138,7 @@ setDetalle(grupos)
 }
 
 /* ========================= */
-/* SEMÁFORO */
+/* ✅ FIX AQUÍ */
 /* ========================= */
 
 function getEstadoVisual(estado:string){
@@ -151,7 +151,13 @@ if(estado === "FINALIZADO"){
 return { label:"🟢 FINALIZADO", color:"#22c55e" }
 }
 
-return { label:"🔴 ERROR", color:"#ef4444" }
+/* 🔥 SOLUCIÓN */
+if(estado === "ABASTECIMIENTO"){
+return { label:"🔵 ABASTECIMIENTO", color:"#3b82f6" }
+}
+
+/* 🔒 fallback controlado */
+return { label:"⚪ SIN CLASIFICAR", color:"#6b7280" }
 
 }
 
