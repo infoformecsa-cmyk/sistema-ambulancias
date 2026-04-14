@@ -33,7 +33,15 @@ setLoading(false)
 
 /* ========================= */
 
-function agruparPorCategoria(lista:any[]){
+function getNombre(item:any){
+if(Array.isArray(item)) return item[0]?.nombre || "Item"
+if(item) return item.nombre || "Item"
+return "Item"
+}
+
+/* ========================= */
+/* 🔥 NUEVO: AGRUPADOR */
+function agrupar(lista:any[]){
 const grupos:any = {}
 lista.forEach(i=>{
 const cat = (i.categoria || "OTROS").toUpperCase()
@@ -41,6 +49,43 @@ if(!grupos[cat]) grupos[cat] = []
 grupos[cat].push(i)
 })
 return grupos
+}
+
+/* ========================= */
+
+async function cargarAlertas(){
+
+const { data } = await supabase
+.from("inventario_checklist")
+.select(`
+ambulancia_id,
+fecha_caducidad,
+inventario_items (nombre)
+`)
+.not("fecha_caducidad","is",null)
+
+const hoy = new Date()
+
+const procesado = (data || []).map(i=>{
+const fecha = new Date(i.fecha_caducidad)
+const diff = (fecha.getTime() - hoy.getTime()) / (1000*60*60*24)
+
+let estado = "OK"
+if(diff <= 0) estado = "VENCIDO"
+else if(diff <= 30) estado = "CRITICO"
+else if(diff <= 90) estado = "PREVENTIVO"
+
+return {
+ambulancia: i.ambulancia_id,
+nombre: getNombre(i.inventario_items),
+estado,
+dias: Math.round(diff)
+}
+})
+
+const filtrado = procesado.filter(i=> i.estado !== "OK")
+
+setAlertas(filtrado)
 }
 
 /* ========================= */
@@ -87,8 +132,11 @@ let faltantesDetalle:any[] = []
 let totalItems = base.length
 let itemsOK = 0
 
-let totalMed = 0, okMed = 0
-let totalOtros = 0, okOtros = 0
+/* 🔥 NUEVO */
+let totalMed = 0
+let okMed = 0
+let totalOtros = 0
+let okOtros = 0
 
 base.forEach(b=>{
 const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
@@ -122,7 +170,13 @@ ambulancia_id: a.id
 }
 })
 
-const porcentaje = Math.round((itemsOK / totalItems) * 100)
+let prioridad = "OK"
+if(faltantes > 5) prioridad = "ALTA"
+else if(faltantes > 0) prioridad = "MEDIA"
+
+const porcentaje = totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0
+
+/* 🔥 NUEVO */
 const porcMed = totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0
 const porcOtros = totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
@@ -131,7 +185,7 @@ nombre: a.codigo_operativo,
 faltantes,
 criticos:0,
 vencidos:0,
-prioridad:"OK",
+prioridad,
 faltantesDetalle,
 vencidosDetalle:[],
 porcentaje,
@@ -164,8 +218,11 @@ await supabase.from("inventario_checklist").insert({
 ambulancia_id: itemSeleccionado.ambulancia_id,
 item_id: itemSeleccionado.item_id,
 cantidad: Number(cantidad || 0),
+
+/* 🔥 FIX CLAVE */
 lote: lote?.trim() ? lote : null,
 fecha_caducidad: fechaCaducidad?.trim() ? fechaCaducidad : null,
+
 fecha_registro: new Date().toISOString(),
 estado: "ABASTECIMIENTO"
 })
@@ -180,6 +237,17 @@ function toggle(nombre:string){
 setExpandido(expandido === nombre ? null : nombre)
 }
 
+function colorEstado(e:string){
+if(e==="ALTA") return "#7f1d1d"
+if(e==="MEDIA") return "#f59e0b"
+return "#22c55e"
+}
+
+function cerrarSesion(){
+localStorage.clear()
+router.replace("/")
+}
+
 function irHistorial(){
 router.push("/inventario/historial")
 }
@@ -190,12 +258,12 @@ return(
 
 <div style={container}>
 
-{/* 🔥 NUEVO HEADER PROFESIONAL */}
-<div style={{marginBottom:15}}>
+{/* 🔥 NUEVO HEADER */}
+<div style={{marginBottom:10}}>
 <h1 style={{fontSize:22,fontWeight:"bold"}}>
 🚑 BITACORA SANITARIA - SALUD MOVIL
 </h1>
-<p style={{fontSize:14,opacity:0.7}}>
+<p style={{opacity:0.7}}>
 DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
 </p>
 </div>
@@ -208,32 +276,46 @@ DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
 
 <div style={{display:"flex",gap:10}}>
 <button onClick={irHistorial} style={btn}>📊 Historial</button>
+<button onClick={cerrarSesion} style={btn}>Salir</button>
 </div>
 </div>
+
+<h2>🚑 PRIORIDAD OPERATIVA</h2>
 
 {resumen.map((a,i)=>(
 
 <div key={i} style={{
-background:"#7f1d1d",
+background:colorEstado(a.prioridad),
 padding:15,
 marginBottom:10,
 borderRadius:10
 }}>
 
+<div style={{display:"flex",justifyContent:"space-between"}}>
+<strong>{a.nombre}</strong>
+</div>
+
+<div>❌ Faltantes: {a.faltantes}</div>
+<div>⚡ PRIORIDAD: {a.prioridad}</div>
+
 <div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
 
 {/* 🔥 NUEVO */}
-<div>💊 Medicamentos: {a.porcMed}%</div>
-<div>🧰 Insumos/equipos: {a.porcOtros}%</div>
+<div>💊 Medicamentos: {a.porcMed}% / 100%</div>
+<div>🧰 Insumos/Equipos: {a.porcOtros}% / 100%</div>
+
+{expandido === a.nombre && (
 
 <div style={{marginTop:10}}>
 
+<div style={{background:"#020617",padding:10,borderRadius:8}}>
+
 <strong>📦 Reabastecer:</strong>
 
-{Object.entries(agruparPorCategoria(a.faltantesDetalle)).map(([cat,items]:any)=>(
+{Object.entries(agrupar(a.faltantesDetalle)).map(([cat,items]:any)=>(
 <div key={cat}>
 
-<div style={{marginTop:8,fontWeight:"bold",opacity:0.8}}>
+<div style={{marginTop:8,fontWeight:"bold",opacity:0.7}}>
 {cat}
 </div>
 
@@ -257,13 +339,25 @@ borderRadius:10
 </div>
 
 </div>
+
+)}
+
+</div>
 ))}
 
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>
-<input value={cantidad} onChange={e=>setCantidad(e.target.value)} style={inputModal}/>
+
+<h3>📦 Abastecer</h3>
+
+<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={inputModal}/>
+<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={inputModal}/>
+<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} style={inputModal}/>
+
 <button onClick={guardar} style={btn}>Guardar</button>
+<button onClick={()=>setModal(false)} style={btn}>Cancelar</button>
+
 </div>
 </div>
 )}
@@ -284,6 +378,7 @@ padding:30
 const header: CSSProperties = {
 display:"flex",
 justifyContent:"space-between",
+alignItems:"center",
 marginBottom:20
 }
 
@@ -292,12 +387,16 @@ background:"#1f2937",
 color:"white",
 padding:"6px 10px",
 borderRadius:6,
-border:"none"
+border:"none",
+cursor:"pointer"
 }
 
 const modalBg: CSSProperties = {
 position:"fixed",
-top:0,left:0,width:"100%",height:"100%",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
 background:"rgba(0,0,0,0.6)",
 display:"flex",
 justifyContent:"center",
@@ -313,7 +412,10 @@ width:300
 
 const inputModal: CSSProperties = {
 width:"100%",
+marginBottom:10,
 padding:"10px",
+borderRadius:6,
+border:"none",
 background:"#1f2937",
 color:"white"
 }
