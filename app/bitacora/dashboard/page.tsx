@@ -39,6 +39,19 @@ if(item) return item.nombre || "Item"
 return "Item"
 }
 
+/* 🔥 NUEVO: AGRUPADOR */
+function agruparPorCategoria(lista:any[]){
+const grupos:any = {}
+
+lista.forEach(i=>{
+const cat = (i.categoria || "OTROS").toUpperCase()
+if(!grupos[cat]) grupos[cat] = []
+grupos[cat].push(i)
+})
+
+return grupos
+}
+
 /* ========================= */
 
 async function cargarAlertas(){
@@ -158,6 +171,7 @@ faltantes++
 faltantesDetalle.push({
 item_id: b.item_id,
 nombre: b.nombre,
+categoria: b.categoria, // 🔥 IMPORTANTE
 actual,
 minimo: b.cantidad_minima,
 estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO",
@@ -293,6 +307,7 @@ return(
 
 <div style={container}>
 
+{/* TITULO */}
 <div style={{marginBottom:10}}>
 <h1 style={{fontSize:22,fontWeight:"bold"}}>
 🚑 BITACORA SANITARIA - SALUD MOVIL
@@ -315,12 +330,6 @@ DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
 </div>
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
-
-{loading && resumen.length === 0 && (
-<div style={{padding:10,opacity:0.6}}>
-Cargando datos...
-</div>
-)}
 
 {resumen.map((a,i)=>(
 
@@ -355,13 +364,18 @@ onClick={()=>toggle(a.nombre)}
 <div style={{background:"#020617",padding:10,borderRadius:8,marginBottom:10}}>
 <strong>📦 Reabastecer:</strong>
 
-{a.faltantesDetalle.map((f:any,idx:number)=>(
+{Object.entries(agruparPorCategoria(a.faltantesDetalle)).map(([cat,items]:any)=>(
+<div key={cat}>
+
+<div style={{marginTop:8,fontWeight:"bold",opacity:0.7}}>
+{cat}
+</div>
+
+{items.map((f:any,idx:number)=>(
 
 <div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
 
-<div>
-- {f.nombre} → {f.actual}/{f.minimo}
-</div>
+<div>- {f.nombre} → {f.actual}/{f.minimo}</div>
 
 <button onClick={(e)=>{
 e.stopPropagation()
@@ -371,9 +385,15 @@ abrirModal(f,"ABASTECER")
 </button>
 
 </div>
+
 ))}
+
+</div>
+))}
+
 </div>
 
+{/* VENCIDOS IGUAL */}
 <div style={{background:"#450a0a",padding:10,borderRadius:8}}>
 <strong>🚨 Vencidos:</strong>
 
@@ -413,6 +433,7 @@ abrirModal(v,"CAMBIO")
 </div>
 ))}
 
+{/* MODAL IGUAL */}
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>
