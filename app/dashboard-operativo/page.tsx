@@ -12,9 +12,8 @@ const [personal, setPersonal] = useState<any[]>([])
 const [archivos, setArchivos] = useState<any[]>([])
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
-
-/* 🔥 NUEVO */
 const [nuevaAmbulancia, setNuevaAmbulancia] = useState(false)
+
 const [formAmbulancia, setFormAmbulancia] = useState({
 codigo:"",
 guardia:"G1"
@@ -48,49 +47,29 @@ if(a) setArchivos(a)
 }
 
 /* ========================= */
-/* 🔥 FIX: ELIMINAR */
 const eliminar = async (id:number)=>{
 if(!confirm("¿Eliminar registro?")) return
 
-const { error } = await supabase
-.from('personal')
-.delete()
-.eq('id',id)
-
-if(error){
-console.error(error)
-alert("Error al eliminar")
-return
-}
-
+await supabase.from('personal').delete().eq('id',id)
 await fetchData()
 }
 
 /* ========================= */
-/* 🔥 FIX: ACTUALIZAR */
 const actualizar = async ()=>{
 if(!editando) return
 
-const { error } = await supabase
-.from('personal')
+await supabase.from('personal')
 .update({
 nombre: editando.nombre,
 ambulancia_codigo: editando.ambulancia_codigo
 })
 .eq('id', editando.id)
 
-if(error){
-console.error(error)
-alert("Error al actualizar")
-return
-}
-
 setEditando(null)
 await fetchData()
 }
 
 /* ========================= */
-/* 🔥 CREAR PERSONAL */
 const crearNuevo = async ()=>{
 
 if(!formNuevo.nombre){
@@ -121,7 +100,6 @@ await fetchData()
 }
 
 /* ========================= */
-/* 🔥 CREAR AMBULANCIA */
 const crearAmbulancia = async ()=>{
 
 if(!formAmbulancia.codigo){
@@ -129,28 +107,17 @@ alert("Código requerido")
 return
 }
 
-const { error } = await supabase
-.from('ambulancias')
-.insert([{
+await supabase.from('ambulancias').insert([{
 codigo_operativo: formAmbulancia.codigo,
 estado: "ACTIVA",
 guardia: formAmbulancia.guardia
 }])
-
-if(error){
-console.error(error)
-alert("Error al crear ambulancia")
-return
-}
-
-alert("🚑 Ambulancia creada")
 
 setNuevaAmbulancia(false)
 setFormAmbulancia({codigo:"",guardia:"G1"})
 }
 
 /* ========================= */
-
 const logout = ()=>{
 localStorage.clear()
 sessionStorage.clear()
@@ -158,7 +125,6 @@ router.replace('/')
 }
 
 /* ========================= */
-
 const getAmbulancia = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 
@@ -166,7 +132,6 @@ const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
 const agruparPorAmbulancia = (data:any[])=>{
-
 const grupos:any = {}
 
 data.forEach(p=>{
@@ -183,7 +148,6 @@ return numA - numB
 }
 
 /* ========================= */
-
 const alertas = personal.filter(
 p => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
 )
@@ -199,7 +163,6 @@ default: return 'bg-gray-400'
 }
 
 /* ========================= */
-
 if (loading) {
 return (
 <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -213,7 +176,8 @@ const guardias = ['G1','G2','G3','G4','G5']
 return (
 <div className="min-h-screen bg-black text-white p-6">
 
-<div className="flex justify-between items-center mb-6">
+{/* HEADER */}
+<div className="flex justify-between items-center mb-6 relative z-50">
 
 <h1 className="text-4xl font-extrabold text-cyan-400">
 🚑 CONTROL OPERATIVO
@@ -221,7 +185,7 @@ return (
 
 <div className="flex gap-3">
 
-<button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">
+<button onClick={()=>fetchData()} className="bg-blue-600 px-4 py-2 rounded-lg">
 🔄 Actualizar
 </button>
 
@@ -240,10 +204,12 @@ return (
 </div>
 </div>
 
+{/* ALERTAS */}
 <div className="mb-6 bg-red-600 px-6 py-3 rounded-xl w-fit">
 ⚠ {alertas.length} ALERTAS
 </div>
 
+{/* KPIs */}
 <div className="grid grid-cols-4 gap-6 mb-10">
 
 <div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
@@ -270,6 +236,7 @@ return (
 
 </div>
 
+{/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 
 <div className="col-span-2 grid grid-cols-2 gap-6">
@@ -298,25 +265,13 @@ return(
 
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-<button onClick={(e)=>{e.stopPropagation(); setEditando(p)}} className="text-xs bg-cyan-600 px-2 py-1 rounded">
+<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">
 ✏️
 </button>
 
-<button onClick={(e)=>{e.stopPropagation(); eliminar(p.id)}} className="text-xs bg-red-600 px-2 py-1 rounded">
+<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">
 🗑️
 </button>
-
-<input
-className="bg-black border text-xs px-1 w-16"
-value={p.ambulancia_codigo || ''}
-onClick={(e)=>e.stopPropagation()}
-onChange={async (e)=>{
-await supabase.from('personal')
-.update({ambulancia_codigo:e.target.value})
-.eq('id',p.id)
-await fetchData()
-}}
-/>
 
 </div>
 
@@ -328,21 +283,13 @@ await fetchData()
 
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
-
 <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
 
 {consola.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
-
 <p className="text-sm">{p.nombre}</p>
-
-<div className="flex items-center gap-2">
-<div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
-</div>
-
 </div>
 ))}
-
 </div>
 )}
 
@@ -352,6 +299,7 @@ await fetchData()
 
 </div>
 
+{/* DERECHA */}
 <div className="space-y-6">
 
 <div className="bg-red-900/50 p-4 rounded-xl">
@@ -383,13 +331,10 @@ await fetchData()
 
 </div>
 
-{/* MODAL EDITAR */}
+{/* MODALES */}
 {editando && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Editar</h2>
 
 <input
 className="w-full mb-3 p-2 bg-black border"
@@ -397,21 +342,43 @@ value={editando.nombre}
 onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
 />
 
-<input
-className="w-full mb-3 p-2 bg-black border"
-value={editando.ambulancia_codigo || ''}
-onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
-/>
-
-<div className="flex justify-between">
-<button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded">
+<button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded w-full">
 Guardar
 </button>
 
-<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
-Cancelar
-</button>
 </div>
+</div>
+)}
+
+{nuevo && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+<div className="bg-gray-900 p-6 rounded-xl w-80">
+
+<input placeholder="Nombre"
+className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
+/>
+
+<button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded w-full">
+Guardar
+</button>
+
+</div>
+</div>
+)}
+
+{nuevaAmbulancia && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+<div className="bg-gray-900 p-6 rounded-xl w-80">
+
+<input placeholder="ALFA 26"
+className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormAmbulancia({...formAmbulancia,codigo:e.target.value})}
+/>
+
+<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded w-full">
+Guardar
+</button>
 
 </div>
 </div>
