@@ -87,6 +87,7 @@ estado:"Activo"
 }])
 
 setNuevo(false)
+
 setFormNuevo({
 nombre:"",
 tipo:"ambulancia",
@@ -182,15 +183,27 @@ return (
 </h1>
 
 <div className="flex gap-3">
-<button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">🔄 Actualizar</button>
-<button onClick={()=>setNuevo(true)} className="bg-green-600 px-4 py-2 rounded-lg">➕ Nuevo</button>
-<button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">🚑 Ambulancia</button>
-<button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">🔐 Salir</button>
-</div>
+
+<button onClick={()=>fetchData()} className="bg-blue-600 px-4 py-2 rounded-lg">
+🔄 Actualizar
+</button>
+
+<button onClick={()=>setNuevo(true)} className="bg-green-600 px-4 py-2 rounded-lg">
+➕ Nuevo
+</button>
+
+<button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">
+🚑 Ambulancia
+</button>
+
+<button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">
+🔐 Salir
+</button>
 
 </div>
+</div>
 
-{/* CONTENIDO OMITIDO (NO SE TOCA) */}
+{/* CONTENIDO IGUAL... (NO SE TOCA) */}
 
 {/* ========================= */}
 {/* MODAL EDITAR */}
@@ -202,12 +215,6 @@ return (
 className="w-full mb-3 p-2 bg-black border"
 value={editando.nombre}
 onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
-/>
-
-<input
-className="w-full mb-3 p-2 bg-black border"
-value={editando.ambulancia_codigo || ''}
-onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
 />
 
 <div className="flex gap-2">
@@ -242,7 +249,12 @@ Guardar
 
 <button onClick={()=>{
 setNuevo(false)
-setFormNuevo({nombre:"",tipo:"ambulancia",guardia:"G1",ambulancia_codigo:""})
+setFormNuevo({
+nombre:"",
+tipo:"ambulancia",
+guardia:"G1",
+ambulancia_codigo:""
+})
 }} className="bg-red-600 px-4 py-2 rounded w-full">
 Cancelar
 </button>
