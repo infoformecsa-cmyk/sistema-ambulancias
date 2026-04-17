@@ -48,6 +48,48 @@ if(a) setArchivos(a)
 }
 
 /* ========================= */
+/* 🔥 FIX: ELIMINAR */
+const eliminar = async (id:number)=>{
+if(!confirm("¿Eliminar registro?")) return
+
+const { error } = await supabase
+.from('personal')
+.delete()
+.eq('id',id)
+
+if(error){
+console.error(error)
+alert("Error al eliminar")
+return
+}
+
+await fetchData()
+}
+
+/* ========================= */
+/* 🔥 FIX: ACTUALIZAR */
+const actualizar = async ()=>{
+if(!editando) return
+
+const { error } = await supabase
+.from('personal')
+.update({
+nombre: editando.nombre,
+ambulancia_codigo: editando.ambulancia_codigo
+})
+.eq('id', editando.id)
+
+if(error){
+console.error(error)
+alert("Error al actualizar")
+return
+}
+
+setEditando(null)
+await fetchData()
+}
+
+/* ========================= */
 /* 🔥 CREAR PERSONAL */
 const crearNuevo = async ()=>{
 
@@ -171,7 +213,6 @@ const guardias = ['G1','G2','G3','G4','G5']
 return (
 <div className="min-h-screen bg-black text-white p-6">
 
-{/* HEADER */}
 <div className="flex justify-between items-center mb-6">
 
 <h1 className="text-4xl font-extrabold text-cyan-400">
@@ -188,7 +229,6 @@ return (
 ➕ Nuevo
 </button>
 
-{/* 🔥 NUEVO BOTON */}
 <button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">
 🚑 Ambulancia
 </button>
@@ -200,12 +240,10 @@ return (
 </div>
 </div>
 
-{/* ALERTAS */}
 <div className="mb-6 bg-red-600 px-6 py-3 rounded-xl w-fit">
 ⚠ {alertas.length} ALERTAS
 </div>
 
-{/* KPIs */}
 <div className="grid grid-cols-4 gap-6 mb-10">
 
 <div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
@@ -232,7 +270,6 @@ return (
 
 </div>
 
-{/* 🔥 TU CONTENIDO ORIGINAL INTACTO */}
 <div className="grid grid-cols-3 gap-6">
 
 <div className="col-span-2 grid grid-cols-2 gap-6">
@@ -261,23 +298,23 @@ return(
 
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">
+<button onClick={(e)=>{e.stopPropagation(); setEditando(p)}} className="text-xs bg-cyan-600 px-2 py-1 rounded">
 ✏️
 </button>
 
-<button onClick={()=>supabase.from('personal').delete().eq('id',p.id).then(fetchData)}
-className="text-xs bg-red-600 px-2 py-1 rounded">
+<button onClick={(e)=>{e.stopPropagation(); eliminar(p.id)}} className="text-xs bg-red-600 px-2 py-1 rounded">
 🗑️
 </button>
 
 <input
 className="bg-black border text-xs px-1 w-16"
 value={p.ambulancia_codigo || ''}
+onClick={(e)=>e.stopPropagation()}
 onChange={async (e)=>{
 await supabase.from('personal')
 .update({ambulancia_codigo:e.target.value})
 .eq('id',p.id)
-fetchData()
+await fetchData()
 }}
 />
 
@@ -289,7 +326,6 @@ fetchData()
 </div>
 ))}
 
-{/* CONSOLA */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 
@@ -316,7 +352,6 @@ fetchData()
 
 </div>
 
-{/* DERECHA */}
 <div className="space-y-6">
 
 <div className="bg-red-900/50 p-4 rounded-xl">
@@ -348,39 +383,34 @@ fetchData()
 
 </div>
 
-{/* ========================= */}
-{/* MODAL NUEVA AMBULANCIA */}
-{nuevaAmbulancia && (
+{/* MODAL EDITAR */}
+{editando && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 
 <div className="bg-gray-900 p-6 rounded-xl w-80">
 
-<h2 className="mb-4">Nueva Ambulancia</h2>
+<h2 className="mb-4">Editar</h2>
 
-<input placeholder="ALFA 26"
-className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormAmbulancia({...formAmbulancia,codigo:e.target.value})}
+<input
+className="w-full mb-3 p-2 bg-black border"
+value={editando.nombre}
+onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
 />
 
-<select className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormAmbulancia({...formAmbulancia,guardia:e.target.value})}>
-<option>G1</option>
-<option>G2</option>
-<option>G3</option>
-<option>G4</option>
-<option>G5</option>
-</select>
+<input
+className="w-full mb-3 p-2 bg-black border"
+value={editando.ambulancia_codigo || ''}
+onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
+/>
 
-<div className="flex justify-between mt-4">
-
-<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">
+<div className="flex justify-between">
+<button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded">
 Guardar
 </button>
 
-<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">
+<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
 Cancelar
 </button>
-
 </div>
 
 </div>
