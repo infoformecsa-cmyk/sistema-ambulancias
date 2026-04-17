@@ -46,6 +46,18 @@ if(p) setPersonal(p)
 if(a) setArchivos(a)
 }
 
+/* 🔥 SOLO VISUAL (NO TOCA BD) */
+const formatUnidad = (codigo:string)=>{
+if(!codigo) return 'SIN UNIDAD'
+
+if(codigo.startsWith('ALFA')){
+const num = codigo.replace('ALFA ','').padStart(2,'0')
+return `GA-${num}`
+}
+
+return codigo
+}
+
 /* ========================= */
 const eliminar = async (id:number)=>{
 if(!confirm("¿Eliminar registro?")) return
@@ -185,7 +197,7 @@ return (
 
 <div className="flex gap-3">
 
-<button onClick={()=>fetchData()} className="bg-blue-600 px-4 py-2 rounded-lg">
+<button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">
 🔄 Actualizar
 </button>
 
@@ -254,7 +266,9 @@ return(
 {ambulancias.map(([ambulancia,personas]:any)=>(
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
-<h3 className="text-cyan-300 mb-2">🚑 {ambulancia}</h3>
+<h3 className="text-cyan-300 mb-2">
+🚑 {formatUnidad(ambulancia)}
+</h3>
 
 {personas.map((p:any)=>(
 <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
@@ -342,9 +356,15 @@ value={editando.nombre}
 onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
 />
 
+<div className="flex gap-2">
 <button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded w-full">
 Guardar
 </button>
+
+<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded w-full">
+Cancelar
+</button>
+</div>
 
 </div>
 </div>
@@ -359,9 +379,15 @@ className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
 />
 
+<div className="flex gap-2">
 <button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded w-full">
 Guardar
 </button>
+
+<button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded w-full">
+Cancelar
+</button>
+</div>
 
 </div>
 </div>
@@ -371,14 +397,20 @@ Guardar
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
 
-<input placeholder="ALFA 26"
+<input placeholder="GA-01"
 className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormAmbulancia({...formAmbulancia,codigo:e.target.value})}
 />
 
+<div className="flex gap-2">
 <button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded w-full">
 Guardar
 </button>
+
+<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded w-full">
+Cancelar
+</button>
+</div>
 
 </div>
 </div>
