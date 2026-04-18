@@ -116,7 +116,6 @@ await fetchData()
 }
 
 /* ========================= */
-/* 🚑 CREAR AMBULANCIA SIN DUPLICADOS */
 const crearAmbulancia = async ()=>{
 
 if(!codigoAmbulancia){
@@ -126,7 +125,7 @@ return
 
 const codigo = codigoAmbulancia.trim().toUpperCase()
 
-// 🔎 verificar si ya existe
+// 🔴 VALIDACIÓN DUPLICADO
 const { data: existe } = await supabase
 .from('ambulancias')
 .select('codigo_operativo')
@@ -189,7 +188,6 @@ const alertas = personal.filter(
 p => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
 )
 
-/* ========================= */
 const colorEstado = (estado:string)=>{
 switch (estado) {
 case 'Activo': return 'bg-green-400'
@@ -200,7 +198,6 @@ default: return 'bg-gray-400'
 }
 }
 
-/* ========================= */
 if (loading) {
 return (
 <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -290,7 +287,8 @@ return(
 </div>
 </div>
 
-{/* 🔥 MODAL NUEVO */}
+{/* MODALES (SIN TOCAR TU LÓGICA) */}
+
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
@@ -331,7 +329,6 @@ onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}>
 </div>
 )}
 
-{/* 🔥 MODAL AMBULANCIA */}
 {nuevaAmbulancia && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
