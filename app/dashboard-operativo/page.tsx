@@ -34,10 +34,10 @@ await fetchData()
 setLoading(false)
 }
 
-/* ========================= */
 const fetchData = async () => {
 
 const { data: p } = await supabase.from('personal').select('*')
+
 const { data: a } = await supabase
 .from('archivos_asistencia')
 .select('*')
@@ -53,14 +53,12 @@ if(a) setArchivos(a)
 if(amb) setAmbulancias(amb)
 }
 
-/* ========================= */
 const eliminar = async (id:number)=>{
 if(!confirm("¿Eliminar registro?")) return
 await supabase.from('personal').delete().eq('id',id)
-await fetchData()
+fetchData()
 }
 
-/* ========================= */
 const actualizar = async ()=>{
 if(!editando) return
 
@@ -72,10 +70,9 @@ ambulancia_codigo: editando.ambulancia_codigo
 .eq('id', editando.id)
 
 setEditando(null)
-await fetchData()
+fetchData()
 }
 
-/* ========================= */
 const crearNuevo = async ()=>{
 
 if(!formNuevo.nombre){
@@ -112,10 +109,9 @@ guardia:"G1",
 ambulancia_codigo:""
 })
 
-await fetchData()
+fetchData()
 }
 
-/* ========================= */
 const crearAmbulancia = async ()=>{
 
 if(!codigoAmbulancia){
@@ -123,23 +119,9 @@ alert("Ingrese código")
 return
 }
 
-const codigo = codigoAmbulancia.trim().toUpperCase()
-
-// 🔴 VALIDACIÓN DUPLICADO
-const { data: existe } = await supabase
-.from('ambulancias')
-.select('codigo_operativo')
-.eq('codigo_operativo', codigo)
-.maybeSingle()
-
-if(existe){
-alert("⚠️ Esa ambulancia ya existe")
-return
-}
-
 const { error } = await supabase
 .from('ambulancias')
-.insert([{ codigo_operativo: codigo }])
+.insert([{ codigo_operativo: codigoAmbulancia }])
 
 if(error){
 alert("Error: " + error.message)
@@ -148,24 +130,21 @@ return
 
 setCodigoAmbulancia("")
 setNuevaAmbulancia(false)
-await fetchData()
+fetchData()
 }
 
-/* ========================= */
 const logout = ()=>{
 localStorage.clear()
 sessionStorage.clear()
 router.replace('/')
 }
 
-/* ========================= */
 const getAmbulancia = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 
 const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
-/* ========================= */
 const agruparPorAmbulancia = (data:any[])=>{
 
 const grupos:any = {}
@@ -183,7 +162,6 @@ return numA - numB
 })
 }
 
-/* ========================= */
 const alertas = personal.filter(
 p => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
 )
@@ -213,13 +191,43 @@ return (
 
 {/* HEADER */}
 <div className="flex justify-between items-center mb-6">
-<h1 className="text-4xl font-extrabold text-cyan-400">🚑 CONTROL OPERATIVO</h1>
+<h1 className="text-4xl font-extrabold text-cyan-400">
+🚑 CONTROL OPERATIVO
+</h1>
 
 <div className="flex gap-3">
 <button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">🔄 Actualizar</button>
 <button onClick={()=>setNuevo(true)} className="bg-green-600 px-4 py-2 rounded-lg">➕ Nuevo</button>
 <button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">🚑 Ambulancia</button>
 <button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">🔐 Salir</button>
+</div>
+</div>
+
+{/* ALERTAS */}
+<div className="mb-6 bg-red-600 px-6 py-3 rounded-xl w-fit">
+⚠ {alertas.length} ALERTAS
+</div>
+
+{/* KPIs */}
+<div className="grid grid-cols-4 gap-6 mb-10">
+<div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
+<p>Total</p>
+<h2 className="text-3xl">{personal.length}</h2>
+</div>
+
+<div className="bg-green-900 p-6 rounded-xl">
+<p>Activos</p>
+<h2 className="text-3xl">{personal.filter(p=>p.estado==="Activo").length}</h2>
+</div>
+
+<div className="bg-red-900 p-6 rounded-xl">
+<p>No disponibles</p>
+<h2 className="text-3xl">{alertas.length}</h2>
+</div>
+
+<div className="bg-blue-900 p-6 rounded-xl">
+<p>Reportes</p>
+<h2 className="text-3xl">{archivos.length}</h2>
 </div>
 </div>
 
@@ -259,24 +267,14 @@ return(
 </div>
 ))}
 
-{/* 🔥 CONSOLA CON BOTONES */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
-
 {consola.map((p:any)=>(
-<div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
-
+<div key={p.id} className="bg-black p-2 mb-2 rounded">
 <p className="text-sm">{p.nombre}</p>
-
-<div className="flex gap-2">
-<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
-<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
-</div>
-
 </div>
 ))}
-
 </div>
 )}
 
@@ -285,10 +283,30 @@ return(
 })}
 
 </div>
+
+<div className="space-y-6">
+<div className="bg-red-900/50 p-4 rounded-xl">
+<h2 className="text-red-400 mb-2">⚠ Críticos</h2>
+{alertas.map((p)=>(
+<div key={p.id} className="text-sm border-b py-1">
+{p.nombre} — {p.estado}
+</div>
+))}
 </div>
 
-{/* MODALES (SIN TOCAR TU LÓGICA) */}
+<div className="bg-gray-900 p-4 rounded-xl">
+<h2 className="text-blue-400 mb-2">📁 Reportes</h2>
+{archivos.map((a)=>(
+<div key={a.id} className="flex justify-between text-sm border-b py-1">
+<span>{a.nombre}</span>
+<span className="text-gray-400">{new Date(a.fecha).toLocaleDateString('es-EC')}</span>
+</div>
+))}
+</div>
+</div>
+</div>
 
+{/* 🔥 MODAL NUEVO FUNCIONARIO */}
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
@@ -308,7 +326,11 @@ onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}>
 
 <select className="w-full mb-2 p-2 bg-black border"
 onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
-<option>G1</option><option>G2</option><option>G3</option><option>G4</option><option>G5</option>
+<option>G1</option>
+<option>G2</option>
+<option>G3</option>
+<option>G4</option>
+<option>G5</option>
 </select>
 
 <select className="w-full mb-2 p-2 bg-black border"
@@ -316,7 +338,9 @@ value={formNuevo.ambulancia_codigo}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}>
 <option value="">Seleccionar unidad</option>
 {ambulancias.map((a:any)=>(
-<option key={a.codigo_operativo} value={a.codigo_operativo}>{a.codigo_operativo}</option>
+<option key={a.codigo_operativo} value={a.codigo_operativo}>
+{a.codigo_operativo}
+</option>
 ))}
 </select>
 
@@ -329,6 +353,7 @@ onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}>
 </div>
 )}
 
+{/* 🔥 MODAL AMBULANCIA */}
 {nuevaAmbulancia && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
