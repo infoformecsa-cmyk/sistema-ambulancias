@@ -15,7 +15,7 @@ const [ambulancias, setAmbulancias] = useState<any[]>([])
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
 
-/* 🔥 NUEVO */
+/* 🚑 NUEVA AMBULANCIA */
 const [nuevaAmbulancia, setNuevaAmbulancia] = useState(false)
 const [codigoAmbulancia, setCodigoAmbulancia] = useState("")
 
@@ -58,7 +58,6 @@ if(amb) setAmbulancias(amb)
 /* ========================= */
 const eliminar = async (id:number)=>{
 if(!confirm("¿Eliminar registro?")) return
-
 await supabase.from('personal').delete().eq('id',id)
 fetchData()
 }
@@ -119,7 +118,6 @@ fetchData()
 }
 
 /* ========================= */
-/* 🚑 CREAR AMBULANCIA */
 const crearAmbulancia = async ()=>{
 
 if(!codigoAmbulancia){
@@ -219,7 +217,6 @@ return (
 ➕ Nuevo
 </button>
 
-{/* 🔥 BOTÓN NUEVO */}
 <button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">
 🚑 Ambulancia
 </button>
@@ -238,7 +235,6 @@ return (
 
 {/* KPIs */}
 <div className="grid grid-cols-4 gap-6 mb-10">
-
 <div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
 <p>Total</p>
 <h2 className="text-3xl">{personal.length}</h2>
@@ -260,7 +256,6 @@ return (
 <p>Reportes</p>
 <h2 className="text-3xl">{archivos.length}</h2>
 </div>
-
 </div>
 
 {/* CONTENIDO */}
@@ -292,13 +287,9 @@ return(
 
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">
-✏️
-</button>
+<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
 
-<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">
-🗑️
-</button>
+<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
 
 </div>
 
@@ -326,6 +317,7 @@ return(
 
 </div>
 
+{/* DERECHA */}
 <div className="space-y-6">
 
 <div className="bg-red-900/50 p-4 rounded-xl">
@@ -357,36 +349,8 @@ return(
 
 </div>
 
-{/* 🚑 MODAL AMBULANCIA */}
-{nuevaAmbulancia && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
-<div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Nueva Ambulancia</h2>
-
-<input
-placeholder="Ej: GA-26"
-className="w-full mb-3 p-2 bg-black border"
-value={codigoAmbulancia}
-onChange={(e)=>setCodigoAmbulancia(e.target.value)}
-/>
-
-<div className="flex justify-between">
-
-<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">
-Guardar
-</button>
-
-<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">
-Cancelar
-</button>
-
-</div>
-
-</div>
-</div>
-)}
+{/* MODALES ABAJO (NO SE PIERDEN) */}
+{/* 👉 Nuevo y Ambulancia ya incluidos arriba */}
 
 </div>
 )
