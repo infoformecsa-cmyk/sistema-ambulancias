@@ -129,16 +129,32 @@ const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
 /* ========================= */
+/* 🔥 AQUÍ ESTÁ LA MAGIA 🔥 */
 const agruparPorAmbulancia = (data:any[])=>{
 
 const grupos:any = {}
 
+/* 1. AGRUPAR PERSONAL REAL */
 data.forEach(p=>{
 const key = p.ambulancia_codigo || 'SIN UNIDAD'
 if(!grupos[key]) grupos[key]=[]
 grupos[key].push(p)
 })
 
+/* 2. FORZAR TODAS LAS AMBULANCIAS (G1–G4) */
+ambulancias.forEach((a:any)=>{
+
+const codigo = a.codigo_operativo
+
+if(!grupos[codigo]){
+grupos[codigo] = [
+{ id: codigo+'-1', nombre: 'SIN PERSONAL', estado:'Disponible' },
+{ id: codigo+'-2', nombre: 'SIN PERSONAL', estado:'Disponible' }
+]
+}
+})
+
+/* 3. ORDEN */
 return Object.entries(grupos).sort((a:any,b:any)=>{
 const numA = parseInt(a[0].replace(/\D/g,'')) || 999
 const numB = parseInt(b[0].replace(/\D/g,'')) || 999
@@ -158,6 +174,7 @@ case 'Activo': return 'bg-green-400'
 case 'Vacaciones': return 'bg-yellow-400'
 case 'Permiso': return 'bg-orange-400'
 case 'Reposo Médico': return 'bg-red-500 animate-pulse'
+case 'Disponible': return 'bg-gray-500'
 default: return 'bg-gray-400'
 }
 }
@@ -239,7 +256,7 @@ return (
 
 {guardias.map((g)=>{
 
-const ambulancias = agruparPorAmbulancia(getAmbulancia(g))
+const ambulanciasGrupo = agruparPorAmbulancia(getAmbulancia(g))
 const consola = getConsola(g)
 
 return(
@@ -247,8 +264,7 @@ return(
 
 <h2 className="text-xl mb-4 text-cyan-400">{g}</h2>
 
-{/* 🚑 AMBULANCIAS */}
-{ambulancias.map(([ambulancia,personas]:any)=>(
+{ambulanciasGrupo.map(([ambulancia,personas]:any)=>(
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
 <h3 className="text-cyan-300 mb-2">🚑 {ambulancia}</h3>
@@ -256,32 +272,32 @@ return(
 {personas.map((p:any)=>(
 <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
 
-<p className="text-sm font-semibold">{p.nombre}</p>
+<p className={`text-sm font-semibold ${p.nombre === 'SIN PERSONAL' ? 'text-gray-400 italic' : ''}`}>
+{p.nombre}
+</p>
 
 <div className="flex items-center gap-2">
 
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">
-✏️
-</button>
-
-<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">
-🗑️
-</button>
-
-</div>
+{p.nombre !== 'SIN PERSONAL' && (
+<>
+<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
+<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
+</>
+)}
 
 </div>
-))}
 
 </div>
 ))}
 
-{/* 💻 CONSOLA */}
+</div>
+))}
+
+{/* CONSOLA */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
-
 <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
 
 {consola.map((p:any)=>(
