@@ -15,6 +15,10 @@ const [ambulancias, setAmbulancias] = useState<any[]>([])
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
 
+/* 🔥 NUEVO */
+const [nuevaAmbulancia, setNuevaAmbulancia] = useState(false)
+const [codigoAmbulancia, setCodigoAmbulancia] = useState("")
+
 const [loading, setLoading] = useState(true)
 
 const [formNuevo, setFormNuevo] = useState<any>({
@@ -115,6 +119,29 @@ fetchData()
 }
 
 /* ========================= */
+/* 🚑 CREAR AMBULANCIA */
+const crearAmbulancia = async ()=>{
+
+if(!codigoAmbulancia){
+alert("Ingrese código")
+return
+}
+
+const { error } = await supabase
+.from('ambulancias')
+.insert([{ codigo_operativo: codigoAmbulancia }])
+
+if(error){
+alert("Error: " + error.message)
+return
+}
+
+setCodigoAmbulancia("")
+setNuevaAmbulancia(false)
+fetchData()
+}
+
+/* ========================= */
 const logout = ()=>{
 localStorage.clear()
 sessionStorage.clear()
@@ -129,32 +156,16 @@ const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
 /* ========================= */
-/* 🔥 AQUÍ ESTÁ LA MAGIA 🔥 */
 const agruparPorAmbulancia = (data:any[])=>{
 
 const grupos:any = {}
 
-/* 1. AGRUPAR PERSONAL REAL */
 data.forEach(p=>{
 const key = p.ambulancia_codigo || 'SIN UNIDAD'
 if(!grupos[key]) grupos[key]=[]
 grupos[key].push(p)
 })
 
-/* 2. FORZAR TODAS LAS AMBULANCIAS (G1–G4) */
-ambulancias.forEach((a:any)=>{
-
-const codigo = a.codigo_operativo
-
-if(!grupos[codigo]){
-grupos[codigo] = [
-{ id: codigo+'-1', nombre: 'SIN PERSONAL', estado:'Disponible' },
-{ id: codigo+'-2', nombre: 'SIN PERSONAL', estado:'Disponible' }
-]
-}
-})
-
-/* 3. ORDEN */
 return Object.entries(grupos).sort((a:any,b:any)=>{
 const numA = parseInt(a[0].replace(/\D/g,'')) || 999
 const numB = parseInt(b[0].replace(/\D/g,'')) || 999
@@ -174,7 +185,6 @@ case 'Activo': return 'bg-green-400'
 case 'Vacaciones': return 'bg-yellow-400'
 case 'Permiso': return 'bg-orange-400'
 case 'Reposo Médico': return 'bg-red-500 animate-pulse'
-case 'Disponible': return 'bg-gray-500'
 default: return 'bg-gray-400'
 }
 }
@@ -207,6 +217,11 @@ return (
 
 <button onClick={()=>setNuevo(true)} className="bg-green-600 px-4 py-2 rounded-lg">
 ➕ Nuevo
+</button>
+
+{/* 🔥 BOTÓN NUEVO */}
+<button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">
+🚑 Ambulancia
 </button>
 
 <button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">
@@ -251,12 +266,11 @@ return (
 {/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 
-{/* IZQUIERDA */}
 <div className="col-span-2 grid grid-cols-2 gap-6">
 
 {guardias.map((g)=>{
 
-const ambulanciasGrupo = agruparPorAmbulancia(getAmbulancia(g))
+const ambulancias = agruparPorAmbulancia(getAmbulancia(g))
 const consola = getConsola(g)
 
 return(
@@ -264,7 +278,7 @@ return(
 
 <h2 className="text-xl mb-4 text-cyan-400">{g}</h2>
 
-{ambulanciasGrupo.map(([ambulancia,personas]:any)=>(
+{ambulancias.map(([ambulancia,personas]:any)=>(
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
 <h3 className="text-cyan-300 mb-2">🚑 {ambulancia}</h3>
@@ -272,20 +286,19 @@ return(
 {personas.map((p:any)=>(
 <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
 
-<p className={`text-sm font-semibold ${p.nombre === 'SIN PERSONAL' ? 'text-gray-400 italic' : ''}`}>
-{p.nombre}
-</p>
+<p className="text-sm font-semibold">{p.nombre}</p>
 
 <div className="flex items-center gap-2">
 
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-{p.nombre !== 'SIN PERSONAL' && (
-<>
-<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
-<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
-</>
-)}
+<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">
+✏️
+</button>
+
+<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">
+🗑️
+</button>
 
 </div>
 
@@ -295,7 +308,6 @@ return(
 </div>
 ))}
 
-{/* CONSOLA */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
@@ -305,7 +317,6 @@ return(
 <p className="text-sm">{p.nombre}</p>
 </div>
 ))}
-
 </div>
 )}
 
@@ -315,7 +326,6 @@ return(
 
 </div>
 
-{/* DERECHA */}
 <div className="space-y-6">
 
 <div className="bg-red-900/50 p-4 rounded-xl">
@@ -347,102 +357,28 @@ return(
 
 </div>
 
-{/* MODAL NUEVO */}
-{nuevo && (
+{/* 🚑 MODAL AMBULANCIA */}
+{nuevaAmbulancia && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
 
 <div className="bg-gray-900 p-6 rounded-xl w-80">
 
-<h2 className="mb-4">Nuevo funcionario</h2>
+<h2 className="mb-4">Nueva Ambulancia</h2>
 
 <input
-placeholder="Nombre"
-className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
-/>
-
-<select
-className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}
->
-<option value="ambulancia">Ambulancia</option>
-<option value="consola">Consola</option>
-</select>
-
-<select
-className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
->
-<option>G1</option>
-<option>G2</option>
-<option>G3</option>
-<option>G4</option>
-<option>G5</option>
-</select>
-
-<select
-className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.ambulancia_codigo}
-onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
->
-<option value="">Seleccionar unidad</option>
-{ambulancias.map((a:any)=>(
-<option key={a.codigo_operativo} value={a.codigo_operativo}>
-{a.codigo_operativo}
-</option>
-))}
-</select>
-
-<div className="flex justify-between mt-4">
-
-<button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">
-Guardar
-</button>
-
-<button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">
-Cancelar
-</button>
-
-</div>
-
-</div>
-</div>
-)}
-
-{/* MODAL EDITAR */}
-{editando && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
-<div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Editar</h2>
-
-<input
+placeholder="Ej: GA-26"
 className="w-full mb-3 p-2 bg-black border"
-value={editando.nombre}
-onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
+value={codigoAmbulancia}
+onChange={(e)=>setCodigoAmbulancia(e.target.value)}
 />
-
-<select
-className="w-full mb-3 p-2 bg-black border"
-value={editando.ambulancia_codigo || ""}
-onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
->
-<option value="">Sin unidad</option>
-{ambulancias.map((a:any)=>(
-<option key={a.codigo_operativo} value={a.codigo_operativo}>
-{a.codigo_operativo}
-</option>
-))}
-</select>
 
 <div className="flex justify-between">
 
-<button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded">
+<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">
 Guardar
 </button>
 
-<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
+<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">
 Cancelar
 </button>
 
