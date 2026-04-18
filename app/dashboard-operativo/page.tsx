@@ -10,6 +10,8 @@ const router = useRouter()
 
 const [personal, setPersonal] = useState<any[]>([])
 const [archivos, setArchivos] = useState<any[]>([])
+const [ambulancias, setAmbulancias] = useState<any[]>([]) // 🔥 NUEVO
+
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
 const [loading, setLoading] = useState(true)
@@ -29,17 +31,25 @@ setLoading(false)
 }
 
 const fetchData = async () => {
+
 const { data: p } = await supabase.from('personal').select('*')
+
 const { data: a } = await supabase
 .from('archivos_asistencia')
 .select('*')
 .order('fecha',{ascending:false})
 
+const { data: amb } = await supabase
+.from('ambulancias')
+.select('codigo_operativo')
+.order('codigo_operativo')
+
 if(p) setPersonal(p)
 if(a) setArchivos(a)
+if(amb) setAmbulancias(amb)
 }
 
-/* 🔥 CREAR */
+/* 🔥 CREAR (ARREGLADO) */
 const crearNuevo = async ()=>{
 
 if(!formNuevo.nombre){
@@ -47,7 +57,12 @@ alert("Nombre requerido")
 return
 }
 
-await supabase.from('personal').insert([{
+if(formNuevo.tipo === "ambulancia" && !formNuevo.ambulancia_codigo){
+alert("Debe seleccionar una ambulancia")
+return
+}
+
+const { error } = await supabase.from('personal').insert([{
 nombre: formNuevo.nombre,
 tipo: formNuevo.tipo,
 guardia: formNuevo.guardia,
@@ -57,7 +72,13 @@ ambulancia_codigo: formNuevo.tipo==="ambulancia"
 estado:"Activo"
 }])
 
+if(error){
+alert("Error: " + error.message)
+return
+}
+
 setNuevo(false)
+
 setFormNuevo({
 nombre:"",
 tipo:"ambulancia",
@@ -81,10 +102,9 @@ personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
-/* 🔥 AGRUPACIÓN INTELIGENTE */
+/* 🔥 AGRUPACIÓN (SE RESPETA) */
 const agruparPorAmbulancia = (data:any[])=>{
 
-// 🔴 CASO: TODOS SIN CÓDIGO → AGRUPAR EN PAREJAS
 const todosNull = data.every(p => !p.ambulancia_codigo)
 
 if(todosNull){
@@ -101,7 +121,6 @@ grupos[codigo].push(p)
 return Object.entries(grupos)
 }
 
-// 🟢 CASO NORMAL
 const grupos:any = {}
 
 data.forEach(p=>{
@@ -110,21 +129,7 @@ if(!grupos[key]) grupos[key]=[]
 grupos[key].push(p)
 })
 
-// 🔥 CONVERTIR ALFA → GA
-const resultado = Object.entries(grupos).map(([key,personas]:any)=>{
-
-let nuevoKey = key
-
-if(key.startsWith('ALFA')){
-const num = key.replace('ALFA ','').padStart(2,'0')
-nuevoKey = `GA-${num}`
-}
-
-return [nuevoKey, personas]
-})
-
-// 🔥 ORDEN
-return resultado.sort((a:any,b:any)=>{
+return Object.entries(grupos).sort((a:any,b:any)=>{
 const numA = parseInt(a[0].replace(/\D/g,'')) || 999
 const numB = parseInt(b[0].replace(/\D/g,'')) || 999
 return numA - numB
@@ -219,7 +224,6 @@ return (
 {/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 
-{/* IZQUIERDA */}
 <div className="col-span-2 grid grid-cols-2 gap-6">
 
 {guardias.map((g)=>{
@@ -232,7 +236,6 @@ return(
 
 <h2 className="text-xl mb-4 text-cyan-400">{g}</h2>
 
-{/* 🚑 AMBULANCIAS */}
 {ambulancias.map(([ambulancia,personas]:any)=>(
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
@@ -247,8 +250,7 @@ return(
 
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
 
-<button onClick={()=>setEditando(p)}
-className="text-xs bg-cyan-600 px-2 py-1 rounded">
+<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">
 ✏️
 </button>
 
@@ -276,26 +278,14 @@ fetchData()
 </div>
 ))}
 
-{/* 💻 CONSOLA */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
-
-<h3 className="text-green-400 mb-2">
-💻 CONSOLA
-</h3>
-
+<h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
 {consola.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
-
 <p className="text-sm">{p.nombre}</p>
-
-<div className="flex items-center gap-2">
-<div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
-</div>
-
 </div>
 ))}
-
 </div>
 )}
 
@@ -305,42 +295,9 @@ fetchData()
 
 </div>
 
-{/* DERECHA */}
-<div className="space-y-6">
-
-<div className="bg-red-900/50 p-4 rounded-xl">
-<h2 className="text-red-400 mb-2">⚠ Críticos</h2>
-
-{alertas.map((p)=>(
-<div key={p.id} className="text-sm border-b py-1">
-{p.nombre} — {p.estado}
-</div>
-))}
-
-</div>
-
-<div className="bg-gray-900 p-4 rounded-xl">
-<h2 className="text-blue-400 mb-2">📁 Reportes</h2>
-
-{archivos.map((a)=>(
-<div key={a.id} className="flex justify-between text-sm border-b py-1">
-<span>{a.nombre}</span>
-<span className="text-gray-400">
-{new Date(a.fecha).toLocaleDateString('es-EC')}
-</span>
-</div>
-))}
-
-</div>
-
-</div>
-
-</div>
-
-{/* MODAL NUEVO */}
+{/* MODAL NUEVO (ARREGLADO) */}
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
 <div className="bg-gray-900 p-6 rounded-xl w-80">
 
 <h2 className="mb-4">Nuevo funcionario</h2>
@@ -365,10 +322,21 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
 <option>G5</option>
 </select>
 
-<input placeholder="Unidad (GA-01)"
+{/* 🔥 SELECT REAL */}
+<select
 className="w-full mb-2 p-2 bg-black border"
+value={formNuevo.ambulancia_codigo}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
-/>
+>
+<option value="">Seleccionar unidad</option>
+
+{ambulancias.map((a:any)=>(
+<option key={a.codigo_operativo} value={a.codigo_operativo}>
+{a.codigo_operativo}
+</option>
+))}
+
+</select>
 
 <div className="flex justify-between mt-4">
 
@@ -380,49 +348,6 @@ Guardar
 Cancelar
 </button>
 
-</div>
-
-</div>
-</div>
-)}
-
-{/* MODAL EDITAR */}
-{editando && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-
-<div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Editar</h2>
-
-<input
-className="w-full mb-3 p-2 bg-black border"
-value={editando.nombre}
-onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
-/>
-
-<input
-className="w-full mb-3 p-2 bg-black border"
-value={editando.ambulancia_codigo || ''}
-onChange={(e)=>setEditando({...editando,ambulancia_codigo:e.target.value})}
-/>
-
-<div className="flex justify-between">
-<button onClick={async()=>{
-await supabase.from('personal')
-.update({
-nombre:editando.nombre,
-ambulancia_codigo:editando.ambulancia_codigo
-})
-.eq('id',editando.id)
-setEditando(null)
-fetchData()
-}} className="bg-green-600 px-4 py-2 rounded">
-Guardar
-</button>
-
-<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
-Cancelar
-</button>
 </div>
 
 </div>
