@@ -18,8 +18,6 @@ const [nuevo, setNuevo] = useState(false)
 const [nuevaAmbulancia, setNuevaAmbulancia] = useState(false)
 const [codigoAmbulancia, setCodigoAmbulancia] = useState("")
 
-const [nombreConsola, setNombreConsola] = useState("CONSOLA")
-
 const [loading, setLoading] = useState(true)
 
 const [formNuevo, setFormNuevo] = useState<any>({
@@ -36,10 +34,10 @@ await fetchData()
 setLoading(false)
 }
 
+/* ========================= */
 const fetchData = async () => {
 
 const { data: p } = await supabase.from('personal').select('*')
-
 const { data: a } = await supabase
 .from('archivos_asistencia')
 .select('*')
@@ -55,12 +53,14 @@ if(a) setArchivos(a)
 if(amb) setAmbulancias(amb)
 }
 
+/* ========================= */
 const eliminar = async (id:number)=>{
 if(!confirm("¿Eliminar registro?")) return
 await supabase.from('personal').delete().eq('id',id)
-fetchData()
+await fetchData()
 }
 
+/* ========================= */
 const actualizar = async ()=>{
 if(!editando) return
 
@@ -72,9 +72,10 @@ ambulancia_codigo: editando.ambulancia_codigo
 .eq('id', editando.id)
 
 setEditando(null)
-fetchData()
+await fetchData()
 }
 
+/* ========================= */
 const crearNuevo = async ()=>{
 
 if(!formNuevo.nombre){
@@ -111,9 +112,11 @@ guardia:"G1",
 ambulancia_codigo:""
 })
 
-fetchData()
+await fetchData()
 }
 
+/* ========================= */
+/* 🚑 CREAR AMBULANCIA SIN DUPLICADOS */
 const crearAmbulancia = async ()=>{
 
 if(!codigoAmbulancia){
@@ -121,9 +124,23 @@ alert("Ingrese código")
 return
 }
 
+const codigo = codigoAmbulancia.trim().toUpperCase()
+
+// 🔎 verificar si ya existe
+const { data: existe } = await supabase
+.from('ambulancias')
+.select('codigo_operativo')
+.eq('codigo_operativo', codigo)
+.maybeSingle()
+
+if(existe){
+alert("⚠️ Esa ambulancia ya existe")
+return
+}
+
 const { error } = await supabase
 .from('ambulancias')
-.upsert([{ codigo_operativo: codigoAmbulancia }], { onConflict: 'codigo_operativo' })
+.insert([{ codigo_operativo: codigo }])
 
 if(error){
 alert("Error: " + error.message)
@@ -132,21 +149,24 @@ return
 
 setCodigoAmbulancia("")
 setNuevaAmbulancia(false)
-fetchData()
+await fetchData()
 }
 
+/* ========================= */
 const logout = ()=>{
 localStorage.clear()
 sessionStorage.clear()
 router.replace('/')
 }
 
+/* ========================= */
 const getAmbulancia = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 
 const getConsola = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="consola")
 
+/* ========================= */
 const agruparPorAmbulancia = (data:any[])=>{
 
 const grupos:any = {}
@@ -164,10 +184,12 @@ return numA - numB
 })
 }
 
+/* ========================= */
 const alertas = personal.filter(
 p => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
 )
 
+/* ========================= */
 const colorEstado = (estado:string)=>{
 switch (estado) {
 case 'Activo': return 'bg-green-400'
@@ -178,6 +200,7 @@ default: return 'bg-gray-400'
 }
 }
 
+/* ========================= */
 if (loading) {
 return (
 <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -203,37 +226,8 @@ return (
 </div>
 </div>
 
-{/* ALERTAS */}
-<div className="mb-6 bg-red-600 px-6 py-3 rounded-xl w-fit">
-⚠ {alertas.length} ALERTAS
-</div>
-
-{/* KPIs */}
-<div className="grid grid-cols-4 gap-6 mb-10">
-<div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
-<p>Total</p>
-<h2 className="text-3xl">{personal.length}</h2>
-</div>
-
-<div className="bg-green-900 p-6 rounded-xl">
-<p>Activos</p>
-<h2 className="text-3xl">{personal.filter(p=>p.estado==="Activo").length}</h2>
-</div>
-
-<div className="bg-red-900 p-6 rounded-xl">
-<p>No disponibles</p>
-<h2 className="text-3xl">{alertas.length}</h2>
-</div>
-
-<div className="bg-blue-900 p-6 rounded-xl">
-<p>Reportes</p>
-<h2 className="text-3xl">{archivos.length}</h2>
-</div>
-</div>
-
-{/* CONTENIDO ORIGINAL COMPLETO */}
+{/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
-
 <div className="col-span-2 grid grid-cols-2 gap-6">
 
 {guardias.map((g)=>{
@@ -268,30 +262,17 @@ return(
 </div>
 ))}
 
-{/* 🔥 CONSOLA MEJORADA */}
+{/* 🔥 CONSOLA CON BOTONES */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
-
-<h3 className="text-green-400 mb-2 flex justify-between items-center">
-💻 {nombreConsola}
-
-<button
-onClick={()=>{
-const nuevo = prompt("Nuevo nombre:", nombreConsola)
-if(nuevo) setNombreConsola(nuevo)
-}}
-className="text-xs bg-green-600 px-2 py-1 rounded">
-✏️
-</button>
-
-</h3>
+<h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
 
 {consola.map((p:any)=>(
 <div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
 
 <p className="text-sm">{p.nombre}</p>
 
-<div className="flex items-center gap-2">
+<div className="flex gap-2">
 <button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
 <button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
 </div>
@@ -307,34 +288,71 @@ className="text-xs bg-green-600 px-2 py-1 rounded">
 })}
 
 </div>
-
-{/* DERECHA intacta */}
-<div className="space-y-6">
-
-<div className="bg-red-900/50 p-4 rounded-xl">
-<h2 className="text-red-400 mb-2">⚠ Críticos</h2>
-{alertas.map((p)=>(
-<div key={p.id} className="text-sm border-b py-1">
-{p.nombre} — {p.estado}
 </div>
+
+{/* 🔥 MODAL NUEVO */}
+{nuevo && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+<div className="bg-gray-900 p-6 rounded-xl w-80">
+
+<h2 className="mb-4">Nuevo funcionario</h2>
+
+<input className="w-full mb-2 p-2 bg-black border"
+placeholder="Nombre"
+onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
+/>
+
+<select className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}>
+<option value="ambulancia">Ambulancia</option>
+<option value="consola">Consola</option>
+</select>
+
+<select className="w-full mb-2 p-2 bg-black border"
+onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
+<option>G1</option><option>G2</option><option>G3</option><option>G4</option><option>G5</option>
+</select>
+
+<select className="w-full mb-2 p-2 bg-black border"
+value={formNuevo.ambulancia_codigo}
+onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}>
+<option value="">Seleccionar unidad</option>
+{ambulancias.map((a:any)=>(
+<option key={a.codigo_operativo} value={a.codigo_operativo}>{a.codigo_operativo}</option>
 ))}
-</div>
+</select>
 
-<div className="bg-gray-900 p-4 rounded-xl">
-<h2 className="text-blue-400 mb-2">📁 Reportes</h2>
-{archivos.map((a)=>(
-<div key={a.id} className="flex justify-between text-sm border-b py-1">
-<span>{a.nombre}</span>
-<span className="text-gray-400">
-{new Date(a.fecha).toLocaleDateString('es-EC')}
-</span>
-</div>
-))}
+<div className="flex justify-between mt-4">
+<button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
+<button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
 </div>
 
 </div>
+</div>
+)}
+
+{/* 🔥 MODAL AMBULANCIA */}
+{nuevaAmbulancia && (
+<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+<div className="bg-gray-900 p-6 rounded-xl w-80">
+
+<h2 className="mb-4">Nueva Ambulancia</h2>
+
+<input
+className="w-full mb-3 p-2 bg-black border"
+placeholder="Ej: GA-26"
+value={codigoAmbulancia}
+onChange={(e)=>setCodigoAmbulancia(e.target.value)}
+/>
+
+<div className="flex justify-between">
+<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
+<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
+</div>
 
 </div>
+</div>
+)}
 
 </div>
 )
