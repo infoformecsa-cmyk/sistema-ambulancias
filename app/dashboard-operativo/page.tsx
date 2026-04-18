@@ -18,6 +18,8 @@ const [nuevo, setNuevo] = useState(false)
 const [nuevaAmbulancia, setNuevaAmbulancia] = useState(false)
 const [codigoAmbulancia, setCodigoAmbulancia] = useState("")
 
+const [nombreConsola, setNombreConsola] = useState("CONSOLA")
+
 const [loading, setLoading] = useState(true)
 
 const [formNuevo, setFormNuevo] = useState<any>({
@@ -121,7 +123,7 @@ return
 
 const { error } = await supabase
 .from('ambulancias')
-.insert([{ codigo_operativo: codigoAmbulancia }])
+.upsert([{ codigo_operativo: codigoAmbulancia }], { onConflict: 'codigo_operativo' })
 
 if(error){
 alert("Error: " + error.message)
@@ -191,9 +193,7 @@ return (
 
 {/* HEADER */}
 <div className="flex justify-between items-center mb-6">
-<h1 className="text-4xl font-extrabold text-cyan-400">
-🚑 CONTROL OPERATIVO
-</h1>
+<h1 className="text-4xl font-extrabold text-cyan-400">🚑 CONTROL OPERATIVO</h1>
 
 <div className="flex gap-3">
 <button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">🔄 Actualizar</button>
@@ -231,8 +231,9 @@ return (
 </div>
 </div>
 
-{/* CONTENIDO */}
+{/* CONTENIDO ORIGINAL COMPLETO */}
 <div className="grid grid-cols-3 gap-6">
+
 <div className="col-span-2 grid grid-cols-2 gap-6">
 
 {guardias.map((g)=>{
@@ -267,14 +268,37 @@ return(
 </div>
 ))}
 
+{/* 🔥 CONSOLA MEJORADA */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
-<h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
+
+<h3 className="text-green-400 mb-2 flex justify-between items-center">
+💻 {nombreConsola}
+
+<button
+onClick={()=>{
+const nuevo = prompt("Nuevo nombre:", nombreConsola)
+if(nuevo) setNombreConsola(nuevo)
+}}
+className="text-xs bg-green-600 px-2 py-1 rounded">
+✏️
+</button>
+
+</h3>
+
 {consola.map((p:any)=>(
-<div key={p.id} className="bg-black p-2 mb-2 rounded">
+<div key={p.id} className="flex justify-between bg-black p-2 mb-2 rounded">
+
 <p className="text-sm">{p.nombre}</p>
+
+<div className="flex items-center gap-2">
+<button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
+<button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
+</div>
+
 </div>
 ))}
+
 </div>
 )}
 
@@ -284,7 +308,9 @@ return(
 
 </div>
 
+{/* DERECHA intacta */}
 <div className="space-y-6">
+
 <div className="bg-red-900/50 p-4 rounded-xl">
 <h2 className="text-red-400 mb-2">⚠ Críticos</h2>
 {alertas.map((p)=>(
@@ -299,82 +325,16 @@ return(
 {archivos.map((a)=>(
 <div key={a.id} className="flex justify-between text-sm border-b py-1">
 <span>{a.nombre}</span>
-<span className="text-gray-400">{new Date(a.fecha).toLocaleDateString('es-EC')}</span>
+<span className="text-gray-400">
+{new Date(a.fecha).toLocaleDateString('es-EC')}
+</span>
 </div>
 ))}
 </div>
-</div>
-</div>
 
-{/* 🔥 MODAL NUEVO FUNCIONARIO */}
-{nuevo && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-<div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Nuevo funcionario</h2>
-
-<input className="w-full mb-2 p-2 bg-black border"
-placeholder="Nombre"
-onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
-/>
-
-<select className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}>
-<option value="ambulancia">Ambulancia</option>
-<option value="consola">Consola</option>
-</select>
-
-<select className="w-full mb-2 p-2 bg-black border"
-onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}>
-<option>G1</option>
-<option>G2</option>
-<option>G3</option>
-<option>G4</option>
-<option>G5</option>
-</select>
-
-<select className="w-full mb-2 p-2 bg-black border"
-value={formNuevo.ambulancia_codigo}
-onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}>
-<option value="">Seleccionar unidad</option>
-{ambulancias.map((a:any)=>(
-<option key={a.codigo_operativo} value={a.codigo_operativo}>
-{a.codigo_operativo}
-</option>
-))}
-</select>
-
-<div className="flex justify-between mt-4">
-<button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
-<button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
 </div>
 
 </div>
-</div>
-)}
-
-{/* 🔥 MODAL AMBULANCIA */}
-{nuevaAmbulancia && (
-<div className="fixed inset-0 bg-black/80 flex items-center justify-center">
-<div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4">Nueva Ambulancia</h2>
-
-<input
-className="w-full mb-3 p-2 bg-black border"
-placeholder="Ej: GA-26"
-value={codigoAmbulancia}
-onChange={(e)=>setCodigoAmbulancia(e.target.value)}
-/>
-
-<div className="flex justify-between">
-<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
-<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
-</div>
-
-</div>
-</div>
-)}
 
 </div>
 )
