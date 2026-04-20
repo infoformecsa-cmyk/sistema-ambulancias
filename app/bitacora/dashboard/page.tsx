@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 export default function Dashboard(){
 
 const router = useRouter()
-
 const [resumen,setResumen] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 
@@ -16,121 +15,62 @@ useEffect(()=>{ init() },[])
 
 async function init(){
 setLoading(true)
-await calcularPrioridad()
+await calcular()
 setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 SOLUCIÓN REAL FINAL */
+/* 🔥 SOLUCIÓN REAL */
 /* ========================= */
 
-async function calcularPrioridad(){
+async function calcular(){
 
+/* 🔥 TRAER BASE */
 const { data: base } = await supabase
 .from("inventario_base")
-.select("item_id,nombre,cantidad_minima,categoria")
+.select("item_id,cantidad_minima,categoria")
 
-const { data: checklist } = await supabase
-.from("inventario_checklist")
-.select("*")
-.eq("estado","FINALIZADO")
-
-const { data: mov } = await supabase
-.from("inventario_movimientos")
-.select("*")
-
+/* 🔥 TRAER AMBULANCIAS */
 const { data: ambulancias } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-if(!base || !checklist || !mov || !ambulancias) return
+if(!base || !ambulancias) return
+
+/* 🔥 TRAER SOLO EL ÚLTIMO CHECKLIST POR AMBULANCIA */
+const { data: ultimos } = await supabase.rpc("get_ultimo_checklist_por_ambulancia")
+
+/*
+⚠️ ESTA FUNCIÓN SQL DEBE EXISTIR (TE LA DEJO ABAJO)
+*/
+
+if(!ultimos) return
 
 const resultado = ambulancias.map(a=>{
 
-/* ========================= */
-/* 🔥 CHECKLIST DE ESA AMBULANCIA */
-/* ========================= */
-
-const checklistAmb = checklist.filter(
-c => String(c.ambulancia_id) === String(a.id)
+const items = ultimos.filter(
+(i:any)=> String(i.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 AGRUPAR POR checklist_id */
-const grupos: Record<string, any[]> = {}
-
-checklistAmb.forEach(c=>{
-if(!grupos[c.checklist_id]){
-grupos[c.checklist_id] = []
-}
-grupos[c.checklist_id].push(c)
-})
-
-/* 🔥 ENCONTRAR EL CHECKLIST MÁS RECIENTE (BIEN HECHO) */
-let ultimoChecklist: any[] = []
-
-Object.values(grupos).forEach((grupo:any[])=>{
-
-const fechaMax = Math.max(
-...grupo.map(i => new Date(i.fecha_registro || 0).getTime())
-)
-
-if(ultimoChecklist.length === 0){
-ultimoChecklist = grupo
-}else{
-const fechaActual = Math.max(
-...ultimoChecklist.map(i => new Date(i.fecha_registro || 0).getTime())
-)
-
-if(fechaMax > fechaActual){
-ultimoChecklist = grupo
-}
-}
-
-})
-
 /* ========================= */
-/* 🔥 STOCK REAL */
-/* ========================= */
-
-const stockMap: Record<string, number> = {}
-
-ultimoChecklist.forEach(c=>{
-const id = String(c.item_id)
-stockMap[id] = (stockMap[id] || 0) + Number(c.cantidad || 0)
-})
-
-/* 🔥 AJUSTE CON MOVIMIENTOS */
-mov
-.filter(m => String(m.ambulancia_id) === String(a.id))
-.forEach(m=>{
-const id = String(m.item_id)
-stockMap[id] = (stockMap[id] || 0)
-
-const cantidad = Number(m.cantidad || 0)
-
-if(m.tipo === "CONSUMO") stockMap[id] -= cantidad
-if(m.tipo === "INGRESO") stockMap[id] += cantidad
-})
-
-/* ========================= */
-/* 🔥 CÁLCULO REAL */
+/* 🔥 CALCULO REAL */
 /* ========================= */
 
 let faltantes = 0
-let totalItems = 0
-let itemsOK = 0
+let total = 0
+let ok = 0
 
 let totalMed = 0
 let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-ultimoChecklist.forEach(c=>{
+items.forEach((i:any)=>{
 
-const baseItem = base.find(b => String(b.item_id) === String(c.item_id))
+const baseItem = base.find(b => String(b.item_id) === String(i.item_id))
 if(!baseItem) return
 
-const actual = Number(stockMap[c.item_id] || 0)
+const actual = Number(i.cantidad || 0)
 const minimo = Number(baseItem.cantidad_minima || 0)
 
 if(minimo <= 0) return
@@ -146,12 +86,12 @@ if(actual >= minimo) okOtros++
 }
 
 if(actual >= minimo){
-itemsOK++
+ok++
 }else{
 faltantes++
 }
 
-totalItems++
+total++
 
 })
 
@@ -164,10 +104,10 @@ let criticos = 0
 
 const hoy = new Date()
 
-ultimoChecklist.forEach(c=>{
-if(!c.fecha_caducidad) return
+items.forEach((i:any)=>{
+if(!i.fecha_caducidad) return
 
-const diff = (new Date(c.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
+const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
 if(diff <= 0) vencidos++
 else if(diff <= 30) criticos++
@@ -185,7 +125,7 @@ faltantes,
 criticos,
 vencidos,
 prioridad,
-porcentaje: totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0,
+porcentaje: total > 0 ? Math.round((ok / total) * 100) : 0,
 porcMed: totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0,
 porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 }
@@ -196,13 +136,11 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 resultado.sort((a,b)=>{
 const parse = (txt:string): [string, number] => {
 const m = txt.match(/^([A-Z]+)-(\d+)/)
-if(!m) return [String(txt), 0]
+if(!m) return [txt,0]
 return [m[1], Number(m[2])]
 }
-
 const [pA,nA] = parse(a.nombre)
 const [pB,nB] = parse(b.nombre)
-
 if(pA !== pB) return pA.localeCompare(pB)
 return nA - nB
 })
