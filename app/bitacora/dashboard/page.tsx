@@ -10,7 +10,6 @@ export default function Dashboard(){
 const router = useRouter()
 
 const [resumen,setResumen] = useState<any[]>([])
-const [expandido,setExpandido] = useState<string | null>(null)
 const [loading,setLoading] = useState(true)
 
 useEffect(()=>{ init() },[])
@@ -22,7 +21,7 @@ setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 LÓGICA CORREGIDA REAL */
+/* 🔥 SOLUCIÓN REAL FINAL */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -56,7 +55,7 @@ const checklistAmb = checklist.filter(
 c => String(c.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 AGRUPAR POR CHECKLIST_ID */
+/* 🔥 AGRUPAR POR checklist_id */
 const grupos: Record<string, any[]> = {}
 
 checklistAmb.forEach(c=>{
@@ -66,16 +65,28 @@ grupos[c.checklist_id] = []
 grupos[c.checklist_id].push(c)
 })
 
-/* 🔥 OBTENER ÚLTIMO CHECKLIST REAL */
-const listas = Object.values(grupos) as any[][]
+/* 🔥 ENCONTRAR EL CHECKLIST MÁS RECIENTE (BIEN HECHO) */
+let ultimoChecklist: any[] = []
 
-const ultimoChecklist = listas.length > 0
-? listas.sort((a,b)=>{
-const fA = new Date(a[0]?.fecha_registro || 0).getTime()
-const fB = new Date(b[0]?.fecha_registro || 0).getTime()
-return fB - fA
-})[0]
-: []
+Object.values(grupos).forEach((grupo:any[])=>{
+
+const fechaMax = Math.max(
+...grupo.map(i => new Date(i.fecha_registro || 0).getTime())
+)
+
+if(ultimoChecklist.length === 0){
+ultimoChecklist = grupo
+}else{
+const fechaActual = Math.max(
+...ultimoChecklist.map(i => new Date(i.fecha_registro || 0).getTime())
+)
+
+if(fechaMax > fechaActual){
+ultimoChecklist = grupo
+}
+}
+
+})
 
 /* ========================= */
 /* 🔥 STOCK REAL */
@@ -83,7 +94,7 @@ return fB - fA
 
 const stockMap: Record<string, number> = {}
 
-ultimoChecklist.forEach((c:any)=>{
+ultimoChecklist.forEach(c=>{
 const id = String(c.item_id)
 stockMap[id] = (stockMap[id] || 0) + Number(c.cantidad || 0)
 })
@@ -114,17 +125,14 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-/* 🔥 SOLO LO QUE EXISTE EN CHECKLIST */
-ultimoChecklist.forEach((c:any)=>{
+ultimoChecklist.forEach(c=>{
 
 const baseItem = base.find(b => String(b.item_id) === String(c.item_id))
 if(!baseItem) return
 
-const id = String(c.item_id)
-const actual = Number(stockMap[id] || 0)
+const actual = Number(stockMap[c.item_id] || 0)
 const minimo = Number(baseItem.cantidad_minima || 0)
 
-/* 🔥 IGNORAR ITEMS SIN MINIMO */
 if(minimo <= 0) return
 
 const esMed = (baseItem.categoria || "").toLowerCase() === "medicamentos"
@@ -156,7 +164,7 @@ let criticos = 0
 
 const hoy = new Date()
 
-ultimoChecklist.forEach((c:any)=>{
+ultimoChecklist.forEach(c=>{
 if(!c.fecha_caducidad) return
 
 const diff = (new Date(c.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
@@ -165,8 +173,6 @@ if(diff <= 0) vencidos++
 else if(diff <= 30) criticos++
 })
 
-/* ========================= */
-/* PRIORIDAD */
 /* ========================= */
 
 let prioridad = "OK"
@@ -186,12 +192,8 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
 })
 
-/* ========================= */
-/* 🔥 ORDEN CORRECTO */
-/* ========================= */
-
+/* 🔥 ORDEN */
 resultado.sort((a,b)=>{
-
 const parse = (txt:string): [string, number] => {
 const m = txt.match(/^([A-Z]+)-(\d+)/)
 if(!m) return [String(txt), 0]
@@ -210,10 +212,6 @@ setResumen(resultado)
 
 /* ========================= */
 
-function toggle(nombre:string){
-setExpandido(expandido === nombre ? null : nombre)
-}
-
 function colorEstado(e:string){
 if(e==="ALTA") return "#7f1d1d"
 if(e==="MEDIA") return "#f59e0b"
@@ -229,8 +227,6 @@ function irHistorial(){
 router.push("/inventario/historial")
 }
 
-/* ========================= */
-/* UI */
 /* ========================= */
 
 return(
@@ -257,11 +253,8 @@ return(
 background:colorEstado(a.prioridad),
 padding:15,
 marginBottom:10,
-borderRadius:10,
-cursor:"pointer"
-}}
-onClick={()=>toggle(a.nombre)}
->
+borderRadius:10
+}}>
 
 <strong>{a.nombre}</strong>
 
