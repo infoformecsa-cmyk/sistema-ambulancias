@@ -22,7 +22,7 @@ setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 FIX REAL DEFINITIVO */
+/* 🔥 FIX REAL FINAL */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -35,7 +35,6 @@ const { data: checklist } = await supabase
 .from("inventario_checklist")
 .select("*")
 .eq("estado","FINALIZADO")
-.order("fecha_registro",{ascending:false}) // 🔥 CLAVE
 
 const { data: mov } = await supabase
 .from("inventario_movimientos")
@@ -50,32 +49,49 @@ if(!base || !checklist || !mov || !ambulancias) return
 const resultado = ambulancias.map(a=>{
 
 /* ========================= */
-/* 🔥 SOLO EL ÚLTIMO CHECKLIST */
+/* 🔥 AGRUPAR CHECKLIST POR ID */
 /* ========================= */
 
 const checklistAmb = checklist.filter(
 c => String(c.ambulancia_id) === String(a.id)
 )
 
-const ultimoId = checklistAmb[0]?.checklist_id
+const grupos:any = {}
 
-const checklistFinal = checklistAmb.filter(
-c => c.checklist_id === ultimoId
-)
+checklistAmb.forEach(c=>{
+if(!grupos[c.checklist_id]){
+grupos[c.checklist_id] = []
+}
+grupos[c.checklist_id].push(c)
+})
 
 /* ========================= */
-/* STOCK REAL */
+/* 🔥 TOMAR EL MÁS RECIENTE */
+/* ========================= */
+
+const ultimoChecklist:any[] = Object.values(grupos)
+.sort((a:any,b:any)=>{
+const fA = new Date(a[0]?.fecha_registro || 0).getTime()
+const fB = new Date(b[0]?.fecha_registro || 0).getTime()
+return fB - fA
+})[0] || []
+
+/* ========================= */
+/* 🔥 STOCK BASE REAL */
 /* ========================= */
 
 const stockMap:any = {}
 
-checklistFinal.forEach(c=>{
+ultimoChecklist.forEach((c:any)=>{
 const id = String(c.item_id)
 if(!stockMap[id]) stockMap[id] = 0
 stockMap[id] += Number(c.cantidad || 0)
 })
 
-/* MOVIMIENTOS */
+/* ========================= */
+/* 🔥 AJUSTE POR MOVIMIENTOS */
+/* ========================= */
+
 mov
 .filter(m => String(m.ambulancia_id) === String(a.id))
 .forEach(m=>{
@@ -89,11 +105,11 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 })
 
 /* ========================= */
-/* CÁLCULO REAL */
+/* 🔥 CÁLCULO REAL */
 /* ========================= */
 
 let faltantes = 0
-let totalItems = checklistFinal.length
+let totalItems = base.length
 let itemsOK = 0
 
 let totalMed = 0
@@ -101,15 +117,13 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-checklistFinal.forEach(c=>{
+base.forEach(b=>{
 
-const baseItem = base.find(b => String(b.item_id) === String(c.item_id))
-if(!baseItem) return
+const id = String(b.item_id)
+const actual = Number(stockMap[id] || 0)
+const minimo = Number(b.cantidad_minima || 0)
 
-const actual = Number(stockMap[c.item_id] || 0)
-const minimo = Number(baseItem.cantidad_minima || 0)
-
-const esMed = (baseItem.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -128,7 +142,7 @@ faltantes++
 })
 
 /* ========================= */
-/* CADUCIDAD */
+/* 🔥 CADUCIDAD REAL */
 /* ========================= */
 
 let vencidos = 0
@@ -136,7 +150,7 @@ let criticos = 0
 
 const hoy = new Date()
 
-checklistFinal.forEach(c=>{
+ultimoChecklist.forEach((c:any)=>{
 if(!c.fecha_caducidad) return
 
 const diff = (new Date(c.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
@@ -163,7 +177,7 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 })
 
 /* ========================= */
-/* ORDEN */
+/* 🔥 ORDEN CORRECTO */
 /* ========================= */
 
 resultado.sort((a,b)=>{
