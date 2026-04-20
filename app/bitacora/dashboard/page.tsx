@@ -22,7 +22,7 @@ setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 FIX REAL (SIN ROMPER UI) */
+/* 🔥 FIX REAL DEFINITIVO */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -35,6 +35,7 @@ const { data: checklist } = await supabase
 .from("inventario_checklist")
 .select("*")
 .eq("estado","FINALIZADO")
+.order("fecha_registro",{ascending:false}) // 🔥 CLAVE
 
 const { data: mov } = await supabase
 .from("inventario_movimientos")
@@ -49,21 +50,32 @@ if(!base || !checklist || !mov || !ambulancias) return
 const resultado = ambulancias.map(a=>{
 
 /* ========================= */
+/* 🔥 SOLO EL ÚLTIMO CHECKLIST */
+/* ========================= */
+
+const checklistAmb = checklist.filter(
+c => String(c.ambulancia_id) === String(a.id)
+)
+
+const ultimoId = checklistAmb[0]?.checklist_id
+
+const checklistFinal = checklistAmb.filter(
+c => c.checklist_id === ultimoId
+)
+
+/* ========================= */
 /* STOCK REAL */
 /* ========================= */
 
 const stockMap:any = {}
 
-/* BASE DESDE CHECKLIST */
-checklist
-.filter(c => String(c.ambulancia_id) === String(a.id))
-.forEach(c=>{
+checklistFinal.forEach(c=>{
 const id = String(c.item_id)
 if(!stockMap[id]) stockMap[id] = 0
 stockMap[id] += Number(c.cantidad || 0)
 })
 
-/* AJUSTES POR MOVIMIENTOS */
+/* MOVIMIENTOS */
 mov
 .filter(m => String(m.ambulancia_id) === String(a.id))
 .forEach(m=>{
@@ -77,19 +89,11 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 })
 
 /* ========================= */
-/* 🔥 CLAVE: SOLO ITEMS QUE APLICAN */
+/* CÁLCULO REAL */
 /* ========================= */
 
-/* 👉 items definidos en checklist para esa ambulancia */
-const itemsChecklist = checklist
-.filter(c => String(c.ambulancia_id) === String(a.id))
-.map(c => String(c.item_id))
-
-/* 👉 eliminar duplicados */
-const itemsUnicos = [...new Set(itemsChecklist)]
-
 let faltantes = 0
-let totalItems = itemsUnicos.length
+let totalItems = checklistFinal.length
 let itemsOK = 0
 
 let totalMed = 0
@@ -97,15 +101,15 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-itemsUnicos.forEach(id=>{
+checklistFinal.forEach(c=>{
 
-const itemBase = base.find(b => String(b.item_id) === id)
-if(!itemBase) return
+const baseItem = base.find(b => String(b.item_id) === String(c.item_id))
+if(!baseItem) return
 
-const actual = Number(stockMap[id] || 0)
-const minimo = Number(itemBase.cantidad_minima || 0)
+const actual = Number(stockMap[c.item_id] || 0)
+const minimo = Number(baseItem.cantidad_minima || 0)
 
-const esMed = (itemBase.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (baseItem.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -132,9 +136,8 @@ let criticos = 0
 
 const hoy = new Date()
 
-checklist
-.filter(c => String(c.ambulancia_id) === String(a.id) && c.fecha_caducidad)
-.forEach(c=>{
+checklistFinal.forEach(c=>{
+if(!c.fecha_caducidad) return
 
 const diff = (new Date(c.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
@@ -160,7 +163,7 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 })
 
 /* ========================= */
-/* ORDEN CORRECTO */
+/* ORDEN */
 /* ========================= */
 
 resultado.sort((a,b)=>{
@@ -202,8 +205,6 @@ function irHistorial(){
 router.push("/inventario/historial")
 }
 
-/* ========================= */
-/* UI ORIGINAL RESTAURADA */
 /* ========================= */
 
 return(
