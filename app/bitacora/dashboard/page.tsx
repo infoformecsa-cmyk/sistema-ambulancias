@@ -1,444 +1,499 @@
 "use client"
 
-import { useEffect, useState } from "react"
+export const dynamic = "force-dynamic"
+
+import { useEffect, useState, useRef } from "react"
 import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
-import { useRouter } from "next/navigation"
 
-export default function Dashboard(){
-
-const router = useRouter()
-
-const [alertas,setAlertas] = useState<any[]>([])
-const [resumen,setResumen] = useState<any[]>([])
-const [expandido,setExpandido] = useState<string | null>(null)
-
-const [modal,setModal] = useState(false)
-const [itemSeleccionado,setItemSeleccionado] = useState<any>(null)
-const [cantidad,setCantidad] = useState("")
-const [lote,setLote] = useState("")
-const [fechaCaducidad,setFechaCaducidad] = useState("")
-const [modo,setModo] = useState<"ABASTECER" | "CAMBIO">("ABASTECER")
-
-const [loading,setLoading] = useState(true)
-
-useEffect(()=>{ init() },[])
-
-async function init(){
-setLoading(true)
-await cargarAlertas()
-await calcularPrioridad()
-setLoading(false)
+const COLORES_KIT:any = {
+celeste:"#8b5cf6",
+azul:"#3b82f6",
+rojo:"#ef4444",
+amarillo:"#f59e0b"
 }
+
+const ORDEN = [
+"lenceria","dispositivos","sondas","respiratorio",
+"oxigeno","canalizacion","biomedicos","limpieza",
+"curaciones","medicamentos","trauma","proteccion"
+]
+
+export default function Checklist(){
+
+const [items,setItems] = useState<any[]>([])
+const [kits,setKits] = useState<any[]>([])
+const [ambulancias,setAmbulancias] = useState<any[]>([])
+
+const [ambulancia,setAmbulancia] = useState("")
+const [responsable,setResponsable] = useState("")
+
+const [expandido,setExpandido] = useState<any>({})
+const [datos,setDatos] = useState<any>({})
+const [guardando,setGuardando] = useState(false)
+
+const refAmbulancia = useRef<any>(null)
+const refResponsable = useRef<any>(null)
 
 /* ========================= */
 
-function getNombre(item:any){
-if(Array.isArray(item)) return item[0]?.nombre || "Item"
-if(item) return item.nombre || "Item"
-return "Item"
+useEffect(()=>{ cargar() },[])
+
+useEffect(()=>{
+if(ambulancia){
+setDatos({}) // 🔥 LIMPIA ESTADO ANTERIOR
+cargarBorrador()
 }
+},[ambulancia])
 
-function agruparPorCategoria(lista:any[]){
-const grupos:any = {}
+async function cargar(){
 
-lista.forEach(i=>{
-const cat = (i.categoria || "OTROS").toUpperCase()
-if(!grupos[cat]) grupos[cat] = []
-grupos[cat].push(i)
-})
+const {data} = await supabase.from("inventario_items").select("*")
+const {data:amb} = await supabase.from("ambulancias").select("*")
 
-return grupos
-}
+const limpio = (data || []).map(i => ({
+...i,
+id: String(i.id), // 🔥 NORMALIZAR ID
+categoria: (i.categoria || "").toLowerCase().trim()
+}))
 
-/* ========================= */
-/* ALERTAS */
-/* ========================= */
+setItems(limpio.filter(i=>i.subcategoria!=="kit_parto"))
+setKits(limpio.filter(i=>i.subcategoria==="kit_parto"))
 
-async function cargarAlertas(){
-
-const { data } = await supabase
-.from("inventario_movimientos")
-.select(`
-ambulancia_id,
-fecha_caducidad,
-item_id,
-inventario_items (nombre)
-`)
-.eq("tipo","INGRESO")
-.not("fecha_caducidad","is",null)
-
-const hoy = new Date()
-
-const procesado = (data || []).map(i=>{
-const fecha = new Date(i.fecha_caducidad)
-const diff = (fecha.getTime() - hoy.getTime()) / (1000*60*60*24)
-
-let estado = "OK"
-if(diff <= 0) estado = "VENCIDO"
-else if(diff <= 30) estado = "CRITICO"
-else if(diff <= 90) estado = "PREVENTIVO"
-
-return {
-ambulancia: i.ambulancia_id,
-nombre: getNombre(i.inventario_items),
-estado,
-dias: Math.round(diff)
-}
-})
-
-const filtrado = procesado.filter(i=> i.estado !== "OK")
-
-filtrado.sort((a,b)=>{
-const prioridad = (e:string)=>{
-if(e==="VENCIDO") return 1
-if(e==="CRITICO") return 2
-if(e==="PREVENTIVO") return 3
-return 99
-}
-return prioridad(a.estado) - prioridad(b.estado)
-})
-
-setAlertas(filtrado)
-}
-
-/* ========================= */
-/* PRIORIDAD (FIX REAL) */
-/* ========================= */
-
-async function calcularPrioridad(){
-
-const { data: base } = await supabase
-.from("inventario_base")
-.select("item_id,nombre,cantidad_minima,categoria")
-
-const { data: mov } = await supabase
-.from("inventario_movimientos")
-.select("*")
-
-const { data: ambulancias } = await supabase
-.from("ambulancias")
-.select("id,codigo_operativo")
-
-if(!base || !mov || !ambulancias) return
-
-const resultado = ambulancias.map(a=>{
-
-const movimientos = mov.filter(
-m => String(m.ambulancia_id) === String(a.id)
+const ordenadas = (amb || []).sort((a,b)=>
+a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 )
 
-/* STOCK REAL */
-const stockMap:any = {}
-
-movimientos.forEach(m=>{
-if(!stockMap[m.item_id]) stockMap[m.item_id] = 0
-
-const cantidad = Number(m.cantidad || 0)
-
-if(m.tipo === "INGRESO"){
-stockMap[m.item_id] += cantidad
+setAmbulancias(ordenadas)
 }
 
-if(m.tipo === "CONSUMO"){
-stockMap[m.item_id] -= cantidad
-}
-})
+/* ========================= */
 
-let faltantes = 0
-let faltantesDetalle:any[] = []
+async function cargarBorrador(){
 
-let totalItems = 0
-let itemsOK = 0
+const { data } = await supabase
+.from("inventario_checklist")
+.select("*")
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
 
-let totalMed = 0
-let okMed = 0
-let totalOtros = 0
-let okOtros = 0
-
-base.forEach(b=>{
-
-const actual = Number(stockMap[b.item_id] || 0)
-
-/* 🔥 FIX CLAVE */
-const tieneMovimiento = movimientos.some(m => m.item_id === b.item_id)
-
-if(!tieneMovimiento && actual === 0){
+if(!data || data.length === 0){
+setDatos({})
 return
 }
 
-const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
+const reconstruido:any = {}
 
-if(esMed){
-totalMed++
-if(actual >= b.cantidad_minima) okMed++
+data.forEach((d:any)=>{
+
+const id = String(d.item_id) // 🔥 NORMALIZAR
+
+if(!reconstruido[id]){
+reconstruido[id] = []
+}
+
+reconstruido[id].push({
+lote: d.lote || "",
+cantidad: d.cantidad || "",
+fecha: d.fecha_caducidad || ""
+})
+
+})
+
+setResponsable(data[0]?.responsable || "")
+setDatos(reconstruido)
+}
+
+/* ========================= */
+
+function toggle(k:string){
+setExpandido((p:any)=>({...p,[k]:!p[k]}))
+}
+
+function agregarLote(id:string){
+const actual = datos[id] || []
+setDatos({...datos,[id]:[...actual,{lote:"",cantidad:"",fecha:""}]})
+}
+
+function actualizar(id:string,i:number,campo:string,val:any){
+const copia = [...(datos[id]||[])]
+if(!copia[i]) copia[i] = {}
+copia[i][campo]=val
+setDatos({...datos,[id]:copia})
+}
+
+function getMin(i:any){
+return Number(i.cantidad_minima || 0) > 0 ? i.cantidad_minima : "-"
+}
+
+/* ========================= */
+
+function validarAntesFinalizar(){
+
+if(!ambulancia){
+alert("🚑 Debe seleccionar una ambulancia")
+refAmbulancia.current?.focus()
+return false
+}
+
+if(!responsable || responsable.trim() === ""){
+alert("👤 Debe ingresar responsable")
+refResponsable.current?.focus()
+return false
+}
+
+return true
+}
+
+/* ========================= */
+
+async function guardar(tipo:"BORRADOR"|"FINALIZADO"){
+
+if(tipo === "FINALIZADO"){
+if(!validarAntesFinalizar()) return
+}
+
+setGuardando(true)
+
+try{
+
+const { data: existente } = await supabase
+.from("inventario_checklist")
+.select("checklist_id")
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
+.limit(1)
+
+let checklistId = existente?.[0]?.checklist_id
+
+if(!checklistId){
+checklistId = crypto.randomUUID()
 }else{
-totalOtros++
-if(actual >= b.cantidad_minima) okOtros++
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("checklist_id", checklistId)
 }
 
-if(actual >= b.cantidad_minima){
-itemsOK++
-}else{
-faltantes++
-faltantesDetalle.push({
-item_id: b.item_id,
-nombre: b.nombre,
-categoria: b.categoria,
-actual,
-minimo: b.cantidad_minima,
-ambulancia_id: a.id
-})
-}
+for(const itemId in datos){
 
-totalItems++
+const item = items.find(i=>i.id === itemId) || kits.find(k=>k.id === itemId)
+const lotes = datos[itemId]
 
-})
+for(const l of lotes){
 
-/* CADUCIDAD */
-let vencidos = 0
-let criticos = 0
-let vencidosDetalle:any[] = []
+if(!l) continue
 
-const hoy = new Date()
+const cantidadNum = Number(l.cantidad || 0)
+if(cantidadNum <= 0) continue
 
-movimientos
-.filter(m=> m.tipo === "INGRESO" && m.fecha_caducidad)
-.forEach(m=>{
-
-const diff = (new Date(m.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
-
-if(diff <= 0){
-vencidos++
-vencidosDetalle.push(m)
-}
-else if(diff <= 30){
-criticos++
-}
+await supabase.from("inventario_checklist").insert({
+checklist_id: checklistId,
+ambulancia_id: ambulancia,
+item_id: itemId,
+nombre: item?.nombre,
+lote: l.lote || null,
+cantidad: cantidadNum,
+fecha_caducidad: l.fecha || null,
+fecha_registro: new Date().toISOString(),
+responsable,
+estado: tipo
 })
 
-let prioridad = "OK"
-if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
-else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
-
-return {
-nombre: a.codigo_operativo,
-faltantes,
-criticos,
-vencidos,
-prioridad,
-faltantesDetalle,
-vencidosDetalle,
-porcentaje: totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0,
-porcMed: totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0,
-porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 }
 
-})
+}
 
-resultado.sort((a,b)=>
-a.nombre.localeCompare(b.nombre, undefined, { numeric:true })
-)
+if(tipo === "FINALIZADO"){
+await supabase
+.from("inventario_checklist")
+.update({ estado:"FINALIZADO" })
+.eq("checklist_id", checklistId)
+}
 
-setResumen(resultado)
+alert(tipo === "FINALIZADO"
+? "✅ Checklist FINALIZADO"
+: "💾 Borrador guardado")
+
+}catch(e){
+console.error(e)
+alert("❌ Error")
+}
+
+setGuardando(false)
 }
 
 /* ========================= */
-/* RESTO ORIGINAL */
-/* ========================= */
-
-function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
-setItemSeleccionado(item)
-setModo(tipo)
-setCantidad("")
-setLote("")
-setFechaCaducidad("")
-setModal(true)
-}
-
-async function retirarItem(item:any){
-
-await supabase.from("inventario_movimientos").insert({
-ambulancia_id: item.ambulancia_id,
-item_id: item.item_id,
-cantidad: item.cantidad || 1,
-tipo:"CONSUMO",
-usuario:"sistema",
-fecha: new Date().toISOString()
-})
-
-await init()
-}
-
-async function guardar(){
-
-if(!itemSeleccionado) return
-
-if(modo === "CAMBIO"){
-await supabase.from("inventario_movimientos").insert({
-ambulancia_id: itemSeleccionado.ambulancia_id,
-item_id: itemSeleccionado.item_id,
-cantidad: Number(cantidad || 0),
-tipo:"CONSUMO",
-usuario:"sistema",
-fecha: new Date().toISOString()
-})
-}
-
-await supabase.from("inventario_movimientos").insert({
-ambulancia_id: itemSeleccionado.ambulancia_id,
-item_id: itemSeleccionado.item_id,
-cantidad: Number(cantidad || 0),
-lote: lote || null,
-fecha_caducidad: fechaCaducidad || null,
-tipo:"INGRESO",
-usuario:"sistema",
-fecha: new Date().toISOString()
-})
-
-setModal(false)
-setCantidad("")
-setLote("")
-setFechaCaducidad("")
-
-await init()
-}
-
-function toggle(nombre:string){
-setExpandido(expandido === nombre ? null : nombre)
-}
-
-function colorEstado(e:string){
-if(e==="ALTA") return "#7f1d1d"
-if(e==="MEDIA") return "#f59e0b"
-return "#22c55e"
-}
-
-function cerrarSesion(){
-localStorage.clear()
-router.replace("/")
-}
-
-function irHistorial(){
-router.push("/inventario/historial")
-}
-
-/* ========================= */
-/* UI ORIGINAL COMPLETA */
+/* UI ORIGINAL (NO TOCADO) */
 /* ========================= */
 
 return(
 
 <div style={container}>
 
-<div style={{marginBottom:10}}>
-<h1 style={{fontSize:22,fontWeight:"bold"}}>
-🚑 BITACORA SANITARIA - SALUD MOVIL
-</h1>
-<p style={{opacity:0.7}}>
-DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
-</p>
-</div>
-
 <div style={header}>
-<div>
-<h1>🚑 CENTRO DE CONTROL EMS</h1>
-<p style={{opacity:0.7}}>Prioridad + abastecimiento inteligente</p>
-</div>
 
-<div style={{display:"flex",gap:10}}>
-<button onClick={irHistorial} style={btn}>📊 Historial</button>
-<button onClick={cerrarSesion} style={btn}>Salir</button>
-</div>
-</div>
+<h1 style={{fontSize:20}}>🚑 Checklist Clínico</h1>
 
-<h2>🚑 PRIORIDAD OPERATIVA</h2>
+<div style={panel}>
 
-{resumen.map((a,i)=>(
-
-<div key={i} style={{
-background:colorEstado(a.prioridad),
-padding:15,
-marginBottom:10,
-borderRadius:10,
-cursor:"pointer"
-}}
-onClick={()=>toggle(a.nombre)}
+<select
+ref={refAmbulancia}
+value={ambulancia}
+onChange={(e)=>setAmbulancia(e.target.value)}
+style={input}
 >
-
-<div style={{display:"flex",justifyContent:"space-between"}}>
-<strong>{a.nombre}</strong>
-<span>{expandido === a.nombre ? "▲" : "▼"}</span>
-</div>
-
-<div>❌ Faltantes: {a.faltantes}</div>
-<div>💊 Críticos: {a.criticos}</div>
-<div>🚨 Vencidos: {a.vencidos}</div>
-<div>⚡ PRIORIDAD: {a.prioridad}</div>
-
-<div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
-<div>💊 Medicamentos: {a.porcMed}% / 100%</div>
-<div>🧰 Insumos/Equipos: {a.porcOtros}% / 100%</div>
-
-</div>
+<option value="">Ambulancia</option>
+{ambulancias.map(a=>(
+<option key={a.id} value={a.id}>{a.codigo_operativo}</option>
 ))}
+</select>
+
+<input
+ref={refResponsable}
+placeholder="Responsable"
+value={responsable}
+onChange={(e)=>setResponsable(e.target.value)}
+style={input}
+/>
+
+</div>
+</div>
+
+<h2 style={section}>🧬 Kits Obstétricos</h2>
+
+<div style={grid}>
+{["celeste","azul","amarillo","rojo"].map(color=>{
+
+const grupo = kits.filter(k=>k.kit_color===color)
+if(!grupo.length) return null
+
+return(
+<div key={color} style={cardKit(color)}>
+
+<div onClick={()=>toggle(color)} style={catHeader}>
+{color === "celeste" ? "DISPOSITIVO MÉDICO OBSTÉTRICO" : `KIT ${color.toUpperCase()}`}
+</div>
+
+{expandido[color] && grupo.map(k=>(
+
+<div key={k.id} style={item}>
+
+<div style={rowTop}>
+<span>{k.nombre}</span>
+<span style={badge}>Min {getMin(k)}</span>
+</div>
+
+<button style={btnAdd} onClick={()=>agregarLote(k.id)}>+ Lote</button>
+
+{(datos[k.id]||[]).map((l:any,i:number)=>(
+
+<div key={i} style={inputsRow}>
+<input style={inputFull} placeholder="Lote" value={l.lote || ""}
+onChange={e=>actualizar(k.id,i,"lote",e.target.value)}/>
+
+<input style={inputFull} type="number" placeholder="Cantidad" value={l.cantidad || ""}
+onChange={e=>actualizar(k.id,i,"cantidad",e.target.value)}/>
+
+<input style={inputFull} type="date"
+value={l.fecha || ""}
+onChange={e=>actualizar(k.id,i,"fecha",e.target.value)}/>
+</div>
+
+))}
+
+</div>
+
+))}
+
+</div>
+)
+
+})}
+</div>
+
+<h2 style={section}>📦 Checklist General</h2>
+
+{ORDEN.map(cat=>{
+
+const grupo = items.filter(i => i.categoria === cat)
+
+return(
+<div key={cat} style={card}>
+
+<div style={catHeader} onClick={()=>toggle(cat)}>
+{cat.toUpperCase()}
+</div>
+
+{expandido[cat] && grupo.map(i=>(
+
+<div key={i.id} style={item}>
+
+<div style={rowTop}>
+<span>{i.nombre}</span>
+<span style={badge}>Min {getMin(i)}</span>
+</div>
+
+<button style={btnAdd} onClick={()=>agregarLote(i.id)}>+ Lote</button>
+
+{(datos[i.id]||[]).map((l:any,index:number)=>(
+
+<div key={index} style={inputsRow}>
+<input style={inputFull} placeholder="Lote" value={l.lote || ""}
+onChange={e=>actualizar(i.id,index,"lote",e.target.value)}/>
+
+<input style={inputFull} type="number" placeholder="Cantidad" value={l.cantidad || ""}
+onChange={e=>actualizar(i.id,index,"cantidad",e.target.value)}/>
+
+<input style={inputFull} type="date"
+value={l.fecha || ""}
+onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
+</div>
+
+))}
+
+</div>
+
+))}
+
+</div>
+)
+
+})}
+
+<div style={btnContainer}>
+<button onClick={()=>guardar("BORRADOR")} style={btnWarning}>
+💾 Borrador
+</button>
+
+<button onClick={()=>guardar("FINALIZADO")} style={btnPrimary}>
+{guardando ? "Guardando..." : "Finalizar"}
+</button>
+</div>
 
 </div>
 )
 }
 
 /* ========================= */
-/* ESTILOS */
+/* ESTILOS SIN CAMBIOS */
 /* ========================= */
 
 const container: CSSProperties = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
-padding:30
+padding:"15px",
+maxWidth:"900px",
+margin:"0 auto"
 }
 
 const header: CSSProperties = {
 display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
+flexDirection:"column",
+gap:10,
 marginBottom:20
 }
 
-const btn: CSSProperties = {
+const panel: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:10
+}
+
+const input: CSSProperties = {
+padding:"12px",
+borderRadius:10,
 background:"#1f2937",
 color:"white",
-padding:"6px 10px",
-borderRadius:6,
 border:"none",
+width:"100%"
+}
+
+const inputFull: CSSProperties = {
+...input,
+marginTop:6
+}
+
+const grid: CSSProperties = {
+display:"grid",
+gridTemplateColumns:"1fr",
+gap:10
+}
+
+const card: CSSProperties = {
+background:"#111827",
+borderRadius:10,
+marginBottom:10
+}
+
+const catHeader: CSSProperties = {
+background:"#1f2937",
+padding:12,
 cursor:"pointer"
 }
 
-const modalBg: CSSProperties = {
-position:"fixed",
-top:0,
-left:0,
-width:"100%",
-height:"100%",
-background:"rgba(0,0,0,0.6)",
+const item: CSSProperties = {
+padding:10,
+borderBottom:"1px solid #1f2937"
+}
+
+const rowTop: CSSProperties = {
 display:"flex",
-justifyContent:"center",
-alignItems:"center"
+justifyContent:"space-between"
 }
 
-const modalBox: CSSProperties = {
-background:"#111827",
-padding:20,
-borderRadius:10,
-width:300
+const inputsRow: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:6
 }
 
-const inputModal: CSSProperties = {
-width:"100%",
-marginBottom:10,
-padding:"10px",
-borderRadius:6,
+const btnAdd: CSSProperties = {
+marginTop:6,
+background:"#22c55e",
 border:"none",
-background:"#1f2937",
-color:"white"
+padding:"8px",
+borderRadius:8
 }
+
+const badge: CSSProperties = {
+background:"#16a34a",
+padding:"2px 6px",
+borderRadius:5,
+fontSize:10
+}
+
+const btnContainer: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:10,
+marginTop:20
+}
+
+const btnPrimary: CSSProperties = {
+background:"#22c55e",
+padding:"18px",
+borderRadius:12,
+border:"none",
+fontWeight:"bold"
+}
+
+const btnWarning: CSSProperties = {
+background:"#f59e0b",
+padding:"18px",
+borderRadius:12,
+border:"none",
+fontWeight:"bold"
+}
+
+const section: CSSProperties = {
+marginTop:20,
+marginBottom:10
+}
+
+const cardKit = (color:any): CSSProperties => ({
+background:"#111827",
+borderRadius:10,
+borderLeft:`5px solid ${COLORES_KIT[color]}`
+})
