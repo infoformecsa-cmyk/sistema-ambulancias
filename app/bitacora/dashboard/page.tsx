@@ -21,23 +21,20 @@ setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 FIX REAL DEFINITIVO */
+/* 🔥 FIX REAL FINAL */
 /* ========================= */
 
 async function calcularPrioridad(){
 
-/* BASE (minimos) */
 const { data: base } = await supabase
 .from("inventario_base")
 .select("item_id,nombre,cantidad_minima,categoria")
 
-/* CHECKLIST = STOCK REAL */
 const { data: checklist } = await supabase
 .from("inventario_checklist")
 .select("*")
 .eq("estado","FINALIZADO")
 
-/* MOVIMIENTOS = CONSUMOS */
 const { data: mov } = await supabase
 .from("inventario_movimientos")
 .select("*")
@@ -51,7 +48,7 @@ if(!base || !checklist || !mov || !ambulancias) return
 const resultado = ambulancias.map(a=>{
 
 /* ========================= */
-/* 🔥 STOCK DESDE CHECKLIST */
+/* STOCK DESDE CHECKLIST */
 /* ========================= */
 
 const stockMap:any = {}
@@ -60,20 +57,18 @@ checklist
 .filter(c => String(c.ambulancia_id) === String(a.id))
 .forEach(c=>{
 const id = String(c.item_id)
-
 if(!stockMap[id]) stockMap[id] = 0
 stockMap[id] += Number(c.cantidad || 0)
 })
 
 /* ========================= */
-/* 🔥 RESTAR CONSUMOS */
+/* AJUSTE CON MOVIMIENTOS */
 /* ========================= */
 
 mov
 .filter(m => String(m.ambulancia_id) === String(a.id))
 .forEach(m=>{
 const id = String(m.item_id)
-
 if(!stockMap[id]) stockMap[id] = 0
 
 const cantidad = Number(m.cantidad || 0)
@@ -83,13 +78,11 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 })
 
 /* ========================= */
-/* 🔥 CALCULO REAL */
+/* 🔥 CLAVE: USAR TODA LA BASE */
 /* ========================= */
 
-const itemsReales = Object.keys(stockMap)
-
 let faltantes = 0
-let totalItems = 0
+let totalItems = base.length
 let itemsOK = 0
 
 let totalMed = 0
@@ -97,15 +90,13 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-itemsReales.forEach(id=>{
+base.forEach(b=>{
 
-const itemBase = base.find(b => String(b.item_id) === id)
-if(!itemBase) return
-
+const id = String(b.item_id)
 const actual = Number(stockMap[id] || 0)
-const minimo = Number(itemBase.cantidad_minima || 0)
+const minimo = Number(b.cantidad_minima || 0)
 
-const esMed = (itemBase.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -121,12 +112,10 @@ itemsOK++
 faltantes++
 }
 
-totalItems++
-
 })
 
 /* ========================= */
-/* CADUCIDAD (CHECKLIST) */
+/* CADUCIDAD */
 /* ========================= */
 
 let vencidos = 0
@@ -162,7 +151,7 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 })
 
 /* ========================= */
-/* 🔥 ORDEN CORRECTO */
+/* ORDEN CORRECTO */
 /* ========================= */
 
 resultado.sort((a,b)=>{
@@ -201,33 +190,10 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
-/* UI */
-/* ========================= */
 
 return(
 
 <div style={container}>
-
-<div style={{marginBottom:10}}>
-<h1 style={{fontSize:22,fontWeight:"bold"}}>
-🚑 BITACORA SANITARIA - SALUD MOVIL
-</h1>
-<p style={{opacity:0.7}}>
-DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
-</p>
-</div>
-
-<div style={header}>
-<div>
-<h1>🚑 CENTRO DE CONTROL EMS</h1>
-<p style={{opacity:0.7}}>Prioridad + abastecimiento inteligente</p>
-</div>
-
-<div style={{display:"flex",gap:10}}>
-<button onClick={irHistorial} style={btn}>📊 Historial</button>
-<button onClick={cerrarSesion} style={btn}>Salir</button>
-</div>
-</div>
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
@@ -247,9 +213,9 @@ borderRadius:10
 <div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
 
-<div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
-<div>💊 Medicamentos: {a.porcMed}% / 100%</div>
-<div>🧰 Insumos/Equipos: {a.porcOtros}% / 100%</div>
+<div>📊 Abastecimiento: {a.porcentaje}%</div>
+<div>💊 Medicamentos: {a.porcMed}%</div>
+<div>🧰 Insumos/Equipos: {a.porcOtros}%</div>
 
 </div>
 ))}
@@ -259,28 +225,10 @@ borderRadius:10
 }
 
 /* ========================= */
-/* ESTILOS */
-/* ========================= */
 
 const container: CSSProperties = {
 background:"#020617",
 color:"white",
 minHeight:"100vh",
 padding:30
-}
-
-const header: CSSProperties = {
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
-marginBottom:20
-}
-
-const btn: CSSProperties = {
-background:"#1f2937",
-color:"white",
-padding:"6px 10px",
-borderRadius:6,
-border:"none",
-cursor:"pointer"
 }
