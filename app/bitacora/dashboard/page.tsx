@@ -159,11 +159,7 @@ let okOtros = 0
 
 base.forEach(b=>{
 
-/* 🔥 FIX REAL */
-const actual = stockMap[b.item_id] ?? null
-
-/* 🔥 SI NUNCA EXISTIÓ → NO CONTAR */
-if(actual === null) return
+const actual = stockMap[b.item_id] ?? 0
 
 const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
