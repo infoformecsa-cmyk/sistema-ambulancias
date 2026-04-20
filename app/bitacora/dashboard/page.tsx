@@ -56,7 +56,7 @@ const checklistAmb = checklist.filter(
 c => String(c.ambulancia_id) === String(a.id)
 )
 
-const grupos:any = {}
+const grupos: Record<string, any[]> = {}
 
 checklistAmb.forEach(c=>{
 if(!grupos[c.checklist_id]){
@@ -69,18 +69,20 @@ grupos[c.checklist_id].push(c)
 /* 🔥 TOMAR EL MÁS RECIENTE */
 /* ========================= */
 
-const ultimoChecklist:any[] = Object.values(grupos)
-.sort((a:any,b:any)=>{
+const listas = Object.values(grupos) as any[][]
+
+const ultimoChecklist = listas
+.sort((a,b)=>{
 const fA = new Date(a[0]?.fecha_registro || 0).getTime()
 const fB = new Date(b[0]?.fecha_registro || 0).getTime()
 return fB - fA
 })[0] || []
 
 /* ========================= */
-/* 🔥 STOCK BASE REAL */
+/* 🔥 STOCK BASE */
 /* ========================= */
 
-const stockMap:any = {}
+const stockMap: Record<string, number> = {}
 
 ultimoChecklist.forEach((c:any)=>{
 const id = String(c.item_id)
@@ -105,7 +107,7 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 })
 
 /* ========================= */
-/* 🔥 CÁLCULO REAL */
+/* 🔥 CÁLCULO */
 /* ========================= */
 
 let faltantes = 0
@@ -142,7 +144,7 @@ faltantes++
 })
 
 /* ========================= */
-/* 🔥 CADUCIDAD REAL */
+/* 🔥 CADUCIDAD */
 /* ========================= */
 
 let vencidos = 0
