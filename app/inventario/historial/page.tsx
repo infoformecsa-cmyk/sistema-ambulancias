@@ -18,7 +18,6 @@ const [detalle,setDetalle] = useState<any>({})
 const [fechaInicio,setFechaInicio] = useState("")
 const [fechaFin,setFechaFin] = useState("")
 
-/* 🔥 NUEVO */
 const [usuario,setUsuario] = useState("")
 
 useEffect(()=>{
@@ -59,7 +58,7 @@ let query = supabase
 .select(`
 *,
 estado,
-usuario, /* 🔥 IMPORTANTE: debe existir esta columna */
+usuario,
 inventario_items (
   nombre,
   categoria
@@ -113,7 +112,6 @@ lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
 
-/* 🔥 NUEVO: guardo usuario del primer checklist */
 setUsuario(lista[0].items[0]?.usuario || "No registrado")
 
 procesarDetalle(lista[0].items)
@@ -138,7 +136,6 @@ grupos[cat].push(i)
 
 })
 
-/* 🔥 usuario dinámico */
 setUsuario(items[0]?.usuario || "No registrado")
 
 setDetalle(grupos)
@@ -166,8 +163,6 @@ return { label:"⚪ SIN CLASIFICAR", color:"#6b7280" }
 }
 
 /* ========================= */
-/* 🗑️ BORRAR */
-/* ========================= */
 
 async function borrarChecklist(items:any[]){
 
@@ -194,8 +189,6 @@ alert("Error al eliminar")
 
 }
 
-/* ========================= */
-/* 🖨️ IMPRIMIR */
 /* ========================= */
 
 function imprimirChecklist(c:any){
@@ -302,7 +295,6 @@ fontWeight:"bold"
 {estadoVisual.label}
 </div>
 
-{/* 🔥 NUEVO BOTÓN IMPRIMIR */}
 <button
 onClick={()=>imprimirChecklist(c)}
 style={{background:"#22c55e",color:"white",border:"none",padding:"5px 10px",borderRadius:6}}
@@ -327,7 +319,6 @@ style={btnEliminar}
 
 <h2 style={tituloSeccion}>📋 DETALLE OPERATIVO</h2>
 
-{/* 🔥 NUEVO: USUARIO */}
 <div style={{marginBottom:10}}>
 👤 Responsable: <b>{usuario}</b>
 </div>
@@ -386,7 +377,7 @@ fontWeight:"bold"
 }
 
 /* ========================= */
-/* ESTILOS (NO TOCADOS) */
+/* ESTILOS */
 /* ========================= */
 
 const container: CSSProperties = {
