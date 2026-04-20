@@ -378,3 +378,58 @@ onClick={()=>toggle(a.nombre)}
 </div>
 )
 }
+/* ========================= */
+/* ESTILOS (RESTAURADOS) */
+/* ========================= */
+
+const container: CSSProperties = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:30
+}
+
+const header: CSSProperties = {
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:20
+}
+
+const btn: CSSProperties = {
+background:"#1f2937",
+color:"white",
+padding:"6px 10px",
+borderRadius:6,
+border:"none",
+cursor:"pointer"
+}
+
+const modalBg: CSSProperties = {
+position:"fixed",
+top:0,
+left:0,
+width:"100%",
+height:"100%",
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+}
+
+const modalBox: CSSProperties = {
+background:"#111827",
+padding:20,
+borderRadius:10,
+width:300
+}
+
+const inputModal: CSSProperties = {
+width:"100%",
+marginBottom:10,
+padding:"10px",
+borderRadius:6,
+border:"none",
+background:"#1f2937",
+color:"white"
+}
