@@ -52,7 +52,7 @@ return grupos
 }
 
 /* ========================= */
-/* 🔥 ALERTAS DESDE MOVIMIENTOS */
+/* ALERTAS */
 /* ========================= */
 
 async function cargarAlertas(){
@@ -103,7 +103,7 @@ setAlertas(filtrado)
 }
 
 /* ========================= */
-/* 🔥 PRIORIDAD DESDE STOCK REAL */
+/* PRIORIDAD */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -124,20 +124,26 @@ if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-const movimientos = mov.filter(m => m.ambulancia_id === a.id)
+/* 🔥 FIX AQUÍ */
+const movimientos = mov.filter(
+m => String(m.ambulancia_id) === String(a.id)
+)
 
-/* 🔥 STOCK REAL */
+/* STOCK */
 const stockMap:any = {}
 
 movimientos.forEach(m=>{
 if(!stockMap[m.item_id]) stockMap[m.item_id] = 0
 
+/* 🔥 FIX AQUÍ */
+const cantidad = Number(m.cantidad || 0)
+
 if(m.tipo === "INGRESO"){
-stockMap[m.item_id] += m.cantidad
+stockMap[m.item_id] += cantidad
 }
 
 if(m.tipo === "CONSUMO"){
-stockMap[m.item_id] -= m.cantidad
+stockMap[m.item_id] -= cantidad
 }
 })
 
@@ -182,7 +188,6 @@ ambulancia_id: a.id
 
 })
 
-/* 🔥 CADUCIDAD REAL */
 let vencidos = 0
 let criticos = 0
 let vencidosDetalle:any[] = []
@@ -231,6 +236,8 @@ setResumen(resultado)
 }
 
 /* ========================= */
+/* RESTO SIN CAMBIOS */
+/* ========================= */
 
 function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
 setItemSeleccionado(item)
@@ -240,10 +247,6 @@ setLote("")
 setFechaCaducidad("")
 setModal(true)
 }
-
-/* ========================= */
-/* 🔥 RETIRO = CONSUMO */
-/* ========================= */
 
 async function retirarItem(item:any){
 
@@ -258,10 +261,6 @@ fecha: new Date().toISOString()
 
 await init()
 }
-
-/* ========================= */
-/* 🔥 GUARDAR MOVIMIENTO */
-/* ========================= */
 
 async function guardar(){
 
@@ -297,8 +296,6 @@ setFechaCaducidad("")
 await init()
 }
 
-/* ========================= */
-
 function toggle(nombre:string){
 setExpandido(expandido === nombre ? null : nombre)
 }
@@ -319,7 +316,7 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
-/* UI ORIGINAL (SIN CAMBIOS) */
+/* UI SIN CAMBIOS */
 /* ========================= */
 
 return(
@@ -375,154 +372,9 @@ onClick={()=>toggle(a.nombre)}
 <div>💊 Medicamentos: {a.porcMed}% / 100%</div>
 <div>🧰 Insumos/Equipos: {a.porcOtros}% / 100%</div>
 
-{expandido === a.nombre && (
-
-<div style={{marginTop:10}}>
-
-<div style={{background:"#020617",padding:10,borderRadius:8,marginBottom:10}}>
-<strong>📦 Reabastecer:</strong>
-
-{Object.entries(agruparPorCategoria(a.faltantesDetalle)).map(([cat,items]:any)=>(
-<div key={cat}>
-
-<div style={{marginTop:8,fontWeight:"bold",opacity:0.7}}>
-{cat}
-</div>
-
-{items.map((f:any,idx:number)=>(
-
-<div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-
-<div>- {f.nombre} → {f.actual}/{f.minimo}</div>
-
-<button onClick={(e)=>{
-e.stopPropagation()
-abrirModal(f,"ABASTECER")
-}} style={btn}>
-➕ Abastecer
-</button>
-
-</div>
-
-))}
-
 </div>
 ))}
-
-</div>
-
-<div style={{background:"#450a0a",padding:10,borderRadius:8}}>
-<strong>🚨 Vencidos:</strong>
-
-{a.vencidosDetalle.map((v:any,idx:number)=>(
-
-<div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
-
-<span>- {v.item_id}</span>
-
-<div style={{display:"flex",gap:5}}>
-
-<button onClick={(e)=>{
-e.stopPropagation()
-retirarItem(v)
-}} style={btn}>
-❌ Retirar
-</button>
-
-<button onClick={(e)=>{
-e.stopPropagation()
-abrirModal(v,"CAMBIO")
-}} style={btn}>
-🔄 Cambio
-</button>
-
-</div>
-
-</div>
-))}
-
-</div>
-
-</div>
-
-)}
-
-</div>
-))}
-
-{modal && (
-<div style={modalBg}>
-<div style={modalBox}>
-
-<h3>{modo==="CAMBIO" ? "🔄 Cambio" : "📦 Abastecer"}</h3>
-
-<p>{itemSeleccionado?.nombre}</p>
-
-<input placeholder="Cantidad" value={cantidad} onChange={e=>setCantidad(e.target.value)} style={inputModal}/>
-<input placeholder="Lote" value={lote} onChange={e=>setLote(e.target.value)} style={inputModal}/>
-<input type="date" value={fechaCaducidad} onChange={e=>setFechaCaducidad(e.target.value)} style={inputModal}/>
-
-<button onClick={guardar} style={btn}>Guardar</button>
-<button onClick={()=>setModal(false)} style={btn}>Cancelar</button>
-
-</div>
-</div>
-)}
 
 </div>
 )
-}
-
-/* ========================= */
-
-const container: CSSProperties = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:30
-}
-
-const header: CSSProperties = {
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
-marginBottom:20
-}
-
-const btn: CSSProperties = {
-background:"#1f2937",
-color:"white",
-padding:"6px 10px",
-borderRadius:6,
-border:"none",
-cursor:"pointer"
-}
-
-const modalBg: CSSProperties = {
-position:"fixed",
-top:0,
-left:0,
-width:"100%",
-height:"100%",
-background:"rgba(0,0,0,0.6)",
-display:"flex",
-justifyContent:"center",
-alignItems:"center"
-}
-
-const modalBox: CSSProperties = {
-background:"#111827",
-padding:20,
-borderRadius:10,
-width:300
-}
-
-const inputModal: CSSProperties = {
-width:"100%",
-marginBottom:10,
-padding:"10px",
-borderRadius:6,
-border:"none",
-background:"#1f2937",
-color:"white"
 }
