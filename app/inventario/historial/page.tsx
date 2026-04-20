@@ -59,8 +59,6 @@ let query = supabase
 *,
 estado,
 responsable,
-checklist_id,
-fecha_registro,
 inventario_items (
   nombre,
   categoria
@@ -88,17 +86,15 @@ setDetalle({})
 return
 }
 
-/* ========================= */
-/* 🔥 AGRUPACIÓN CORRECTA */
-/* ========================= */
-
+/* 🔥 AGRUPACIÓN CORRECTA POR DÍA */
 const grupos:any = {}
 
 data.forEach(item=>{
 
-const key = item.checklist_id
+const fecha = new Date(item.fecha_registro)
 
-if(!key) return // evita registros rotos
+// 👉 clave SOLO día (esto arregla todo)
+const key = fecha.toISOString().split("T")[0]
 
 if(!grupos[key]){
 grupos[key] = []
@@ -108,22 +104,14 @@ grupos[key].push(item)
 
 })
 
-/* ========================= */
+const lista = Object.keys(grupos).map(key=>({
 
-const lista = Object.keys(grupos).map(key=>{
+fecha: key,
+items: grupos[key]
 
-const items = grupos[key]
+}))
 
-return {
-fecha: items[0]?.fecha_registro,
-items
-}
-
-})
-
-lista.sort((a,b)=>
-new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-)
+lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
 
@@ -208,10 +196,8 @@ alert("Error al eliminar")
 
 function imprimirChecklist(c:any){
 
-const fechaValida = c.fecha ? new Date(c.fecha).toLocaleString() : "Sin fecha"
-
 const contenido = `
-<h2>CHECKLIST ${fechaValida}</h2>
+<h2>CHECKLIST ${new Date(c.fecha).toLocaleDateString()}</h2>
 <p><b>Responsable:</b> ${c.items[0]?.responsable || "No registrado"}</p>
 <p><b>Items:</b> ${c.items.length}</p>
 <hr/>
@@ -298,7 +284,7 @@ return(
 <div key={i} style={rowClickable}>
 
 <div onClick={()=>procesarDetalle(c.items)}>
-📅 {c.fecha ? new Date(c.fecha).toLocaleString() : "Sin fecha"}
+📅 {new Date(c.fecha).toLocaleDateString()}
 </div>
 
 <div onClick={()=>procesarDetalle(c.items)}>
@@ -394,7 +380,7 @@ fontWeight:"bold"
 }
 
 /* ========================= */
-/* ESTILOS (SIN CAMBIOS) */
+/* ESTILOS */
 /* ========================= */
 
 const container: CSSProperties = {
