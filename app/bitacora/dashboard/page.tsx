@@ -103,7 +103,7 @@ setAlertas(filtrado)
 }
 
 /* ========================= */
-/* PRIORIDAD */
+/* PRIORIDAD (FIX REAL) */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -129,8 +129,7 @@ const movimientos = mov.filter(
 m => String(m.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 ITEMS REALES EN ESA AMBULANCIA */
-const itemsConMovimiento = new Set(movimientos.map(m => m.item_id))
+/* 🔥 ELIMINADO FILTRO INCORRECTO */
 
 /* STOCK */
 const stockMap:any = {}
@@ -152,7 +151,7 @@ stockMap[m.item_id] -= cantidad
 let faltantes = 0
 let faltantesDetalle:any[] = []
 
-let totalItems = itemsConMovimiento.size
+let totalItems = base.length
 let itemsOK = 0
 
 let totalMed = 0
@@ -162,9 +161,7 @@ let okOtros = 0
 
 base.forEach(b=>{
 
-/* 🔥 IGNORAR ITEMS QUE NO EXISTEN EN ESA AMBULANCIA */
-if(!itemsConMovimiento.has(b.item_id)) return
-
+/* 🔥 CLAVE: SI NO HAY MOVIMIENTO = STOCK 0 */
 const actual = Number(stockMap[b.item_id] || 0)
 
 const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
@@ -384,8 +381,6 @@ onClick={()=>toggle(a.nombre)}
 )
 }
 
-/* ========================= */
-/* ESTILOS */
 /* ========================= */
 
 const container: CSSProperties = {
