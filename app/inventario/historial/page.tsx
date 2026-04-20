@@ -18,6 +18,9 @@ const [detalle,setDetalle] = useState<any>({})
 const [fechaInicio,setFechaInicio] = useState("")
 const [fechaFin,setFechaFin] = useState("")
 
+/* 🔥 NUEVO */
+const [usuario,setUsuario] = useState("")
+
 useEffect(()=>{
 cargarAmbulancias()
 },[])
@@ -49,12 +52,14 @@ return
 
 setChecklists([])
 setDetalle({})
+setUsuario("")
 
 let query = supabase
 .from("inventario_checklist")
 .select(`
 *,
 estado,
+usuario, /* 🔥 IMPORTANTE: debe existir esta columna */
 inventario_items (
   nombre,
   categoria
@@ -82,10 +87,6 @@ setDetalle({})
 return
 }
 
-/* ========================= */
-/* AGRUPAR */
-/* ========================= */
-
 const grupos:any = {}
 
 data.forEach(item=>{
@@ -111,6 +112,10 @@ items: grupos[fecha]
 lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
+
+/* 🔥 NUEVO: guardo usuario del primer checklist */
+setUsuario(lista[0].items[0]?.usuario || "No registrado")
+
 procesarDetalle(lista[0].items)
 
 }
@@ -133,12 +138,13 @@ grupos[cat].push(i)
 
 })
 
+/* 🔥 usuario dinámico */
+setUsuario(items[0]?.usuario || "No registrado")
+
 setDetalle(grupos)
 
 }
 
-/* ========================= */
-/* ✅ FIX AQUÍ */
 /* ========================= */
 
 function getEstadoVisual(estado:string){
@@ -151,18 +157,16 @@ if(estado === "FINALIZADO"){
 return { label:"🟢 FINALIZADO", color:"#22c55e" }
 }
 
-/* 🔥 SOLUCIÓN */
 if(estado === "ABASTECIMIENTO"){
 return { label:"🔵 ABASTECIMIENTO", color:"#3b82f6" }
 }
 
-/* 🔒 fallback controlado */
 return { label:"⚪ SIN CLASIFICAR", color:"#6b7280" }
 
 }
 
 /* ========================= */
-/* 🔥 BORRAR CHECKLIST */
+/* 🗑️ BORRAR */
 /* ========================= */
 
 async function borrarChecklist(items:any[]){
@@ -187,6 +191,42 @@ cargarHistorial(ambulancia)
 console.error(e)
 alert("Error al eliminar")
 }
+
+}
+
+/* ========================= */
+/* 🖨️ IMPRIMIR */
+/* ========================= */
+
+function imprimirChecklist(c:any){
+
+const contenido = `
+<h2>CHECKLIST ${new Date(c.fecha).toLocaleString()}</h2>
+<p><b>Usuario:</b> ${c.items[0]?.usuario || "No registrado"}</p>
+<p><b>Items:</b> ${c.items.length}</p>
+<hr/>
+${c.items.map((i:any)=>`
+<div>
+${i.inventario_items?.nombre} - ${i.cantidad}
+</div>
+`).join("")}
+`
+
+const ventana = window.open("", "", "width=800,height=600")
+
+ventana?.document.write(`
+<html>
+<head>
+<title>Imprimir</title>
+</head>
+<body>
+${contenido}
+</body>
+</html>
+`)
+
+ventana?.document.close()
+ventana?.print()
 
 }
 
@@ -262,6 +302,14 @@ fontWeight:"bold"
 {estadoVisual.label}
 </div>
 
+{/* 🔥 NUEVO BOTÓN IMPRIMIR */}
+<button
+onClick={()=>imprimirChecklist(c)}
+style={{background:"#22c55e",color:"white",border:"none",padding:"5px 10px",borderRadius:6}}
+>
+🖨️
+</button>
+
 <button
 onClick={()=>borrarChecklist(c.items)}
 style={btnEliminar}
@@ -278,6 +326,11 @@ style={btnEliminar}
 </div>
 
 <h2 style={tituloSeccion}>📋 DETALLE OPERATIVO</h2>
+
+{/* 🔥 NUEVO: USUARIO */}
+<div style={{marginBottom:10}}>
+👤 Responsable: <b>{usuario}</b>
+</div>
 
 <div style={tabla}>
 
@@ -333,6 +386,8 @@ fontWeight:"bold"
 }
 
 /* ========================= */
+/* ESTILOS (NO TOCADOS) */
+/* ========================= */
 
 const container: CSSProperties = {
 background:"#020617",
@@ -382,7 +437,7 @@ borderBottom:"1px solid #1f2937"
 
 const rowClickable: CSSProperties = {
 display:"grid",
-gridTemplateColumns:"2fr 1fr 1fr auto",
+gridTemplateColumns:"2fr 1fr 1fr auto auto",
 padding:12,
 borderBottom:"1px solid #1f2937",
 background:"rgba(255,255,255,0.02)"
