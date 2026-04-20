@@ -124,7 +124,7 @@ if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-/* 🔥 FIX AQUÍ */
+/* ✅ FIX ID */
 const movimientos = mov.filter(
 m => String(m.ambulancia_id) === String(a.id)
 )
@@ -135,7 +135,6 @@ const stockMap:any = {}
 movimientos.forEach(m=>{
 if(!stockMap[m.item_id]) stockMap[m.item_id] = 0
 
-/* 🔥 FIX AQUÍ */
 const cantidad = Number(m.cantidad || 0)
 
 if(m.tipo === "INGRESO"){
@@ -160,7 +159,11 @@ let okOtros = 0
 
 base.forEach(b=>{
 
-const actual = stockMap[b.item_id] || 0
+/* 🔥 FIX REAL */
+const actual = stockMap[b.item_id] ?? null
+
+/* 🔥 SI NUNCA EXISTIÓ → NO CONTAR */
+if(actual === null) return
 
 const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
@@ -221,9 +224,9 @@ vencidos,
 prioridad,
 faltantesDetalle,
 vencidosDetalle,
-porcentaje: Math.round((itemsOK / totalItems) * 100),
-porcMed: Math.round((okMed / totalMed) * 100),
-porcOtros: Math.round((okOtros / totalOtros) * 100)
+porcentaje: totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0,
+porcMed: totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0,
+porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 }
 
 })
@@ -378,8 +381,9 @@ onClick={()=>toggle(a.nombre)}
 </div>
 )
 }
+
 /* ========================= */
-/* ESTILOS (RESTAURADOS) */
+/* ESTILOS */
 /* ========================= */
 
 const container: CSSProperties = {
