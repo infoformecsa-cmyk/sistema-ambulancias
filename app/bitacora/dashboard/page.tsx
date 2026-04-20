@@ -35,8 +35,7 @@ const { data } = await supabase
 .select(`
 ambulancia_id,
 fecha_caducidad,
-item_id,
-inventario_items (nombre)
+item_id
 `)
 .eq("tipo","INGRESO")
 .not("fecha_caducidad","is",null)
@@ -83,16 +82,16 @@ if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-/* 🔥 movimientos SOLO de esa ambulancia */
 const movimientos = mov.filter(
 m => String(m.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 agrupar stock REAL */
+/* 🔥 STOCK REAL */
 const stockMap:any = {}
 
 movimientos.forEach(m=>{
 const id = String(m.item_id)
+
 if(!stockMap[id]) stockMap[id] = 0
 
 const cantidad = Number(m.cantidad || 0)
@@ -101,9 +100,7 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 if(m.tipo === "CONSUMO") stockMap[id] -= cantidad
 })
 
-/* 🔥 SOLO items que existen en esa ambulancia */
-const itemsEnAmbulancia = Object.keys(stockMap)
-
+/* 🔥 CLAVE REAL: solo evaluar items relevantes */
 let faltantes = 0
 let totalItems = 0
 let itemsOK = 0
@@ -113,15 +110,20 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-itemsEnAmbulancia.forEach(id=>{
+base.forEach(b=>{
 
-const itemBase = base.find(b => String(b.item_id) === id)
-if(!itemBase) return
-
+const id = String(b.item_id)
 const actual = Number(stockMap[id] || 0)
-const minimo = Number(itemBase.cantidad_minima || 0)
+const minimo = Number(b.cantidad_minima || 0)
 
-const esMed = (itemBase.categoria || "").toLowerCase() === "medicamentos"
+/* 🔥 REGLA CORRECTA */
+const tieneMovimiento = stockMap[id] !== undefined
+
+if(!tieneMovimiento && minimo === 0){
+return
+}
+
+const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -150,7 +152,6 @@ const hoy = new Date()
 movimientos
 .filter(m=> m.tipo === "INGRESO" && m.fecha_caducidad)
 .forEach(m=>{
-
 const diff = (new Date(m.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
 if(diff <= 0) vencidos++
@@ -162,7 +163,7 @@ if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
 else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
 
 return {
-nombre: a.codigo_operativo,
+nombre: String(a.codigo_operativo),
 faltantes,
 criticos,
 vencidos,
@@ -174,17 +175,17 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
 })
 
-/* 🔥 ORDEN CORRECTO */
+/* 🔥 ORDEN CLÍNICO CORRECTO */
 resultado.sort((a,b)=>{
 
-const parse = (txt:string)=>{
+const parse = (txt:string): [string, number] => {
 const m = txt.match(/^([A-Z]+)-(\d+)/)
-if(!m) return [txt,0]
-return [m[1], parseInt(m[2])]
+if(!m) return [String(txt), 0]
+return [m[1], Number(m[2])]
 }
 
-const [pA,nA] = parse(a.nombre)
-const [pB,nB] = parse(b.nombre)
+const [pA,nA] = parse(String(a.nombre))
+const [pB,nB] = parse(String(b.nombre))
 
 if(pA !== pB) return pA.localeCompare(pB)
 return nA - nB
@@ -194,10 +195,6 @@ setResumen(resultado)
 }
 
 /* ========================= */
-
-function toggle(nombre:string){
-setExpandido(expandido === nombre ? null : nombre)
-}
 
 function colorEstado(e:string){
 if(e==="ALTA") return "#7f1d1d"
@@ -215,7 +212,7 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
-/* UI ORIGINAL */
+/* UI */
 /* ========================= */
 
 return(
