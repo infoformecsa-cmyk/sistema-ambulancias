@@ -124,14 +124,11 @@ if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-/* 🔥 FIX ID */
 const movimientos = mov.filter(
 m => String(m.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 ELIMINADO FILTRO INCORRECTO */
-
-/* STOCK */
+/* STOCK REAL */
 const stockMap:any = {}
 
 movimientos.forEach(m=>{
@@ -151,7 +148,7 @@ stockMap[m.item_id] -= cantidad
 let faltantes = 0
 let faltantesDetalle:any[] = []
 
-let totalItems = base.length
+let totalItems = 0
 let itemsOK = 0
 
 let totalMed = 0
@@ -161,8 +158,14 @@ let okOtros = 0
 
 base.forEach(b=>{
 
-/* 🔥 CLAVE: SI NO HAY MOVIMIENTO = STOCK 0 */
 const actual = Number(stockMap[b.item_id] || 0)
+
+/* 🔥 FIX CLAVE */
+const tieneMovimiento = movimientos.some(m => m.item_id === b.item_id)
+
+if(!tieneMovimiento && actual === 0){
+return
+}
 
 const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
@@ -188,8 +191,11 @@ ambulancia_id: a.id
 })
 }
 
+totalItems++
+
 })
 
+/* CADUCIDAD */
 let vencidos = 0
 let criticos = 0
 let vencidosDetalle:any[] = []
@@ -238,7 +244,7 @@ setResumen(resultado)
 }
 
 /* ========================= */
-/* RESTO SIN CAMBIOS */
+/* RESTO ORIGINAL */
 /* ========================= */
 
 function abrirModal(item:any, tipo:"ABASTECER"|"CAMBIO"="ABASTECER"){
@@ -318,7 +324,7 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
-/* UI SIN CAMBIOS */
+/* UI ORIGINAL COMPLETA */
 /* ========================= */
 
 return(
@@ -381,6 +387,8 @@ onClick={()=>toggle(a.nombre)}
 )
 }
 
+/* ========================= */
+/* ESTILOS */
 /* ========================= */
 
 const container: CSSProperties = {
