@@ -124,10 +124,13 @@ if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-/* ✅ FIX ID */
+/* 🔥 FIX ID */
 const movimientos = mov.filter(
 m => String(m.ambulancia_id) === String(a.id)
 )
+
+/* 🔥 ITEMS REALES EN ESA AMBULANCIA */
+const itemsConMovimiento = new Set(movimientos.map(m => m.item_id))
 
 /* STOCK */
 const stockMap:any = {}
@@ -149,7 +152,7 @@ stockMap[m.item_id] -= cantidad
 let faltantes = 0
 let faltantesDetalle:any[] = []
 
-let totalItems = base.length
+let totalItems = itemsConMovimiento.size
 let itemsOK = 0
 
 let totalMed = 0
@@ -159,7 +162,10 @@ let okOtros = 0
 
 base.forEach(b=>{
 
-const actual = stockMap[b.item_id] ?? 0
+/* 🔥 IGNORAR ITEMS QUE NO EXISTEN EN ESA AMBULANCIA */
+if(!itemsConMovimiento.has(b.item_id)) return
+
+const actual = Number(stockMap[b.item_id] || 0)
 
 const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
