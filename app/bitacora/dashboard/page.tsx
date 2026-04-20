@@ -9,55 +9,15 @@ export default function Dashboard(){
 
 const router = useRouter()
 
-const [alertas,setAlertas] = useState<any[]>([])
 const [resumen,setResumen] = useState<any[]>([])
-const [expandido,setExpandido] = useState<string | null>(null)
-
 const [loading,setLoading] = useState(true)
 
 useEffect(()=>{ init() },[])
 
 async function init(){
 setLoading(true)
-await cargarAlertas()
 await calcularPrioridad()
 setLoading(false)
-}
-
-/* ========================= */
-/* ALERTAS */
-/* ========================= */
-
-async function cargarAlertas(){
-
-const { data } = await supabase
-.from("inventario_movimientos")
-.select(`
-ambulancia_id,
-fecha_caducidad,
-item_id
-`)
-.eq("tipo","INGRESO")
-.not("fecha_caducidad","is",null)
-
-const hoy = new Date()
-
-const procesado = (data || []).map(i=>{
-const fecha = new Date(i.fecha_caducidad)
-const diff = (fecha.getTime() - hoy.getTime()) / (1000*60*60*24)
-
-let estado = "OK"
-if(diff <= 0) estado = "VENCIDO"
-else if(diff <= 30) estado = "CRITICO"
-else if(diff <= 90) estado = "PREVENTIVO"
-
-return {
-ambulancia: i.ambulancia_id,
-estado
-}
-})
-
-setAlertas(procesado.filter(i=> i.estado !== "OK"))
 }
 
 /* ========================= */
@@ -100,7 +60,9 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 if(m.tipo === "CONSUMO") stockMap[id] -= cantidad
 })
 
-/* 🔥 CLAVE REAL: solo evaluar items relevantes */
+/* 🔥 CLAVE: SOLO ITEMS QUE EXISTEN */
+const itemsReales = Object.keys(stockMap)
+
 let faltantes = 0
 let totalItems = 0
 let itemsOK = 0
@@ -110,20 +72,15 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-base.forEach(b=>{
+itemsReales.forEach(id=>{
 
-const id = String(b.item_id)
+const itemBase = base.find(b => String(b.item_id) === id)
+if(!itemBase) return
+
 const actual = Number(stockMap[id] || 0)
-const minimo = Number(b.cantidad_minima || 0)
+const minimo = Number(itemBase.cantidad_minima || 0)
 
-/* 🔥 REGLA CORRECTA */
-const tieneMovimiento = stockMap[id] !== undefined
-
-if(!tieneMovimiento && minimo === 0){
-return
-}
-
-const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (itemBase.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -175,7 +132,7 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
 })
 
-/* 🔥 ORDEN CLÍNICO CORRECTO */
+/* 🔥 ORDEN CORRECTO */
 resultado.sort((a,b)=>{
 
 const parse = (txt:string): [string, number] => {
