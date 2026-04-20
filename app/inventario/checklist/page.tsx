@@ -6,7 +6,6 @@ import { useEffect, useState, useRef } from "react"
 import type { CSSProperties } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
-/* 🔥 SOLO CAMBIO AQUÍ */
 const COLORES_KIT:any = {
 celeste:"#8b5cf6",
 azul:"#3b82f6",
@@ -41,7 +40,10 @@ const refResponsable = useRef<any>(null)
 useEffect(()=>{ cargar() },[])
 
 useEffect(()=>{
-if(ambulancia){ cargarBorrador() }
+if(ambulancia){
+setDatos({}) // 🔥 LIMPIA ESTADO ANTERIOR
+cargarBorrador()
+}
 },[ambulancia])
 
 async function cargar(){
@@ -51,6 +53,7 @@ const {data:amb} = await supabase.from("ambulancias").select("*")
 
 const limpio = (data || []).map(i => ({
 ...i,
+id: String(i.id), // 🔥 NORMALIZAR ID
 categoria: (i.categoria || "").toLowerCase().trim()
 }))
 
@@ -64,7 +67,8 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 setAmbulancias(ordenadas)
 }
 
-/* 🔥 SOLO SE AÑADE ESTA LÍNEA */
+/* ========================= */
+
 async function cargarBorrador(){
 
 const { data } = await supabase
@@ -73,23 +77,30 @@ const { data } = await supabase
 .eq("ambulancia_id", ambulancia)
 .eq("estado","BORRADOR")
 
-if(!data || data.length === 0) return
+if(!data || data.length === 0){
+setDatos({})
+return
+}
 
 const reconstruido:any = {}
 
 data.forEach((d:any)=>{
-if(!reconstruido[d.item_id]){
-reconstruido[d.item_id] = []
+
+const id = String(d.item_id) // 🔥 NORMALIZAR
+
+if(!reconstruido[id]){
+reconstruido[id] = []
 }
-reconstruido[d.item_id].push({
-lote: d.lote,
-cantidad: d.cantidad,
-fecha: d.fecha_caducidad
-})
+
+reconstruido[id].push({
+lote: d.lote || "",
+cantidad: d.cantidad || "",
+fecha: d.fecha_caducidad || ""
 })
 
-setResponsable(data[0]?.responsable || "") // 🔥 NUEVO (no rompe nada)
+})
 
+setResponsable(data[0]?.responsable || "")
 setDatos(reconstruido)
 }
 
@@ -112,7 +123,7 @@ setDatos({...datos,[id]:copia})
 }
 
 function getMin(i:any){
-return i.cantidad_minima>0 ? i.cantidad_minima : "-"
+return Number(i.cantidad_minima || 0) > 0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
@@ -135,8 +146,6 @@ return true
 }
 
 /* ========================= */
-/* 🔥 SOLO ESTA FUNCIÓN CAMBIA */
-/* ========================= */
 
 async function guardar(tipo:"BORRADOR"|"FINALIZADO"){
 
@@ -148,7 +157,6 @@ setGuardando(true)
 
 try{
 
-/* 🔍 BUSCAR BORRADOR */
 const { data: existente } = await supabase
 .from("inventario_checklist")
 .select("checklist_id")
@@ -158,7 +166,6 @@ const { data: existente } = await supabase
 
 let checklistId = existente?.[0]?.checklist_id
 
-/* 🧠 CREAR O REUTILIZAR */
 if(!checklistId){
 checklistId = crypto.randomUUID()
 }else{
@@ -168,7 +175,6 @@ await supabase
 .eq("checklist_id", checklistId)
 }
 
-/* 💾 INSERTAR */
 for(const itemId in datos){
 
 const item = items.find(i=>i.id === itemId) || kits.find(k=>k.id === itemId)
@@ -198,7 +204,6 @@ estado: tipo
 
 }
 
-/* 🔥 FINALIZAR SIN DUPLICAR */
 if(tipo === "FINALIZADO"){
 await supabase
 .from("inventario_checklist")
@@ -219,7 +224,7 @@ setGuardando(false)
 }
 
 /* ========================= */
-/* TODO TU UI ORIGINAL SIN CAMBIOS */
+/* UI ORIGINAL (NO TOCADO) */
 /* ========================= */
 
 return(
@@ -371,7 +376,7 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 }
 
 /* ========================= */
-/* ESTILOS (SIN CAMBIOS) */
+/* ESTILOS SIN CAMBIOS */
 /* ========================= */
 
 const container: CSSProperties = {
