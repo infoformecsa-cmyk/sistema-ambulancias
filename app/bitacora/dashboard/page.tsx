@@ -10,6 +10,7 @@ export default function Dashboard(){
 const router = useRouter()
 
 const [resumen,setResumen] = useState<any[]>([])
+const [expandido,setExpandido] = useState<string | null>(null)
 const [loading,setLoading] = useState(true)
 
 useEffect(()=>{ init() },[])
@@ -21,7 +22,7 @@ setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 FIX REAL FINAL */
+/* 🔥 FIX REAL (SIN ROMPER UI) */
 /* ========================= */
 
 async function calcularPrioridad(){
@@ -48,11 +49,12 @@ if(!base || !checklist || !mov || !ambulancias) return
 const resultado = ambulancias.map(a=>{
 
 /* ========================= */
-/* STOCK DESDE CHECKLIST */
+/* STOCK REAL */
 /* ========================= */
 
 const stockMap:any = {}
 
+/* BASE DESDE CHECKLIST */
 checklist
 .filter(c => String(c.ambulancia_id) === String(a.id))
 .forEach(c=>{
@@ -61,10 +63,7 @@ if(!stockMap[id]) stockMap[id] = 0
 stockMap[id] += Number(c.cantidad || 0)
 })
 
-/* ========================= */
-/* AJUSTE CON MOVIMIENTOS */
-/* ========================= */
-
+/* AJUSTES POR MOVIMIENTOS */
 mov
 .filter(m => String(m.ambulancia_id) === String(a.id))
 .forEach(m=>{
@@ -78,11 +77,19 @@ if(m.tipo === "INGRESO") stockMap[id] += cantidad
 })
 
 /* ========================= */
-/* 🔥 CLAVE: USAR TODA LA BASE */
+/* 🔥 CLAVE: SOLO ITEMS QUE APLICAN */
 /* ========================= */
 
+/* 👉 items definidos en checklist para esa ambulancia */
+const itemsChecklist = checklist
+.filter(c => String(c.ambulancia_id) === String(a.id))
+.map(c => String(c.item_id))
+
+/* 👉 eliminar duplicados */
+const itemsUnicos = [...new Set(itemsChecklist)]
+
 let faltantes = 0
-let totalItems = base.length
+let totalItems = itemsUnicos.length
 let itemsOK = 0
 
 let totalMed = 0
@@ -90,13 +97,15 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-base.forEach(b=>{
+itemsUnicos.forEach(id=>{
 
-const id = String(b.item_id)
+const itemBase = base.find(b => String(b.item_id) === id)
+if(!itemBase) return
+
 const actual = Number(stockMap[id] || 0)
-const minimo = Number(b.cantidad_minima || 0)
+const minimo = Number(itemBase.cantidad_minima || 0)
 
-const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (itemBase.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -174,6 +183,10 @@ setResumen(resultado)
 
 /* ========================= */
 
+function toggle(nombre:string){
+setExpandido(expandido === nombre ? null : nombre)
+}
+
 function colorEstado(e:string){
 if(e==="ALTA") return "#7f1d1d"
 if(e==="MEDIA") return "#f59e0b"
@@ -190,10 +203,24 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
+/* UI ORIGINAL RESTAURADA */
+/* ========================= */
 
 return(
 
 <div style={container}>
+
+<div style={header}>
+<div>
+<h1>🚑 CENTRO DE CONTROL EMS</h1>
+<p style={{opacity:0.7}}>Prioridad + abastecimiento inteligente</p>
+</div>
+
+<div style={{display:"flex",gap:10}}>
+<button onClick={irHistorial} style={btn}>📊 Historial</button>
+<button onClick={cerrarSesion} style={btn}>Salir</button>
+</div>
+</div>
 
 <h2>🚑 PRIORIDAD OPERATIVA</h2>
 
@@ -203,8 +230,11 @@ return(
 background:colorEstado(a.prioridad),
 padding:15,
 marginBottom:10,
-borderRadius:10
-}}>
+borderRadius:10,
+cursor:"pointer"
+}}
+onClick={()=>toggle(a.nombre)}
+>
 
 <strong>{a.nombre}</strong>
 
@@ -231,4 +261,20 @@ background:"#020617",
 color:"white",
 minHeight:"100vh",
 padding:30
+}
+
+const header: CSSProperties = {
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:20
+}
+
+const btn: CSSProperties = {
+background:"#1f2937",
+color:"white",
+padding:"6px 10px",
+borderRadius:6,
+border:"none",
+cursor:"pointer"
 }
