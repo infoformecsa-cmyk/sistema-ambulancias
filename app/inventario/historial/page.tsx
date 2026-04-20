@@ -59,6 +59,8 @@ let query = supabase
 *,
 estado,
 responsable,
+checklist_id,
+fecha_registro,
 inventario_items (
   nombre,
   categoria
@@ -67,13 +69,13 @@ inventario_items (
 .eq("ambulancia_id", id)
 
 if(fechaInicio){
-query = query.gte("created_at", `${fechaInicio}T00:00:00`)
+query = query.gte("fecha_registro", `${fechaInicio}T00:00:00`)
 }
 if(fechaFin){
-query = query.lte("created_at", `${fechaFin}T23:59:59`)
+query = query.lte("fecha_registro", `${fechaFin}T23:59:59`)
 }
 
-const { data, error } = await query.order("created_at",{ascending:false})
+const { data, error } = await query.order("fecha_registro",{ascending:false})
 
 if(error){
 console.error(error)
@@ -86,14 +88,17 @@ setDetalle({})
 return
 }
 
+/* ========================= */
+/* 🔥 AGRUPACIÓN CORRECTA */
+/* ========================= */
+
 const grupos:any = {}
 
 data.forEach(item=>{
 
-const fecha = new Date(item.created_at)
-fecha.setSeconds(0,0)
+const key = item.checklist_id
 
-const key = item.checklist_id || fecha.toISOString()
+if(!key) return // evita registros rotos
 
 if(!grupos[key]){
 grupos[key] = []
@@ -103,12 +108,22 @@ grupos[key].push(item)
 
 })
 
-const lista = Object.keys(grupos).map(fecha=>({
-fecha,
-items: grupos[fecha]
-}))
+/* ========================= */
 
-lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+const lista = Object.keys(grupos).map(key=>{
+
+const items = grupos[key]
+
+return {
+fecha: items[0]?.fecha_registro,
+items
+}
+
+})
+
+lista.sort((a,b)=>
+new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+)
 
 setChecklists(lista)
 
@@ -193,8 +208,10 @@ alert("Error al eliminar")
 
 function imprimirChecklist(c:any){
 
+const fechaValida = c.fecha ? new Date(c.fecha).toLocaleString() : "Sin fecha"
+
 const contenido = `
-<h2>CHECKLIST ${new Date(c.fecha).toLocaleString()}</h2>
+<h2>CHECKLIST ${fechaValida}</h2>
 <p><b>Responsable:</b> ${c.items[0]?.responsable || "No registrado"}</p>
 <p><b>Items:</b> ${c.items.length}</p>
 <hr/>
@@ -281,7 +298,7 @@ return(
 <div key={i} style={rowClickable}>
 
 <div onClick={()=>procesarDetalle(c.items)}>
-📅 {new Date(c.fecha).toLocaleString()}
+📅 {c.fecha ? new Date(c.fecha).toLocaleString() : "Sin fecha"}
 </div>
 
 <div onClick={()=>procesarDetalle(c.items)}>
