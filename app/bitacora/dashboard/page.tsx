@@ -20,40 +20,67 @@ setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 SOLUCIÓN REAL */
+/* 🔥 LÓGICA REAL SIN RPC */
 /* ========================= */
 
 async function calcular(){
 
-/* 🔥 TRAER BASE */
 const { data: base } = await supabase
 .from("inventario_base")
 .select("item_id,cantidad_minima,categoria")
 
-/* 🔥 TRAER AMBULANCIAS */
+const { data: checklist } = await supabase
+.from("inventario_checklist")
+.select("*")
+.eq("estado","FINALIZADO")
+
 const { data: ambulancias } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-if(!base || !ambulancias) return
-
-/* 🔥 TRAER SOLO EL ÚLTIMO CHECKLIST POR AMBULANCIA */
-const { data: ultimos } = await supabase.rpc("get_ultimo_checklist_por_ambulancia")
-
-/*
-⚠️ ESTA FUNCIÓN SQL DEBE EXISTIR (TE LA DEJO ABAJO)
-*/
-
-if(!ultimos) return
+if(!base || !checklist || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-const items = ultimos.filter(
-(i:any)=> String(i.ambulancia_id) === String(a.id)
+/* 🔥 FILTRAR CHECKLIST DE ESA AMBULANCIA */
+const listaAmb = checklist.filter(
+c => String(c.ambulancia_id) === String(a.id)
 )
 
+/* 🔥 SI NO HAY CHECKLIST → PROBLEMA DE DATOS */
+if(listaAmb.length === 0){
+return {
+nombre: a.codigo_operativo,
+faltantes: 999,
+criticos: 0,
+vencidos: 0,
+prioridad: "ALTA",
+porcentaje: 0,
+porcMed: 0,
+porcOtros: 0
+}
+}
+
+/* 🔥 AGRUPAR POR CHECKLIST_ID */
+const grupos: Record<string, any[]> = {}
+
+listaAmb.forEach(c=>{
+if(!grupos[c.checklist_id]){
+grupos[c.checklist_id] = []
+}
+grupos[c.checklist_id].push(c)
+})
+
+/* 🔥 TOMAR EL MÁS RECIENTE */
+const ultimo = Object.values(grupos)
+.sort((a:any,b:any)=>{
+const fA = new Date(a[0]?.fecha_registro || 0).getTime()
+const fB = new Date(b[0]?.fecha_registro || 0).getTime()
+return fB - fA
+})[0] || []
+
 /* ========================= */
-/* 🔥 CALCULO REAL */
+/* 🔥 STOCK REAL */
 /* ========================= */
 
 let faltantes = 0
@@ -65,7 +92,7 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-items.forEach((i:any)=>{
+ultimo.forEach((i:any)=>{
 
 const baseItem = base.find(b => String(b.item_id) === String(i.item_id))
 if(!baseItem) return
@@ -104,7 +131,7 @@ let criticos = 0
 
 const hoy = new Date()
 
-items.forEach((i:any)=>{
+ultimo.forEach((i:any)=>{
 if(!i.fecha_caducidad) return
 
 const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
@@ -112,8 +139,6 @@ const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*
 if(diff <= 0) vencidos++
 else if(diff <= 30) criticos++
 })
-
-/* ========================= */
 
 let prioridad = "OK"
 if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
