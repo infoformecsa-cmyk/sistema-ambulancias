@@ -13,13 +13,6 @@ const [alertas,setAlertas] = useState<any[]>([])
 const [resumen,setResumen] = useState<any[]>([])
 const [expandido,setExpandido] = useState<string | null>(null)
 
-const [modal,setModal] = useState(false)
-const [itemSeleccionado,setItemSeleccionado] = useState<any>(null)
-const [cantidad,setCantidad] = useState("")
-const [lote,setLote] = useState("")
-const [fechaCaducidad,setFechaCaducidad] = useState("")
-const [modo,setModo] = useState<"ABASTECER" | "CAMBIO">("ABASTECER")
-
 const [loading,setLoading] = useState(true)
 
 useEffect(()=>{ init() },[])
@@ -29,26 +22,6 @@ setLoading(true)
 await cargarAlertas()
 await calcularPrioridad()
 setLoading(false)
-}
-
-/* ========================= */
-
-function getNombre(item:any){
-if(Array.isArray(item)) return item[0]?.nombre || "Item"
-if(item) return item.nombre || "Item"
-return "Item"
-}
-
-function agruparPorCategoria(lista:any[]){
-const grupos:any = {}
-
-lista.forEach(i=>{
-const cat = (i.categoria || "OTROS").toUpperCase()
-if(!grupos[cat]) grupos[cat] = []
-grupos[cat].push(i)
-})
-
-return grupos
 }
 
 /* ========================= */
@@ -81,9 +54,7 @@ else if(diff <= 90) estado = "PREVENTIVO"
 
 return {
 ambulancia: i.ambulancia_id,
-nombre: getNombre(i.inventario_items),
-estado,
-dias: Math.round(diff)
+estado
 }
 })
 
@@ -112,32 +83,28 @@ if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
+/* 🔥 movimientos SOLO de esa ambulancia */
 const movimientos = mov.filter(
 m => String(m.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 MAPA DE STOCK */
+/* 🔥 agrupar stock REAL */
 const stockMap:any = {}
 
 movimientos.forEach(m=>{
 const id = String(m.item_id)
-
 if(!stockMap[id]) stockMap[id] = 0
 
 const cantidad = Number(m.cantidad || 0)
 
-if(m.tipo === "INGRESO"){
-stockMap[id] += cantidad
-}
-
-if(m.tipo === "CONSUMO"){
-stockMap[id] -= cantidad
-}
+if(m.tipo === "INGRESO") stockMap[id] += cantidad
+if(m.tipo === "CONSUMO") stockMap[id] -= cantidad
 })
 
-let faltantes = 0
-let faltantesDetalle:any[] = []
+/* 🔥 SOLO items que existen en esa ambulancia */
+const itemsEnAmbulancia = Object.keys(stockMap)
 
+let faltantes = 0
 let totalItems = 0
 let itemsOK = 0
 
@@ -146,41 +113,28 @@ let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-base.forEach(b=>{
+itemsEnAmbulancia.forEach(id=>{
 
-const id = String(b.item_id)
+const itemBase = base.find(b => String(b.item_id) === id)
+if(!itemBase) return
+
 const actual = Number(stockMap[id] || 0)
+const minimo = Number(itemBase.cantidad_minima || 0)
 
-/* 🔥 CLAVE: incluir si debería existir */
-const debeExistir = Number(b.cantidad_minima) > 0
-const tieneMovimiento = stockMap[id] !== undefined
-
-if(!debeExistir && !tieneMovimiento){
-return
-}
-
-const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (itemBase.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
-if(actual >= b.cantidad_minima) okMed++
+if(actual >= minimo) okMed++
 }else{
 totalOtros++
-if(actual >= b.cantidad_minima) okOtros++
+if(actual >= minimo) okOtros++
 }
 
-if(actual >= b.cantidad_minima){
+if(actual >= minimo){
 itemsOK++
 }else{
 faltantes++
-faltantesDetalle.push({
-item_id: b.item_id,
-nombre: b.nombre,
-categoria: b.categoria,
-actual,
-minimo: b.cantidad_minima,
-ambulancia_id: a.id
-})
 }
 
 totalItems++
@@ -190,7 +144,6 @@ totalItems++
 /* CADUCIDAD */
 let vencidos = 0
 let criticos = 0
-let vencidosDetalle:any[] = []
 
 const hoy = new Date()
 
@@ -200,13 +153,8 @@ movimientos
 
 const diff = (new Date(m.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
-if(diff <= 0){
-vencidos++
-vencidosDetalle.push(m)
-}
-else if(diff <= 30){
-criticos++
-}
+if(diff <= 0) vencidos++
+else if(diff <= 30) criticos++
 })
 
 let prioridad = "OK"
@@ -219,8 +167,6 @@ faltantes,
 criticos,
 vencidos,
 prioridad,
-faltantesDetalle,
-vencidosDetalle,
 porcentaje: totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0,
 porcMed: totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0,
 porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
@@ -228,11 +174,25 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
 })
 
+/* 🔥 ORDEN CORRECTO */
+resultado.sort((a,b)=>{
+
+const parse = (txt:string)=>{
+const m = txt.match(/^([A-Z]+)-(\d+)/)
+if(!m) return [txt,0]
+return [m[1], parseInt(m[2])]
+}
+
+const [pA,nA] = parse(a.nombre)
+const [pB,nB] = parse(b.nombre)
+
+if(pA !== pB) return pA.localeCompare(pB)
+return nA - nB
+})
+
 setResumen(resultado)
 }
 
-/* ========================= */
-/* RESTO SIN CAMBIOS */
 /* ========================= */
 
 function toggle(nombre:string){
@@ -291,11 +251,8 @@ DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
 background:colorEstado(a.prioridad),
 padding:15,
 marginBottom:10,
-borderRadius:10,
-cursor:"pointer"
-}}
-onClick={()=>toggle(a.nombre)}
->
+borderRadius:10
+}}>
 
 <strong>{a.nombre}</strong>
 
