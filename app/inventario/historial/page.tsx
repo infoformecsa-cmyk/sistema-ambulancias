@@ -93,7 +93,7 @@ data.forEach(item=>{
 const fecha = new Date(item.created_at)
 fecha.setSeconds(0,0)
 
-const key = fecha.toISOString()
+const key = item.checklist_id || fecha.toISOString()
 
 if(!grupos[key]){
 grupos[key] = []

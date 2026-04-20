@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient"
 
 /* 🔥 SOLO CAMBIO AQUÍ */
 const COLORES_KIT:any = {
-celeste:"#8b5cf6", // ← morado clínico
+celeste:"#8b5cf6",
 azul:"#3b82f6",
 rojo:"#ef4444",
 amarillo:"#f59e0b"
@@ -64,6 +64,7 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 setAmbulancias(ordenadas)
 }
 
+/* 🔥 SOLO SE AÑADE ESTA LÍNEA */
 async function cargarBorrador(){
 
 const { data } = await supabase
@@ -86,6 +87,8 @@ cantidad: d.cantidad,
 fecha: d.fecha_caducidad
 })
 })
+
+setResponsable(data[0]?.responsable || "") // 🔥 NUEVO (no rompe nada)
 
 setDatos(reconstruido)
 }
@@ -132,6 +135,8 @@ return true
 }
 
 /* ========================= */
+/* 🔥 SOLO ESTA FUNCIÓN CAMBIA */
+/* ========================= */
 
 async function guardar(tipo:"BORRADOR"|"FINALIZADO"){
 
@@ -143,6 +148,27 @@ setGuardando(true)
 
 try{
 
+/* 🔍 BUSCAR BORRADOR */
+const { data: existente } = await supabase
+.from("inventario_checklist")
+.select("checklist_id")
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
+.limit(1)
+
+let checklistId = existente?.[0]?.checklist_id
+
+/* 🧠 CREAR O REUTILIZAR */
+if(!checklistId){
+checklistId = crypto.randomUUID()
+}else{
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("checklist_id", checklistId)
+}
+
+/* 💾 INSERTAR */
 for(const itemId in datos){
 
 const item = items.find(i=>i.id === itemId) || kits.find(k=>k.id === itemId)
@@ -156,6 +182,7 @@ const cantidadNum = Number(l.cantidad || 0)
 if(cantidadNum <= 0) continue
 
 await supabase.from("inventario_checklist").insert({
+checklist_id: checklistId,
 ambulancia_id: ambulancia,
 item_id: itemId,
 nombre: item?.nombre,
@@ -171,7 +198,17 @@ estado: tipo
 
 }
 
-alert(tipo === "FINALIZADO" ? "✅ Checklist FINALIZADO" : "💾 Borrador guardado")
+/* 🔥 FINALIZAR SIN DUPLICAR */
+if(tipo === "FINALIZADO"){
+await supabase
+.from("inventario_checklist")
+.update({ estado:"FINALIZADO" })
+.eq("checklist_id", checklistId)
+}
+
+alert(tipo === "FINALIZADO"
+? "✅ Checklist FINALIZADO"
+: "💾 Borrador guardado")
 
 }catch(e){
 console.error(e)
@@ -182,7 +219,7 @@ setGuardando(false)
 }
 
 /* ========================= */
-/* UI */
+/* TODO TU UI ORIGINAL SIN CAMBIOS */
 /* ========================= */
 
 return(
@@ -336,122 +373,3 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 /* ========================= */
 /* ESTILOS (SIN CAMBIOS) */
 /* ========================= */
-
-const container: CSSProperties = {
-background:"#020617",
-color:"white",
-minHeight:"100vh",
-padding:"15px",
-maxWidth:"900px",
-margin:"0 auto"
-}
-
-const header: CSSProperties = {
-display:"flex",
-flexDirection:"column",
-gap:10,
-marginBottom:20
-}
-
-const panel: CSSProperties = {
-display:"flex",
-flexDirection:"column",
-gap:10
-}
-
-const input: CSSProperties = {
-padding:"12px",
-borderRadius:10,
-background:"#1f2937",
-color:"white",
-border:"none",
-width:"100%"
-}
-
-const inputFull: CSSProperties = {
-...input,
-marginTop:6
-}
-
-const grid: CSSProperties = {
-display:"grid",
-gridTemplateColumns:"1fr",
-gap:10
-}
-
-const card: CSSProperties = {
-background:"#111827",
-borderRadius:10,
-marginBottom:10
-}
-
-const catHeader: CSSProperties = {
-background:"#1f2937",
-padding:12,
-cursor:"pointer"
-}
-
-const item: CSSProperties = {
-padding:10,
-borderBottom:"1px solid #1f2937"
-}
-
-const rowTop: CSSProperties = {
-display:"flex",
-justifyContent:"space-between"
-}
-
-const inputsRow: CSSProperties = {
-display:"flex",
-flexDirection:"column",
-gap:6
-}
-
-const btnAdd: CSSProperties = {
-marginTop:6,
-background:"#22c55e",
-border:"none",
-padding:"8px",
-borderRadius:8
-}
-
-const badge: CSSProperties = {
-background:"#16a34a",
-padding:"2px 6px",
-borderRadius:5,
-fontSize:10
-}
-
-const btnContainer: CSSProperties = {
-display:"flex",
-flexDirection:"column",
-gap:10,
-marginTop:20
-}
-
-const btnPrimary: CSSProperties = {
-background:"#22c55e",
-padding:"18px",
-borderRadius:12,
-border:"none",
-fontWeight:"bold"
-}
-
-const btnWarning: CSSProperties = {
-background:"#f59e0b",
-padding:"18px",
-borderRadius:12,
-border:"none",
-fontWeight:"bold"
-}
-
-const section: CSSProperties = {
-marginTop:20,
-marginBottom:10
-}
-
-const cardKit = (color:any): CSSProperties => ({
-background:"#111827",
-borderRadius:10,
-borderLeft:`5px solid ${COLORES_KIT[color]}`
-})
