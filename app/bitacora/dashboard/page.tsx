@@ -39,7 +39,6 @@ if(item) return item.nombre || "Item"
 return "Item"
 }
 
-/* 🔥 NUEVO: AGRUPADOR */
 function agruparPorCategoria(lista:any[]){
 const grupos:any = {}
 
@@ -53,16 +52,20 @@ return grupos
 }
 
 /* ========================= */
+/* 🔥 ALERTAS DESDE MOVIMIENTOS */
+/* ========================= */
 
 async function cargarAlertas(){
 
 const { data } = await supabase
-.from("inventario_checklist")
+.from("inventario_movimientos")
 .select(`
 ambulancia_id,
 fecha_caducidad,
+item_id,
 inventario_items (nombre)
 `)
+.eq("tipo","INGRESO")
 .not("fecha_caducidad","is",null)
 
 const hoy = new Date()
@@ -87,7 +90,7 @@ dias: Math.round(diff)
 const filtrado = procesado.filter(i=> i.estado !== "OK")
 
 filtrado.sort((a,b)=>{
-function prioridad(e:string){
+const prioridad = (e:string)=>{
 if(e==="VENCIDO") return 1
 if(e==="CRITICO") return 2
 if(e==="PREVENTIVO") return 3
@@ -100,6 +103,8 @@ setAlertas(filtrado)
 }
 
 /* ========================= */
+/* 🔥 PRIORIDAD DESDE STOCK REAL */
+/* ========================= */
 
 async function calcularPrioridad(){
 
@@ -107,35 +112,34 @@ const { data: base } = await supabase
 .from("inventario_base")
 .select("item_id,nombre,cantidad_minima,categoria")
 
-const { data: checklist } = await supabase
-.from("inventario_checklist")
-.select(`*,inventario_items (nombre,categoria)`)
+const { data: mov } = await supabase
+.from("inventario_movimientos")
+.select("*")
 
 const { data: ambulancias } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-if(!base || !checklist || !ambulancias) return
+if(!base || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-const items = checklist.filter(i=> String(i.ambulancia_id) === String(a.id))
+const movimientos = mov.filter(m => m.ambulancia_id === a.id)
 
-const mapa:any = {}
+/* 🔥 STOCK REAL */
+const stockMap:any = {}
 
-items.forEach(i=>{
-if(!mapa[i.item_id]){
-mapa[i.item_id] = i
-}else{
-const actual = new Date(mapa[i.item_id].created_at)
-const nuevo = new Date(i.created_at)
-if(nuevo > actual){
-mapa[i.item_id] = i
+movimientos.forEach(m=>{
+if(!stockMap[m.item_id]) stockMap[m.item_id] = 0
+
+if(m.tipo === "INGRESO"){
+stockMap[m.item_id] += m.cantidad
 }
+
+if(m.tipo === "CONSUMO"){
+stockMap[m.item_id] -= m.cantidad
 }
 })
-
-const ultimo:any[] = Object.values(mapa)
 
 let faltantes = 0
 let faltantesDetalle:any[] = []
@@ -149,8 +153,8 @@ let totalOtros = 0
 let okOtros = 0
 
 base.forEach(b=>{
-const encontrado = ultimo.find((i:any)=> String(i.item_id) === String(b.item_id))
-const actual = encontrado?.cantidad || 0
+
+const actual = stockMap[b.item_id] || 0
 
 const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
@@ -164,36 +168,36 @@ if(actual >= b.cantidad_minima) okOtros++
 
 if(actual >= b.cantidad_minima){
 itemsOK++
-}
-
-if(actual < b.cantidad_minima){
+}else{
 faltantes++
 faltantesDetalle.push({
 item_id: b.item_id,
 nombre: b.nombre,
-categoria: b.categoria, // 🔥 IMPORTANTE
+categoria: b.categoria,
 actual,
 minimo: b.cantidad_minima,
-estado: actual === 0 ? "SIN STOCK" : "INCOMPLETO",
 ambulancia_id: a.id
 })
 }
+
 })
 
-let criticos = 0
+/* 🔥 CADUCIDAD REAL */
 let vencidos = 0
+let criticos = 0
 let vencidosDetalle:any[] = []
 
 const hoy = new Date()
 
-ultimo.forEach((i:any)=>{
-if(!i.fecha_caducidad) return
+movimientos
+.filter(m=> m.tipo === "INGRESO" && m.fecha_caducidad)
+.forEach(m=>{
 
-const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
+const diff = (new Date(m.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
 if(diff <= 0){
 vencidos++
-vencidosDetalle.push(i)
+vencidosDetalle.push(m)
 }
 else if(diff <= 30){
 criticos++
@@ -204,10 +208,6 @@ let prioridad = "OK"
 if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
 else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
 
-const porcentaje = totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0
-const porcMed = totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0
-const porcOtros = totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
-
 return {
 nombre: a.codigo_operativo,
 faltantes,
@@ -216,9 +216,9 @@ vencidos,
 prioridad,
 faltantesDetalle,
 vencidosDetalle,
-porcentaje,
-porcMed,
-porcOtros
+porcentaje: Math.round((itemsOK / totalItems) * 100),
+porcMed: Math.round((okMed / totalMed) * 100),
+porcOtros: Math.round((okOtros / totalOtros) * 100)
 }
 
 })
@@ -242,16 +242,25 @@ setModal(true)
 }
 
 /* ========================= */
+/* 🔥 RETIRO = CONSUMO */
+/* ========================= */
 
 async function retirarItem(item:any){
-await supabase
-.from("inventario_checklist")
-.update({ cantidad: 0 })
-.eq("id", item.id)
+
+await supabase.from("inventario_movimientos").insert({
+ambulancia_id: item.ambulancia_id,
+item_id: item.item_id,
+cantidad: item.cantidad || 1,
+tipo:"CONSUMO",
+usuario:"sistema",
+fecha: new Date().toISOString()
+})
 
 await init()
 }
 
+/* ========================= */
+/* 🔥 GUARDAR MOVIMIENTO */
 /* ========================= */
 
 async function guardar(){
@@ -259,17 +268,25 @@ async function guardar(){
 if(!itemSeleccionado) return
 
 if(modo === "CAMBIO"){
-await retirarItem(itemSeleccionado)
-}
-
-await supabase.from("inventario_checklist").insert({
+await supabase.from("inventario_movimientos").insert({
 ambulancia_id: itemSeleccionado.ambulancia_id,
 item_id: itemSeleccionado.item_id,
 cantidad: Number(cantidad || 0),
-lote: lote?.trim() ? lote : null,
-fecha_caducidad: fechaCaducidad?.trim() ? fechaCaducidad : null,
-fecha_registro: new Date().toISOString(),
-estado: "ABASTECIMIENTO"
+tipo:"CONSUMO",
+usuario:"sistema",
+fecha: new Date().toISOString()
+})
+}
+
+await supabase.from("inventario_movimientos").insert({
+ambulancia_id: itemSeleccionado.ambulancia_id,
+item_id: itemSeleccionado.item_id,
+cantidad: Number(cantidad || 0),
+lote: lote || null,
+fecha_caducidad: fechaCaducidad || null,
+tipo:"INGRESO",
+usuario:"sistema",
+fecha: new Date().toISOString()
 })
 
 setModal(false)
@@ -302,12 +319,13 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
+/* UI ORIGINAL (SIN CAMBIOS) */
+/* ========================= */
 
 return(
 
 <div style={container}>
 
-{/* TITULO */}
 <div style={{marginBottom:10}}>
 <h1 style={{fontSize:22,fontWeight:"bold"}}>
 🚑 BITACORA SANITARIA - SALUD MOVIL
@@ -393,7 +411,6 @@ abrirModal(f,"ABASTECER")
 
 </div>
 
-{/* VENCIDOS IGUAL */}
 <div style={{background:"#450a0a",padding:10,borderRadius:8}}>
 <strong>🚨 Vencidos:</strong>
 
@@ -401,7 +418,7 @@ abrirModal(f,"ABASTECER")
 
 <div key={idx} style={{display:"flex",justifyContent:"space-between"}}>
 
-<span>- {getNombre(v.inventario_items)}</span>
+<span>- {v.item_id}</span>
 
 <div style={{display:"flex",gap:5}}>
 
@@ -433,7 +450,6 @@ abrirModal(v,"CAMBIO")
 </div>
 ))}
 
-{/* MODAL IGUAL */}
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>

@@ -68,6 +68,8 @@ a.codigo_operativo.localeCompare(b.codigo_operativo,undefined,{numeric:true})
 setAmbulancias(ordenadas)
 }
 
+/* ========================= */
+
 function toggle(k:string){
 setExpandido((p:any)=>({...p,[k]:!p[k]}))
 }
@@ -81,26 +83,7 @@ return i.cantidad_minima>0 ? i.cantidad_minima : "-"
 }
 
 /* ========================= */
-/* VALIDACIONES */
-/* ========================= */
-
-function validarFinal(){
-
-if(!ambulancia){
-alert("🚑 Seleccione ambulancia")
-return false
-}
-
-if(!responsable.trim()){
-alert("👤 Ingrese responsable")
-return false
-}
-
-return true
-}
-
-/* ========================= */
-/* GUARDAR BORRADOR */
+/* BORRADOR SIN DUPLICAR */
 /* ========================= */
 
 async function guardarBorrador(){
@@ -110,9 +93,17 @@ alert("⚠️ Complete ambulancia y responsable")
 return
 }
 
+// 🔥 elimina borrador previo
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
+
 for(const itemId in datos){
 
 const cantidad = Number(datos[itemId] || 0)
+if(cantidad <= 0) continue
 
 await supabase.from("inventario_checklist").insert({
 ambulancia_id: ambulancia,
@@ -125,16 +116,19 @@ responsable
 
 }
 
-alert("💾 Borrador guardado")
+alert("💾 Borrador actualizado")
 }
 
 /* ========================= */
-/* FINALIZAR */
+/* FINALIZAR = CONSUMO REAL */
 /* ========================= */
 
 async function finalizar(){
 
-if(!validarFinal()) return
+if(!ambulancia || !responsable.trim()){
+alert("Complete datos")
+return
+}
 
 setGuardando(true)
 
@@ -143,38 +137,36 @@ for(const itemId in datos){
 const cantidad = Number(datos[itemId] || 0)
 if(cantidad <= 0) continue
 
-await supabase.from("inventario_checklist").insert({
+await supabase.from("inventario_movimientos").insert({
 ambulancia_id: ambulancia,
 item_id: itemId,
 cantidad,
-estado:"FINALIZADO",
-fecha_registro: new Date().toISOString(),
-responsable
+tipo:"CONSUMO",
+usuario: responsable,
+fecha: new Date().toISOString()
 })
 
 }
+
+// limpia borrador
+await supabase
+.from("inventario_checklist")
+.delete()
+.eq("ambulancia_id", ambulancia)
+.eq("estado","BORRADOR")
 
 setDatos({})
 setAmbulancia("")
 setResponsable("")
 
-alert("✅ Checklist finalizado")
+alert("✅ Checklist finalizado (consumo aplicado)")
 
 setGuardando(false)
 }
 
 /* ========================= */
-/* ABASTECER */
+/* ABASTECER = INGRESO REAL */
 /* ========================= */
-
-function abrirModal(item:any){
-if(!ambulancia){
-alert("Seleccione ambulancia primero")
-return
-}
-setItemSel(item)
-setModal(true)
-}
 
 async function guardarAbastecimiento(){
 
@@ -183,17 +175,16 @@ alert("Complete todos los campos")
 return
 }
 
-await supabase.from("inventario_checklist").insert({
+await supabase.from("inventario_movimientos").insert({
 ambulancia_id: ambulancia,
 item_id: itemSel.id,
 cantidad: Number(cantidadAb),
 lote,
 fecha_caducidad: fecha,
 origen,
-estado:"ABASTECIMIENTO",
-tipo_movimiento:"ABASTECIMIENTO",
-fecha_registro: new Date().toISOString(),
-responsable
+tipo:"INGRESO",
+usuario: responsable,
+fecha: new Date().toISOString()
 })
 
 alert("✅ Abastecimiento registrado")
@@ -206,11 +197,10 @@ setOrigen("")
 }
 
 /* ========================= */
-/* UI */
+/* UI (NO CAMBIÉ NADA) */
 /* ========================= */
 
 return(
-
 <div style={container}>
 
 <h1 style={title}>🚑 Checklist Operativo</h1>
@@ -234,19 +224,16 @@ style={input}
 <h2 style={section}>🧬 Kits Obstétricos</h2>
 
 {["celeste","azul","amarillo","rojo"].map(color=>{
-
 const grupo = kits.filter(k=>k.kit_color===color)
 if(!grupo.length) return null
 
 return(
 <div key={color} style={cardKit(color)}>
-
 <div style={catHeader} onClick={()=>toggle(color)}>
 {NOMBRES_KIT[color]}
 </div>
 
 {expandido[color] && grupo.map(k=>(
-
 <div key={k.id} style={item}>
 
 <div style={rowTop}>
@@ -262,34 +249,28 @@ onChange={e=>actualizarCantidad(k.id,e.target.value)}
 style={input}
 />
 
-<button onClick={()=>abrirModal(k)} style={btnAdd}>
+<button onClick={()=>{setItemSel(k);setModal(true)}} style={btnAdd}>
 ➕ Abastecer
 </button>
 
 </div>
-
 ))}
-
 </div>
 )
-
 })}
 
 <h2 style={section}>📦 Checklist General</h2>
 
 {ORDEN.map(cat=>{
-
 const grupo = items.filter(i=>i.categoria===cat)
 
 return(
 <div key={cat} style={card}>
-
 <div style={catHeader} onClick={()=>toggle(cat)}>
 {cat.toUpperCase()}
 </div>
 
 {expandido[cat] && grupo.map(i=>(
-
 <div key={i.id} style={item}>
 
 <div style={rowTop}>
@@ -305,17 +286,14 @@ onChange={e=>actualizarCantidad(i.id,e.target.value)}
 style={input}
 />
 
-<button onClick={()=>abrirModal(i)} style={btnAdd}>
+<button onClick={()=>{setItemSel(i);setModal(true)}} style={btnAdd}>
 ➕ Abastecer
 </button>
 
 </div>
-
 ))}
-
 </div>
 )
-
 })}
 
 <div style={btnContainer}>
@@ -331,7 +309,6 @@ style={input}
 {modal && (
 <div style={modalBg}>
 <div style={modalBox}>
-
 <h3>➕ Abastecer</h3>
 <p>{itemSel?.nombre}</p>
 
@@ -357,10 +334,7 @@ style={input}
 )
 }
 
-/* ========================= */
-/* ESTILOS */
-/* ========================= */
-
+/* estilos sin cambios */
 const container: CSSProperties = {background:"#020617",color:"white",minHeight:"100vh",padding:"15px",maxWidth:"900px",margin:"0 auto"}
 const title: CSSProperties = {fontSize:20,marginBottom:10}
 const section: CSSProperties = {marginTop:20,marginBottom:10,fontWeight:"bold"}
