@@ -373,3 +373,122 @@ onChange={e=>actualizar(i.id,index,"fecha",e.target.value)}/>
 /* ========================= */
 /* ESTILOS (SIN CAMBIOS) */
 /* ========================= */
+
+const container: CSSProperties = {
+background:"#020617",
+color:"white",
+minHeight:"100vh",
+padding:"15px",
+maxWidth:"900px",
+margin:"0 auto"
+}
+
+const header: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:10,
+marginBottom:20
+}
+
+const panel: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:10
+}
+
+const input: CSSProperties = {
+padding:"12px",
+borderRadius:10,
+background:"#1f2937",
+color:"white",
+border:"none",
+width:"100%"
+}
+
+const inputFull: CSSProperties = {
+...input,
+marginTop:6
+}
+
+const grid: CSSProperties = {
+display:"grid",
+gridTemplateColumns:"1fr",
+gap:10
+}
+
+const card: CSSProperties = {
+background:"#111827",
+borderRadius:10,
+marginBottom:10
+}
+
+const catHeader: CSSProperties = {
+background:"#1f2937",
+padding:12,
+cursor:"pointer"
+}
+
+const item: CSSProperties = {
+padding:10,
+borderBottom:"1px solid #1f2937"
+}
+
+const rowTop: CSSProperties = {
+display:"flex",
+justifyContent:"space-between"
+}
+
+const inputsRow: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:6
+}
+
+const btnAdd: CSSProperties = {
+marginTop:6,
+background:"#22c55e",
+border:"none",
+padding:"8px",
+borderRadius:8
+}
+
+const badge: CSSProperties = {
+background:"#16a34a",
+padding:"2px 6px",
+borderRadius:5,
+fontSize:10
+}
+
+const btnContainer: CSSProperties = {
+display:"flex",
+flexDirection:"column",
+gap:10,
+marginTop:20
+}
+
+const btnPrimary: CSSProperties = {
+background:"#22c55e",
+padding:"18px",
+borderRadius:12,
+border:"none",
+fontWeight:"bold"
+}
+
+const btnWarning: CSSProperties = {
+background:"#f59e0b",
+padding:"18px",
+borderRadius:12,
+border:"none",
+fontWeight:"bold"
+}
+
+const section: CSSProperties = {
+marginTop:20,
+marginBottom:10
+}
+
+const cardKit = (color:any): CSSProperties => ({
+background:"#111827",
+borderRadius:10,
+borderLeft:`5px solid ${COLORES_KIT[color]}`
+})
