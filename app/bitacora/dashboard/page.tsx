@@ -26,10 +26,18 @@ setLoading(false)
 
 async function calcularPrioridad(){
 
+/* BASE (minimos) */
 const { data: base } = await supabase
 .from("inventario_base")
 .select("item_id,nombre,cantidad_minima,categoria")
 
+/* CHECKLIST = STOCK REAL */
+const { data: checklist } = await supabase
+.from("inventario_checklist")
+.select("*")
+.eq("estado","FINALIZADO")
+
+/* MOVIMIENTOS = CONSUMOS */
 const { data: mov } = await supabase
 .from("inventario_movimientos")
 .select("*")
@@ -38,29 +46,46 @@ const { data: ambulancias } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-if(!base || !mov || !ambulancias) return
+if(!base || !checklist || !mov || !ambulancias) return
 
 const resultado = ambulancias.map(a=>{
 
-const movimientos = mov.filter(
-m => String(m.ambulancia_id) === String(a.id)
-)
+/* ========================= */
+/* 🔥 STOCK DESDE CHECKLIST */
+/* ========================= */
 
-/* 🔥 STOCK REAL */
 const stockMap:any = {}
 
-movimientos.forEach(m=>{
+checklist
+.filter(c => String(c.ambulancia_id) === String(a.id))
+.forEach(c=>{
+const id = String(c.item_id)
+
+if(!stockMap[id]) stockMap[id] = 0
+stockMap[id] += Number(c.cantidad || 0)
+})
+
+/* ========================= */
+/* 🔥 RESTAR CONSUMOS */
+/* ========================= */
+
+mov
+.filter(m => String(m.ambulancia_id) === String(a.id))
+.forEach(m=>{
 const id = String(m.item_id)
 
 if(!stockMap[id]) stockMap[id] = 0
 
 const cantidad = Number(m.cantidad || 0)
 
-if(m.tipo === "INGRESO") stockMap[id] += cantidad
 if(m.tipo === "CONSUMO") stockMap[id] -= cantidad
+if(m.tipo === "INGRESO") stockMap[id] += cantidad
 })
 
-/* 🔥 CLAVE: SOLO ITEMS QUE EXISTEN */
+/* ========================= */
+/* 🔥 CALCULO REAL */
+/* ========================= */
+
 const itemsReales = Object.keys(stockMap)
 
 let faltantes = 0
@@ -100,16 +125,20 @@ totalItems++
 
 })
 
-/* CADUCIDAD */
+/* ========================= */
+/* CADUCIDAD (CHECKLIST) */
+/* ========================= */
+
 let vencidos = 0
 let criticos = 0
 
 const hoy = new Date()
 
-movimientos
-.filter(m=> m.tipo === "INGRESO" && m.fecha_caducidad)
-.forEach(m=>{
-const diff = (new Date(m.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
+checklist
+.filter(c => String(c.ambulancia_id) === String(a.id) && c.fecha_caducidad)
+.forEach(c=>{
+
+const diff = (new Date(c.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
 if(diff <= 0) vencidos++
 else if(diff <= 30) criticos++
@@ -132,7 +161,10 @@ porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
 
 })
 
+/* ========================= */
 /* 🔥 ORDEN CORRECTO */
+/* ========================= */
+
 resultado.sort((a,b)=>{
 
 const parse = (txt:string): [string, number] => {
@@ -141,8 +173,8 @@ if(!m) return [String(txt), 0]
 return [m[1], Number(m[2])]
 }
 
-const [pA,nA] = parse(String(a.nombre))
-const [pB,nB] = parse(String(b.nombre))
+const [pA,nA] = parse(a.nombre)
+const [pB,nB] = parse(b.nombre)
 
 if(pA !== pB) return pA.localeCompare(pB)
 return nA - nB
