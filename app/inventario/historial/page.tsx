@@ -58,7 +58,7 @@ let query = supabase
 .select(`
 *,
 estado,
-usuario,
+responsable,
 inventario_items (
   nombre,
   categoria
@@ -112,7 +112,7 @@ lista.sort((a,b)=> new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
 setChecklists(lista)
 
-setUsuario(lista[0].items[0]?.usuario || "No registrado")
+setUsuario(lista[0].items[0]?.responsable || "No registrado")
 
 procesarDetalle(lista[0].items)
 
@@ -136,7 +136,7 @@ grupos[cat].push(i)
 
 })
 
-setUsuario(items[0]?.usuario || "No registrado")
+setUsuario(items[0]?.responsable || "No registrado")
 
 setDetalle(grupos)
 
@@ -195,7 +195,7 @@ function imprimirChecklist(c:any){
 
 const contenido = `
 <h2>CHECKLIST ${new Date(c.fecha).toLocaleString()}</h2>
-<p><b>Usuario:</b> ${c.items[0]?.usuario || "No registrado"}</p>
+<p><b>Responsable:</b> ${c.items[0]?.responsable || "No registrado"}</p>
 <p><b>Items:</b> ${c.items.length}</p>
 <hr/>
 ${c.items.map((i:any)=>`
@@ -377,7 +377,7 @@ fontWeight:"bold"
 }
 
 /* ========================= */
-/* ESTILOS */
+/* ESTILOS (SIN CAMBIOS) */
 /* ========================= */
 
 const container: CSSProperties = {
