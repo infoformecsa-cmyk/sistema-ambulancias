@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 export default function Dashboard(){
 
 const router = useRouter()
+
 const [resumen,setResumen] = useState<any[]>([])
 const [loading,setLoading] = useState(true)
 
@@ -15,94 +16,118 @@ useEffect(()=>{ init() },[])
 
 async function init(){
 setLoading(true)
-await calcular()
+await calcularPrioridad()
 setLoading(false)
 }
 
 /* ========================= */
-/* 🔥 LÓGICA REAL SIN RPC */
+/* 🔥 FIX REAL DEFINITIVO */
 /* ========================= */
 
-async function calcular(){
+async function calcularPrioridad(){
 
 const { data: base } = await supabase
 .from("inventario_base")
-.select("item_id,cantidad_minima,categoria")
+.select("item_id,nombre,cantidad_minima,categoria")
 
 const { data: checklist } = await supabase
 .from("inventario_checklist")
 .select("*")
 .eq("estado","FINALIZADO")
 
+const { data: mov } = await supabase
+.from("inventario_movimientos")
+.select("*")
+
 const { data: ambulancias } = await supabase
 .from("ambulancias")
 .select("id,codigo_operativo")
 
-if(!base || !checklist || !ambulancias) return
+if(!base || !checklist || !mov || !ambulancias) return
 
-const resultado = ambulancias.map(a=>{
+const resultado:any[] = []
 
+for(const a of ambulancias){
+
+/* ========================= */
 /* 🔥 FILTRAR CHECKLIST DE ESA AMBULANCIA */
-const listaAmb = checklist.filter(
+/* ========================= */
+
+const checklistAmb = checklist.filter(
 c => String(c.ambulancia_id) === String(a.id)
 )
 
-/* 🔥 SI NO HAY CHECKLIST → PROBLEMA DE DATOS */
-if(listaAmb.length === 0){
-return {
-nombre: a.codigo_operativo,
-faltantes: 999,
-criticos: 0,
-vencidos: 0,
-prioridad: "ALTA",
-porcentaje: 0,
-porcMed: 0,
-porcOtros: 0
-}
-}
-
-/* 🔥 AGRUPAR POR CHECKLIST_ID */
+/* 🔥 AGRUPAR POR checklist_id */
 const grupos: Record<string, any[]> = {}
 
-listaAmb.forEach(c=>{
+checklistAmb.forEach(c=>{
 if(!grupos[c.checklist_id]){
 grupos[c.checklist_id] = []
 }
 grupos[c.checklist_id].push(c)
 })
 
-/* 🔥 TOMAR EL MÁS RECIENTE */
-const ultimo = Object.values(grupos)
-.sort((a:any,b:any)=>{
+/* 🔥 OBTENER EL MÁS RECIENTE */
+const listas = Object.values(grupos) as any[][]
+
+const ultimoChecklist = listas.length > 0
+? listas.sort((a,b)=>{
 const fA = new Date(a[0]?.fecha_registro || 0).getTime()
 const fB = new Date(b[0]?.fecha_registro || 0).getTime()
 return fB - fA
-})[0] || []
+})[0]
+: []
 
 /* ========================= */
-/* 🔥 STOCK REAL */
+/* 🔥 STOCK BASE (SUMADO CORRECTO) */
+/* ========================= */
+
+const stockMap: Record<string, number> = {}
+
+ultimoChecklist.forEach((c:any)=>{
+const id = String(c.item_id)
+stockMap[id] = (stockMap[id] || 0) + Number(c.cantidad || 0)
+})
+
+/* ========================= */
+/* 🔥 MOVIMIENTOS POSTERIORES */
+/* ========================= */
+
+mov
+.filter(m => String(m.ambulancia_id) === String(a.id))
+.forEach(m=>{
+const id = String(m.item_id)
+stockMap[id] = (stockMap[id] || 0)
+
+const cantidad = Number(m.cantidad || 0)
+
+if(m.tipo === "CONSUMO") stockMap[id] -= cantidad
+if(m.tipo === "INGRESO") stockMap[id] += cantidad
+})
+
+/* ========================= */
+/* 🔥 CALCULO REAL CONTRA BASE */
 /* ========================= */
 
 let faltantes = 0
-let total = 0
-let ok = 0
+let totalItems = base.length
+let itemsOK = 0
 
 let totalMed = 0
 let okMed = 0
 let totalOtros = 0
 let okOtros = 0
 
-ultimo.forEach((i:any)=>{
+base.forEach(b=>{
 
-const baseItem = base.find(b => String(b.item_id) === String(i.item_id))
-if(!baseItem) return
+const id = String(b.item_id)
+const actual = Number(stockMap[id] || 0)
+const minimo = Number(b.cantidad_minima || 0)
 
-const actual = Number(i.cantidad || 0)
-const minimo = Number(baseItem.cantidad_minima || 0)
-
+/* 🔥 ignorar basura */
 if(minimo <= 0) return
 
-const esMed = (baseItem.categoria || "").toLowerCase() === "medicamentos"
+const esMed = (b.categoria || "").toLowerCase() === "medicamentos"
 
 if(esMed){
 totalMed++
@@ -113,17 +138,15 @@ if(actual >= minimo) okOtros++
 }
 
 if(actual >= minimo){
-ok++
+itemsOK++
 }else{
 faltantes++
 }
 
-total++
-
 })
 
 /* ========================= */
-/* 🔥 CADUCIDAD */
+/* 🔥 CADUCIDAD REAL */
 /* ========================= */
 
 let vencidos = 0
@@ -131,41 +154,49 @@ let criticos = 0
 
 const hoy = new Date()
 
-ultimo.forEach((i:any)=>{
-if(!i.fecha_caducidad) return
+ultimoChecklist.forEach((c:any)=>{
+if(!c.fecha_caducidad) return
 
-const diff = (new Date(i.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
+const diff = (new Date(c.fecha_caducidad).getTime() - hoy.getTime()) / (1000*60*60*24)
 
 if(diff <= 0) vencidos++
 else if(diff <= 30) criticos++
 })
 
+/* ========================= */
+
 let prioridad = "OK"
 if(vencidos > 0 || faltantes > 5) prioridad = "ALTA"
 else if(criticos > 0 || faltantes > 0) prioridad = "MEDIA"
 
-return {
+resultado.push({
 nombre: String(a.codigo_operativo),
 faltantes,
 criticos,
 vencidos,
 prioridad,
-porcentaje: total > 0 ? Math.round((ok / total) * 100) : 0,
+porcentaje: totalItems > 0 ? Math.round((itemsOK / totalItems) * 100) : 0,
 porcMed: totalMed > 0 ? Math.round((okMed / totalMed) * 100) : 0,
 porcOtros: totalOtros > 0 ? Math.round((okOtros / totalOtros) * 100) : 0
-}
-
 })
 
-/* 🔥 ORDEN */
+}
+
+/* ========================= */
+/* 🔥 ORDEN CORRECTO */
+/* ========================= */
+
 resultado.sort((a,b)=>{
+
 const parse = (txt:string): [string, number] => {
 const m = txt.match(/^([A-Z]+)-(\d+)/)
-if(!m) return [txt,0]
+if(!m) return [String(txt), 0]
 return [m[1], Number(m[2])]
 }
-const [pA,nA] = parse(a.nombre)
-const [pB,nB] = parse(b.nombre)
+
+const [pA,nA] = parse(String(a.nombre))
+const [pB,nB] = parse(String(b.nombre))
+
 if(pA !== pB) return pA.localeCompare(pB)
 return nA - nB
 })
@@ -191,10 +222,21 @@ router.push("/inventario/historial")
 }
 
 /* ========================= */
+/* UI */
+/* ========================= */
 
 return(
 
 <div style={container}>
+
+<div style={{marginBottom:10}}>
+<h1 style={{fontSize:22,fontWeight:"bold"}}>
+🚑 BITACORA SANITARIA - SALUD MOVIL
+</h1>
+<p style={{opacity:0.7}}>
+DIRECCION PROVINCIAL DE SALUD DEL GUAYAS
+</p>
+</div>
 
 <div style={header}>
 <div>
@@ -226,9 +268,9 @@ borderRadius:10
 <div>🚨 Vencidos: {a.vencidos}</div>
 <div>⚡ PRIORIDAD: {a.prioridad}</div>
 
-<div>📊 Abastecimiento: {a.porcentaje}%</div>
-<div>💊 Medicamentos: {a.porcMed}%</div>
-<div>🧰 Insumos/Equipos: {a.porcOtros}%</div>
+<div>📊 Abastecimiento: {a.porcentaje}% / 100%</div>
+<div>💊 Medicamentos: {a.porcMed}% / 100%</div>
+<div>🧰 Insumos/Equipos: {a.porcOtros}% / 100%</div>
 
 </div>
 ))}
