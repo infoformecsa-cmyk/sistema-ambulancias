@@ -139,6 +139,11 @@ sessionStorage.clear()
 router.replace('/')
 }
 
+/* 🔥 NUEVO: IR A HISTORIAL */
+const irHistorial = ()=>{
+router.push('/dashboard-operativo/historial')
+}
+
 const getAmbulancia = (g:string)=>
 personal.filter(p=>p.guardia===g && p.tipo==="ambulancia")
 
@@ -199,6 +204,12 @@ return (
 <button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">🔄 Actualizar</button>
 <button onClick={()=>setNuevo(true)} className="bg-green-600 px-4 py-2 rounded-lg">➕ Nuevo</button>
 <button onClick={()=>setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">🚑 Ambulancia</button>
+
+{/* 🔥 BOTÓN NUEVO */}
+<button onClick={irHistorial} className="bg-cyan-600 px-4 py-2 rounded-lg">
+📊 Historial
+</button>
+
 <button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">🔐 Salir</button>
 </div>
 </div>
