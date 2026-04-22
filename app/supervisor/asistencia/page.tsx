@@ -49,11 +49,7 @@ const {data:amb} = await supabase
 
 setAmbulancias(amb || [])
 
-const mapa:any = {}
-;(amb || []).forEach((a:any)=>{
-mapa[a.id] = a.codigo_operativo
-})
-
+/* 🔥 FIX: AGRUPACIÓN CORRECTA */
 const grupo:any = {}
 
 ;(data || []).forEach((p:any)=>{
@@ -63,11 +59,13 @@ let key = "SIN ASIGNAR"
 if(tipo === "consola"){
 key = GRUPOS_COLORES[p.guardia]?.nombre || "CONSOLA"
 }else{
-key = mapa[p.ambulancia_base] || "SIN ASIGNAR"
+/* 🔥 CORRECCIÓN AQUÍ */
+key = p.ambulancia_codigo || "SIN ASIGNAR"
 }
 
 if(!grupo[key]) grupo[key] = []
 grupo[key].push(p)
+
 })
 
 setAgrupado(grupo)
@@ -100,10 +98,6 @@ if(turnoFinal === "guardia_16h") horas = 16
 if(turnoFinal === "12h_dia") horas = 12
 if(turnoFinal === "12h_noche") horas = 12
 
-/* ========================= */
-/* 📎 SUBIR ARCHIVO */
-/* ========================= */
-
 let archivo_url = null
 let archivo_nombre = null
 let archivo_tipo = null
@@ -112,7 +106,6 @@ if(r.archivo){
 
 const file = r.archivo
 
-/* VALIDACIÓN */
 if(!file.type.includes("pdf") && !file.type.includes("image")){
 alert("Solo PDF o imágenes")
 return
@@ -140,10 +133,6 @@ archivo_tipo = file.type
 
 }
 
-/* ========================= */
-/* 💾 INSERT */
-/* ========================= */
-
 const { error } = await supabase.from("asistencia").insert([{
 personal_id: p.id,
 fecha,
@@ -151,7 +140,7 @@ estado: r.estado,
 observacion: r.obs || "",
 usuario_registro: usuario,
 ambulancia_turno: r.ubicacion || null,
-reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
+reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_codigo,
 turno: turnoFinal,
 horas,
 archivo_url,
@@ -218,7 +207,6 @@ style={input}
 
 </div>
 
-{/* 🔥 AGRUPADO */}
 {Object.keys(agrupado).sort().map(grupoNombre=>{
 
 let colorGrupo = "#38bdf8"
@@ -320,7 +308,6 @@ style={inputMini}
 
 </div>
 
-{/* 🔥 NUEVO: ARCHIVO */}
 <input
 type="file"
 accept="image/*,application/pdf"
@@ -359,7 +346,7 @@ style={input}
 )
 }
 
-/* 🎨 ESTILOS */
+/* 🎨 ESTILOS (INTACTOS) */
 
 const colores:any = {
 asistio:"#22c55e",
