@@ -10,7 +10,7 @@ const router = useRouter()
 
 const [personal, setPersonal] = useState<any[]>([])
 const [archivos, setArchivos] = useState<any[]>([])
-const [ambulancias, setAmbulancias] = useState<any[]>([])
+const [ambulancias, setAmbulancias] = useState<any[]>([]) // ✅ FIX TYPE
 
 const [editando, setEditando] = useState<any>(null)
 const [nuevo, setNuevo] = useState(false)
@@ -203,6 +203,34 @@ return (
 </div>
 </div>
 
+{/* ALERTAS */}
+<div className="mb-6 bg-red-600 px-6 py-3 rounded-xl w-fit">
+⚠ {alertas.length} ALERTAS
+</div>
+
+{/* KPIs */}
+<div className="grid grid-cols-4 gap-6 mb-10">
+<div className="bg-gray-900 p-6 rounded-xl border border-cyan-500">
+<p>Total</p>
+<h2 className="text-3xl">{personal.length}</h2>
+</div>
+
+<div className="bg-green-900 p-6 rounded-xl">
+<p>Activos</p>
+<h2 className="text-3xl">{personal.filter(p=>p.estado==="Activo").length}</h2>
+</div>
+
+<div className="bg-red-900 p-6 rounded-xl">
+<p>No disponibles</p>
+<h2 className="text-3xl">{alertas.length}</h2>
+</div>
+
+<div className="bg-blue-900 p-6 rounded-xl">
+<p>Reportes</p>
+<h2 className="text-3xl">{archivos.length}</h2>
+</div>
+</div>
+
 {/* CONTENIDO */}
 <div className="grid grid-cols-3 gap-6">
 <div className="col-span-2 grid grid-cols-2 gap-6">
@@ -239,7 +267,7 @@ return(
 </div>
 ))}
 
-{/* 🔥 CONSOLA CON BOTONES */}
+{/* 🔥 CONSOLA (AHORA EDITABLE) */}
 {consola.length>0 && (
 <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
 <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
@@ -265,6 +293,29 @@ return(
 })}
 
 </div>
+
+{/* 🔥 PANEL DERECHO (NO TOCADO) */}
+<div className="space-y-6">
+<div className="bg-red-900/50 p-4 rounded-xl">
+<h2 className="text-red-400 mb-2">⚠ Críticos</h2>
+{alertas.map((p)=>(
+<div key={p.id} className="text-sm border-b py-1">
+{p.nombre} — {p.estado}
+</div>
+))}
+</div>
+
+<div className="bg-gray-900 p-4 rounded-xl">
+<h2 className="text-blue-400 mb-2">📁 Reportes</h2>
+{archivos.map((a)=>(
+<div key={a.id} className="flex justify-between text-sm border-b py-1">
+<span>{a.nombre}</span>
+<span className="text-gray-400">{new Date(a.fecha).toLocaleDateString('es-EC')}</span>
+</div>
+))}
+</div>
+</div>
+
 </div>
 
 {/* 🔥 MODAL EDITAR */}
