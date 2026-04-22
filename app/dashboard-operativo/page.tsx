@@ -262,11 +262,6 @@ return (
 </div>
 </div>
 
-{/* TODO LO DEMÁS SIGUE EXACTAMENTE IGUAL (NO TOCADO) */}
-
-</div>
-)
-}
 {/* ALERTAS */}
 <div className="mb-6 bg-red-600 px-6 py-3 rounded-xl w-fit">
 ⚠ {alertas.length} ALERTAS
