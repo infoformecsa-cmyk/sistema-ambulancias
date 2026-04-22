@@ -74,7 +74,10 @@ setAgrupado(grupo)
 
 }
 
-/* GUARDAR */
+/* ========================= */
+/* 🔥 GUARDAR CON ARCHIVOS */
+/* ========================= */
+
 async function guardar(){
 
 const usuario = localStorage.getItem("email") || "admin"
@@ -84,6 +87,11 @@ for(const p of personal){
 const r = registros[p.id]
 if(!r) continue
 
+if(!r.estado){
+alert(`Falta estado en ${p.nombre}`)
+return
+}
+
 const turnoFinal = r.turno || turnoGlobal
 
 let horas = 0
@@ -91,6 +99,50 @@ if(turnoFinal === "24h") horas = 24
 if(turnoFinal === "guardia_16h") horas = 16
 if(turnoFinal === "12h_dia") horas = 12
 if(turnoFinal === "12h_noche") horas = 12
+
+/* ========================= */
+/* 📎 SUBIR ARCHIVO */
+/* ========================= */
+
+let archivo_url = null
+let archivo_nombre = null
+let archivo_tipo = null
+
+if(r.archivo){
+
+const file = r.archivo
+
+/* VALIDACIÓN */
+if(!file.type.includes("pdf") && !file.type.includes("image")){
+alert("Solo PDF o imágenes")
+return
+}
+
+const nombreArchivo = `${p.id}_${Date.now()}_${file.name}`
+
+const { error: uploadError } = await supabase.storage
+.from("asistencia_docs")
+.upload(nombreArchivo, file)
+
+if(uploadError){
+console.error(uploadError)
+alert("Error subiendo archivo")
+return
+}
+
+const { data: urlData } = supabase.storage
+.from("asistencia_docs")
+.getPublicUrl(nombreArchivo)
+
+archivo_url = urlData.publicUrl
+archivo_nombre = file.name
+archivo_tipo = file.type
+
+}
+
+/* ========================= */
+/* 💾 INSERT */
+/* ========================= */
 
 const { error } = await supabase.from("asistencia").insert([{
 personal_id: p.id,
@@ -101,7 +153,10 @@ usuario_registro: usuario,
 ambulancia_turno: r.ubicacion || null,
 reubicado: r.ubicacion && r.ubicacion !== p.ambulancia_base,
 turno: turnoFinal,
-horas
+horas,
+archivo_url,
+archivo_nombre,
+archivo_tipo
 }])
 
 if(error){
@@ -115,6 +170,8 @@ return
 alert("✅ Asistencia registrada")
 setRegistros({})
 }
+
+/* ========================= */
 
 return(
 
@@ -166,7 +223,6 @@ style={input}
 
 let colorGrupo = "#38bdf8"
 
-/* 🔥 FIX BUILD VERCEL */
 for(const key in GRUPOS_COLORES){
 if(GRUPOS_COLORES[key].nombre === grupoNombre){
 colorGrupo = GRUPOS_COLORES[key].color
@@ -263,6 +319,20 @@ style={inputMini}
 </select>
 
 </div>
+
+{/* 🔥 NUEVO: ARCHIVO */}
+<input
+type="file"
+accept="image/*,application/pdf"
+onChange={(e)=>{
+const file = e.target.files?.[0]
+setRegistros({
+...registros,
+[p.id]: {...registros[p.id], archivo:file}
+})
+}}
+style={input}
+/>
 
 <input
 placeholder="Observación"
