@@ -248,8 +248,7 @@ return (
 {nuevo && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4 text-white">Nuevo funcionario</h2>
+<h2 className="mb-4">Nuevo funcionario</h2>
 
 <input className="w-full mb-2 p-2 bg-black border"
 placeholder="Nombre"
@@ -289,41 +288,33 @@ onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}>
 <button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
 <button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
 </div>
-
 </div>
 </div>
 )}
 
-{/* 🔥 MODAL NUEVA AMBULANCIA (FIX) */}
+{/* 🔥 MODAL AMBULANCIA */}
 {nuevaAmbulancia && (
 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
 <div className="bg-gray-900 p-6 rounded-xl w-80">
-
-<h2 className="mb-4 text-white">Nueva ambulancia</h2>
+<h2 className="mb-4">Nueva ambulancia</h2>
 
 <input
 className="w-full mb-3 p-2 bg-black border"
-placeholder="Código (ej: GA-01)"
+placeholder="Código"
 value={codigoAmbulancia}
 onChange={(e)=>setCodigoAmbulancia(e.target.value)}
 />
 
 <div className="flex justify-between">
-<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">
-Guardar
-</button>
-
-<button onClick={()=>{
-setNuevaAmbulancia(false)
-setCodigoAmbulancia("")
-}} className="bg-red-600 px-4 py-2 rounded">
-Cancelar
-</button>
+<button onClick={crearAmbulancia} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
+<button onClick={()=>setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
 </div>
 
 </div>
 </div>
 )}
+
+{/* 🔥 RESTO DE TU UI SIGUE IGUAL (NO TOCADO) */}
 
 {/* 🔥 MODAL EDITAR */}
 {editando && (
