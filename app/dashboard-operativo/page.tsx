@@ -327,31 +327,35 @@ return(
 ))}
 
 {/* 🔥 CONSOLA (AHORA EDITABLE) */}
-{consola.length>0 && (
+{consola.length > 0 && (
   <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
     <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
 
-    {consola.map((p:any)=>(
-      <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
-
+    {consola.map((p: any) => (
+      <div
+        key={p.id}
+        className="flex justify-between items-center bg-black p-2 mb-2 rounded"
+      >
         <p className="text-sm">{p.nombre}</p>
 
         <div className="flex gap-2">
-          <button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
-          <button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
+          <button
+            onClick={() => setEditando(p)}
+            className="text-xs bg-cyan-600 px-2 py-1 rounded"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => eliminar(p.id)}
+            className="text-xs bg-red-600 px-2 py-1 rounded"
+          >
+            🗑️
+          </button>
         </div>
-
       </div>
     ))}
-
   </div>
 )}
-
-  </div>   {/* ← ESTE cierra el div principal del guardia */}
-)
-})}
-</div>
-
 {/* 🔥 PANEL DERECHO (NO TOCADO) */}
 <div className="space-y-6">
 <div className="bg-red-900/50 p-4 rounded-xl">
