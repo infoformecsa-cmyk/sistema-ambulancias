@@ -158,7 +158,7 @@ export default function Asistencia(){
           horas,
           archivo_url,
           archivo_nombre,
-          tipo_archivo,
+          tipo_archivo: archivo_tipo,
           size_archivo: r.archivo?.size || null
         }])
 
