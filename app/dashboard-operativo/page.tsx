@@ -355,6 +355,7 @@ return(
       </div>
     ))}
   </div>
+)
 })}
 {/* 🔥 PANEL DERECHO (NO TOCADO) */}
 <div className="space-y-6">
