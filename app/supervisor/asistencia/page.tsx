@@ -78,18 +78,31 @@ setAgrupado(grupo)
 
 async function guardar(){
 
-const usuario = localStorage.getItem("email") || "admin"
+// 🔥 VALIDACIÓN: Verificar que hay registros
+const personasConRegistro = personal.filter(p => registros[p.id])
 
-for(const p of personal){
-
-const r = registros[p.id]
-if(!r) continue
-
-if(!r.estado){
-alert(`Falta estado en ${p.nombre}`)
+if(personasConRegistro.length === 0){
+alert("⚠️ Debes seleccionar estado para al menos una persona")
 return
 }
 
+// 🔥 VALIDACIÓN: Verificar que todas tengan estado
+for(const p of personasConRegistro){
+const r = registros[p.id]
+if(!r.estado){
+alert(`❌ Falta estado en ${p.nombre}`)
+return
+}
+}
+
+const usuario = localStorage.getItem("email") || "admin"
+const errores: string[] = []
+let exitosos = 0
+
+for(const p of personasConRegistro){
+try {
+
+const r = registros[p.id]
 const turnoFinal = r.turno || turnoGlobal
 
 let horas = 0
@@ -107,8 +120,8 @@ if(r.archivo){
 const file = r.archivo
 
 if(!file.type.includes("pdf") && !file.type.includes("image")){
-alert("Solo PDF o imágenes")
-return
+errores.push(`${p.nombre}: Solo se permiten PDF o imágenes`)
+continue
 }
 
 const nombreArchivo = `${p.id}_${Date.now()}_${file.name}`
@@ -118,9 +131,9 @@ const { error: uploadError } = await supabase.storage
 .upload(nombreArchivo, file)
 
 if(uploadError){
-console.error(uploadError)
-alert("Error subiendo archivo")
-return
+console.error("Error upload:", uploadError)
+errores.push(`${p.nombre}: Error al subir archivo`)
+continue
 }
 
 const { data: urlData } = supabase.storage
@@ -133,7 +146,7 @@ archivo_tipo = file.type
 
 }
 
-const { error } = await supabase.from("asistencia").insert([{
+const { error, data } = await supabase.from("asistencia").insert([{
 personal_id: p.id,
 fecha,
 estado: r.estado,
@@ -149,15 +162,30 @@ archivo_tipo
 }])
 
 if(error){
-console.error(error)
-alert("Error guardando asistencia")
-return
+console.error("Error insert:", error)
+errores.push(`${p.nombre}: ${error.message}`)
+continue
+}
+
+exitosos++
+
+} catch(err: any){
+console.error("Error general:", err)
+errores.push(`${p.nombre}: ${err.message}`)
 }
 
 }
 
-alert("✅ Asistencia registrada")
+// 🔥 MOSTRAR RESULTADOS
+if(exitosos > 0){
+alert(`✅ ${exitosos} registro(s) guardado(s)`)
 setRegistros({})
+}
+
+if(errores.length > 0){
+alert(`❌ ${errores.length} error(es):\n${errores.join("\n")}`)
+}
+
 }
 
 /* ========================= */
