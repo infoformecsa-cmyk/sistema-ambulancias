@@ -324,7 +324,8 @@ return(
 )   // ← cierra return
 
 })} // ← cierra map de guardias
-
+</div> {/* 🔥 cierra col-span-2 */}
+</div> {/* 🔥 cierra grid principal */}
 {/* 🔥 PANEL DERECHO (NO TOCADO) */}
 <div className="space-y-6">
 <div className="bg-red-900/50 p-4 rounded-xl">
