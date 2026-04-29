@@ -249,34 +249,45 @@ return (
 {guardias.map((g)=>{
 
 const ambulancias = agruparPorAmbulancia(getAmbulancia(g))
+
 const consola = getConsola(g)
 
 return(
+
 <div key={g} className="bg-gray-900 p-5 rounded-xl">
 
 <h2 className="text-xl mb-4 text-cyan-400">{g}</h2>
 
 {ambulancias.map(([ambulancia,personas]:any)=>(
+
 <div key={ambulancia} className="mb-4 border p-3 rounded">
 
 <h3 className="text-cyan-300 mb-2">🚑 {ambulancia}</h3>
 
 {personas.map((p:any)=>(
+
 <div key={p.id} className="flex justify-between items-center bg-black p-2 mb-2 rounded">
 
 <p className="text-sm font-semibold">{p.nombre}</p>
 
 <div className="flex items-center gap-2">
+
 <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
+
 <button onClick={()=>setEditando(p)} className="text-xs bg-cyan-600 px-2 py-1 rounded">✏️</button>
+
 <button onClick={()=>eliminar(p.id)} className="text-xs bg-red-600 px-2 py-1 rounded">🗑️</button>
+
 </div>
 
 </div>
+
 ))}
 
 </div>
+
 ))}
+
 
 {/* 🔥 CONSOLA (AHORA EDITABLE) */}
 {consola.length>0 && (
