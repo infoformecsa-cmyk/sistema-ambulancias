@@ -367,13 +367,37 @@ return(
 <div className="bg-gray-900 p-4 rounded-xl">
 <h2 className="text-blue-400 mb-2">📁 Reportes</h2>
 {archivos.map((a)=>(
-<div key={a.id} className="flex justify-between text-sm border-b py-1">
-<span>{a.nombre}</span>
-<span className="text-gray-400">{new Date(a.fecha).toLocaleDateString('es-EC')}</span>
+<div key={a.id} className="flex justify-between items-center text-sm border-b py-1">
+
+  <div>
+    <p>{a.nombre}</p>
+    <p className="text-gray-400 text-xs">
+      {new Date(a.fecha).toLocaleDateString('es-EC')}
+    </p>
+  </div>
+
+  <div className="flex gap-2">
+
+    <a
+      href={a.archivo_url}
+      target="_blank"
+      className="bg-cyan-600 px-2 py-1 rounded text-xs"
+    >
+      Ver
+    </a>
+
+    <a
+      href={a.archivo_url}
+      download
+      className="bg-green-600 px-2 py-1 rounded text-xs"
+    >
+      Descargar
+    </a>
+
+  </div>
+
 </div>
 ))}
-</div>
-</div>
 
 </div>
 {/* 🔥 MODAL NUEVO */}
