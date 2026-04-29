@@ -216,13 +216,15 @@ return (
 
 <h2 className="mb-4 text-white">Nuevo funcionario</h2>
 
-<input className="w-full mb-2 p-2 bg-black border text-white"
+<input
+className="w-full mb-2 p-2 bg-black border text-white"
 placeholder="Nombre"
 value={formNuevo.nombre}
 onChange={(e)=>setFormNuevo({...formNuevo,nombre:e.target.value})}
 />
 
-<select className="w-full mb-2 p-2 bg-black border text-white"
+<select
+className="w-full mb-2 p-2 bg-black border text-white"
 value={formNuevo.tipo}
 onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}
 >
@@ -230,7 +232,8 @@ onChange={(e)=>setFormNuevo({...formNuevo,tipo:e.target.value})}
 <option value="consola">Consola</option>
 </select>
 
-<select className="w-full mb-2 p-2 bg-black border text-white"
+<select
+className="w-full mb-2 p-2 bg-black border text-white"
 value={formNuevo.guardia}
 onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
 >
@@ -241,7 +244,8 @@ onChange={(e)=>setFormNuevo({...formNuevo,guardia:e.target.value})}
 <option value="G5">G5</option>
 </select>
 
-<select className="w-full mb-2 p-2 bg-black border text-white"
+<select
+className="w-full mb-2 p-2 bg-black border text-white"
 value={formNuevo.ambulancia_codigo}
 onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
 >
@@ -254,8 +258,13 @@ onChange={(e)=>setFormNuevo({...formNuevo,ambulancia_codigo:e.target.value})}
 </select>
 
 <div className="flex justify-between mt-4">
-<button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
-<button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
+<button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">
+Guardar
+</button>
+
+<button onClick={()=>setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">
+Cancelar
+</button>
 </div>
 
 </div>
@@ -276,8 +285,12 @@ onChange={(e)=>setEditando({...editando,nombre:e.target.value})}
 />
 
 <div className="flex justify-between">
-<button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
-<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
+<button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded">
+Guardar
+</button>
+<button onClick={()=>setEditando(null)} className="bg-red-600 px-4 py-2 rounded">
+Cancelar
+</button>
 </div>
 
 </div>
