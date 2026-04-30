@@ -34,22 +34,29 @@ export default function Dashboard() {
   }
 
   const fetchData = async () => {
-    const { data: p } = await supabase
+    const { data: p, error: personalError } = await supabase
       .from('personal')
       .select('id,nombre,tipo,guardia,ambulancia_codigo,estado')
 
-    const { data: a } = await supabase
+    const { data: a, error: archivosError } = await supabase
       .from('archivos_asistencia')
       .select('*')
       .order('fecha', { ascending: false })
 
-    const { data: amb } = await supabase
+    const { data: amb, error: ambulanciasError } = await supabase
       .from('ambulancias')
       .select('id,codigo_operativo')
       .order('codigo_operativo')
 
+    if (personalError) console.error('personal fetch error', personalError)
+    if (archivosError) console.error('archivos_asistencia fetch error', archivosError)
+    if (ambulanciasError) console.error('ambulancias fetch error', ambulanciasError)
+
+    console.log('archivos_asistencia', a)
+
     if (p) setPersonal(p)
-    if (a) setArchivos(a)
+    if (Array.isArray(a)) setArchivos(a)
+    else setArchivos([])
     if (amb) setAmbulancias(amb)
   }
 
@@ -187,10 +194,12 @@ export default function Dashboard() {
     (p) => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
   )
 
-  const reportesTotales = archivos.length
-  const reportesHoy = archivos.filter(
-    (a) => new Date(a.fecha).toDateString() === new Date().toDateString()
-  ).length
+  const reportesTotales = Array.isArray(archivos) ? archivos.length : 0
+  const reportesHoy = Array.isArray(archivos)
+    ? archivos.filter(
+        (a) => new Date(a.fecha).toDateString() === new Date().toDateString()
+      ).length
+    : 0
 
   const colorEstado = (estado: string) => {
     switch (estado) {
