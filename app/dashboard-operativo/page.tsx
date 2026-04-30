@@ -63,7 +63,10 @@ export default function Dashboard() {
         return data
       }
 
-      console.log(`tabla sin registros ${source.table}.${source.order}`, data?.length ?? 0)
+      console.log(
+        `tabla sin registros ${source.table}.${source.order}`,
+        data?.length ?? 0
+      )
     }
 
     return []
@@ -556,7 +559,10 @@ export default function Dashboard() {
               <div className="text-sm text-gray-400">Sin permisos relevantes este mes</div>
             ) : (
               rankingPermisosMes.map((item, index) => (
-                <div key={item.nombre} className="flex justify-between items-center text-sm border-b py-2">
+                <div
+                  key={item.nombre}
+                  className="flex justify-between items-center text-sm border-b py-2"
+                >
                   <span>{index + 1}. {item.nombre}</span>
                   <span className="text-cyan-300">{item.count}</span>
                 </div>
@@ -871,7 +877,10 @@ export default function Dashboard() {
         return data
       }
 
-      console.log(`tabla sin registros ${source.table}.${source.order}`, data?.length ?? 0)
+      console.log(
+        `tabla sin registros ${source.table}.${source.order}`,
+        data?.length ?? 0
+      )
     }
 
     return []
@@ -1364,7 +1373,10 @@ export default function Dashboard() {
               <div className="text-sm text-gray-400">Sin permisos relevantes este mes</div>
             ) : (
               rankingPermisosMes.map((item, index) => (
-                <div key={item.nombre} className="flex justify-between items-center text-sm border-b py-2">
+                <div
+                  key={item.nombre}
+                  className="flex justify-between items-center text-sm border-b py-2"
+                >
                   <span>{index + 1}. {item.nombre}</span>
                   <span className="text-cyan-300">{item.count}</span>
                 </div>
