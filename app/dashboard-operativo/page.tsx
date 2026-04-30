@@ -33,15 +33,34 @@ export default function Dashboard() {
     setLoading(false)
   }
 
+  const fetchReportes = async () => {
+    const sources = ['archivos_asistencia', 'archivos', 'reportes']
+    for (const source of sources) {
+      const { data, error } = await supabase
+        .from(source)
+        .select('*')
+        .order('fecha', { ascending: false })
+
+      if (error) {
+        console.warn(`fetch reportes error ${source}`, error)
+        continue
+      }
+
+      if (Array.isArray(data)) {
+        console.log(`reportes cargados desde ${source}`, data)
+        return data
+      }
+    }
+
+    return []
+  }
+
   const fetchData = async () => {
     const { data: p, error: personalError } = await supabase
       .from('personal')
       .select('id,nombre,tipo,guardia,ambulancia_codigo,estado')
 
-    const { data: a, error: archivosError } = await supabase
-      .from('archivos_asistencia')
-      .select('*')
-      .order('fecha', { ascending: false })
+    const archivosData = await fetchReportes()
 
     const { data: amb, error: ambulanciasError } = await supabase
       .from('ambulancias')
@@ -49,14 +68,10 @@ export default function Dashboard() {
       .order('codigo_operativo')
 
     if (personalError) console.error('personal fetch error', personalError)
-    if (archivosError) console.error('archivos_asistencia fetch error', archivosError)
     if (ambulanciasError) console.error('ambulancias fetch error', ambulanciasError)
 
-    console.log('archivos_asistencia', a)
-
     if (p) setPersonal(p)
-    if (Array.isArray(a)) setArchivos(a)
-    else setArchivos([])
+    setArchivos(Array.isArray(archivosData) ? archivosData : [])
     if (amb) setAmbulancias(amb)
   }
 
@@ -384,17 +399,21 @@ export default function Dashboard() {
 
           <div className="bg-gray-900 p-4 rounded-xl">
             <h2 className="text-blue-400 mb-2">📁 Reportes</h2>
-            {archivos.map((a) => (
-              <div
-                key={a.id}
-                className="flex justify-between text-sm border-b py-1"
-              >
-                <span>{a.nombre}</span>
-                <span className="text-gray-400">
-                  {new Date(a.fecha).toLocaleDateString('es-EC')}
-                </span>
-              </div>
-            ))}
+            {archivos.length === 0 ? (
+              <div className="text-sm text-gray-400">No hay reportes</div>
+            ) : (
+              archivos.map((a) => (
+                <div
+                  key={a.id || `${a.nombre}-${a.fecha}`}
+                  className="flex justify-between text-sm border-b py-1"
+                >
+                  <span>{a.nombre}</span>
+                  <span className="text-gray-400">
+                    {new Date(a.fecha).toLocaleDateString('es-EC')}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
