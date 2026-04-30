@@ -72,7 +72,7 @@ export default function Asistencia(){
   }
 
   /* ========================= */
-  /* 🔥 GUARDAR CON ARCHIVOS */
+  /* 🔥 GUARDAR CON ARCHIVOS Y VALIDACIÓN DE DUPLICADOS */
   /* ========================= */
 
   async function guardar(){
@@ -144,26 +144,63 @@ export default function Asistencia(){
           archivo_tipo = file.type
         }
 
-        const { error } = await supabase.from("asistencia").insert([{
-          personal_id: p.id,
-          fecha,
-          estado: r.estado,
-          observacion: r.obs || "",
-          usuario_registro: usuario,
-          ubicacion_ambulancia: r.ubicacion || null,
-          tipo_permiso: r.estado === "permiso" ? "permiso" : null,
-          es_r2: r.es_r2 || false,
-          origen_r2: r.ubicacion || null,
-          turno: turnoFinal,
-          horas,
-          archivo_url,
-          archivo_nombre,
-          tipo_archivo: archivo_tipo,
-          size_archivo: r.archivo?.size || null
-        }])
+        // 🔥 VERIFICACIÓN DE DUPLICADO: Buscar si ya existe registro para esta persona, fecha y turno
+        const { data: existente } = await supabase
+          .from("asistencia")
+          .select("id, archivo_url, archivo_nombre, tipo_archivo, size_archivo")
+          .eq("personal_id", p.id)
+          .eq("fecha", fecha)
+          .eq("turno", turnoFinal)
+          .single()
+
+        let error
+
+        if(existente){
+          // Si existe, actualiza el registro existente
+          const { error: updateError } = await supabase
+            .from("asistencia")
+            .update({
+              estado: r.estado,
+              observacion: r.obs || "",
+              usuario_registro: usuario,
+              ubicacion_ambulancia: r.ubicacion || null,
+              tipo_permiso: r.estado === "permiso" ? "permiso" : null,
+              es_r2: r.es_r2 || false,
+              origen_r2: r.ubicacion || null,
+              horas,
+              archivo_url: archivo_url || existente.archivo_url,  // Solo actualiza si hay nuevo archivo
+              archivo_nombre: archivo_nombre || existente.archivo_nombre,
+              tipo_archivo: archivo_tipo || existente.tipo_archivo,
+              size_archivo: r.archivo?.size || existente.size_archivo
+            })
+            .eq("id", existente.id)
+
+          error = updateError
+        }else{
+          // Si no existe, inserta nuevo
+          const { error: insertError } = await supabase.from("asistencia").insert([{
+            personal_id: p.id,
+            fecha,
+            estado: r.estado,
+            observacion: r.obs || "",
+            usuario_registro: usuario,
+            ubicacion_ambulancia: r.ubicacion || null,
+            tipo_permiso: r.estado === "permiso" ? "permiso" : null,
+            es_r2: r.es_r2 || false,
+            origen_r2: r.ubicacion || null,
+            turno: turnoFinal,
+            horas,
+            archivo_url,
+            archivo_nombre,
+            tipo_archivo: archivo_tipo,
+            size_archivo: r.archivo?.size || null
+          }])
+
+          error = insertError
+        }
 
         if(error){
-          console.error("Error insert:", error)
+          console.error("Error:", error)
           errores.push(`${p.nombre}: ${error.message}`)
           continue
         }
@@ -178,7 +215,7 @@ export default function Asistencia(){
 
     // 🔥 MOSTRAR RESULTADOS
     if(exitosos > 0){
-      alert(`✅ ${exitosos} registro(s) guardado(s)`)
+      alert(`✅ ${exitosos} registro(s) guardado(s) o actualizado(s)`)
       setRegistros({})
     }
 
