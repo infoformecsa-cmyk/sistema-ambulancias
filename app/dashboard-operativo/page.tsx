@@ -223,12 +223,65 @@ export default function Dashboard() {
     (p) => p.estado === 'Reposo Médico' || p.estado === 'Permiso'
   )
 
-  const reportesTotales = Array.isArray(archivos) ? archivos.length : 0
-  const reportesHoy = Array.isArray(archivos)
-    ? archivos.filter(
-        (a) => new Date(a.fecha).toDateString() === new Date().toDateString()
-      ).length
-    : 0
+  const normalizarTextoReporte = (a: any) => {
+    const texto = [
+      a.estado,
+      a.tipo,
+      a.descripcion,
+      a.observacion,
+      a.motivo,
+      a.categoria,
+      a.documento,
+      a.archivo,
+      a.nombre,
+      a.persona,
+      a.empleado
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    return texto
+  }
+
+  const esReporteRelevante = (a: any) => {
+    const texto = normalizarTextoReporte(a)
+    const tieneArchivo = Boolean(a.archivo || a.documento || a.file || a.url)
+
+    return (
+      tieneArchivo ||
+      texto.includes('permiso') ||
+      texto.includes('reposo') ||
+      texto.includes('falta') ||
+      texto.includes('ausente') ||
+      texto.includes('incapacidad') ||
+      texto.includes('médico') ||
+      texto.includes('licencia')
+    )
+  }
+
+  const reportesImportantes = Array.isArray(archivos)
+    ? archivos.filter(esReporteRelevante)
+    : []
+
+  const reportesTotales = reportesImportantes.length
+  const reportesHoy = reportesImportantes.filter(
+    (a) => {
+      const fecha = a.fecha || a.created_at
+      return fecha && new Date(fecha).toDateString() === new Date().toDateString()
+    }
+  ).length
+
+  const obtenerFecha = (a: any) => {
+    const fecha = a.fecha || a.created_at
+    return fecha ? new Date(fecha).toLocaleDateString('es-EC') : ''
+  }
+
+  const obtenerTituloReporte = (a: any) =>
+    a.nombre || a.persona || a.empleado || a.usuario || 'Reporte'
+
+  const obtenerSubtituloReporte = (a: any) =>
+    a.estado || a.tipo || a.motivo || a.descripcion || a.observacion || 'Permiso / reporte'
 
   const colorEstado = (estado: string) => {
     switch (estado) {
@@ -413,18 +466,21 @@ export default function Dashboard() {
 
           <div className="bg-gray-900 p-4 rounded-xl">
             <h2 className="text-blue-400 mb-2">📁 Reportes</h2>
-            {archivos.length === 0 ? (
-              <div className="text-sm text-gray-400">No hay reportes</div>
+            {reportesImportantes.length === 0 ? (
+              <div className="text-sm text-gray-400">No hay reportes relevantes</div>
             ) : (
-              archivos.map((a) => (
+              reportesImportantes.map((a) => (
                 <div
-                  key={a.id || `${a.nombre}-${a.fecha}`}
+                  key={a.id || `${obtenerTituloReporte(a)}-${a.fecha || a.created_at}`}
                   className="flex justify-between text-sm border-b py-1"
                 >
-                  <span>{a.nombre}</span>
-                  <span className="text-gray-400">
-                    {new Date(a.fecha).toLocaleDateString('es-EC')}
-                  </span>
+                  <div>
+                    <p className="font-semibold">{obtenerTituloReporte(a)}</p>
+                    <p className="text-xs text-gray-400">
+                      {obtenerSubtituloReporte(a)}
+                    </p>
+                  </div>
+                  <span className="text-gray-400">{obtenerFecha(a)}</span>
                 </div>
               ))
             )}
