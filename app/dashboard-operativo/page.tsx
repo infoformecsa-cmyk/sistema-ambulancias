@@ -34,22 +34,36 @@ export default function Dashboard() {
   }
 
   const fetchReportes = async () => {
-    const sources = ['archivos_asistencia', 'archivos', 'reportes']
+    const sources = [
+      { table: 'archivos_asistencia', order: 'fecha' },
+      { table: 'archivos_asistencia', order: 'created_at' },
+      { table: 'archivos', order: 'fecha' },
+      { table: 'archivos', order: 'created_at' },
+      { table: 'reportes', order: 'fecha' },
+      { table: 'reportes', order: 'created_at' },
+      { table: 'historial_asistencia', order: 'fecha' },
+      { table: 'historial_asistencia', order: 'created_at' },
+      { table: 'asistencia', order: 'fecha' },
+      { table: 'asistencia', order: 'created_at' }
+    ]
+
     for (const source of sources) {
       const { data, error } = await supabase
-        .from(source)
+        .from(source.table)
         .select('*')
-        .order('fecha', { ascending: false })
+        .order(source.order, { ascending: false })
 
       if (error) {
-        console.warn(`fetch reportes error ${source}`, error)
+        console.warn(`fetch reportes error ${source.table}.${source.order}`, error)
         continue
       }
 
-      if (Array.isArray(data)) {
-        console.log(`reportes cargados desde ${source}`, data)
+      if (Array.isArray(data) && data.length > 0) {
+        console.log(`reportes cargados desde ${source.table}`, source.order, data)
         return data
       }
+
+      console.log(`tabla sin registros ${source.table}.${source.order}`, data?.length ?? 0)
     }
 
     return []
