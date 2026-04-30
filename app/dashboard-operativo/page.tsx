@@ -235,7 +235,9 @@ export default function Dashboard() {
       a.archivo,
       a.nombre,
       a.persona,
-      a.empleado
+      a.empleado,
+      a.nombres,
+      a.apellidos
     ]
       .filter(Boolean)
       .join(' ')
@@ -246,7 +248,16 @@ export default function Dashboard() {
 
   const esReporteRelevante = (a: any) => {
     const texto = normalizarTextoReporte(a)
-    const tieneArchivo = Boolean(a.archivo || a.documento || a.file || a.url)
+    const tieneArchivo = Boolean(
+      a.archivo ||
+        a.documento ||
+        a.file ||
+        a.url ||
+        a.enlace ||
+        a.link ||
+        a.archivo_url ||
+        a.documento_url
+    )
 
     return (
       tieneArchivo ||
@@ -260,28 +271,82 @@ export default function Dashboard() {
     )
   }
 
+  const obtenerUrlReporte = (a: any) => {
+    const posibles = [
+      a.url,
+      a.link,
+      a.enlace,
+      a.archivo,
+      a.documento,
+      a.file,
+      a.archivo_url,
+      a.documento_url,
+      a.ruta,
+      a.path
+    ]
+
+    for (const valor of posibles) {
+      if (!valor) continue
+
+      if (typeof valor === 'string' && valor.trim()) {
+        const texto = valor.trim()
+        if (texto.startsWith('http')) return texto
+        return texto
+      }
+
+      if (typeof valor === 'object') {
+        if (valor.url) return valor.url
+        if (valor.publicURL) return valor.publicURL
+        if (valor.path) return valor.path
+      }
+    }
+
+    return null
+  }
+
+  const obtenerNombrePersonaReporte = (a: any) => {
+    const nombres = [
+      a.nombre,
+      a.persona,
+      a.empleado,
+      a.usuario,
+      a.colaborador,
+      a.nombres,
+      a.apellidos,
+      a.nombre_empleado,
+      a.nombre_colaborador
+    ].filter(Boolean)
+
+    if (nombres.length === 0) return 'Reporte'
+    if (nombres.length === 1) return nombres[0]
+    return nombres.join(' ')
+  }
+
+  const obtenerSubtituloReporte = (a: any) =>
+    a.estado ||
+    a.tipo ||
+    a.motivo ||
+    a.descripcion ||
+    a.observacion ||
+    a.categoria ||
+    a.tipo_permiso ||
+    a.detalle ||
+    'Permiso / reporte'
+
   const reportesImportantes = Array.isArray(archivos)
     ? archivos.filter(esReporteRelevante)
     : []
 
   const reportesTotales = reportesImportantes.length
-  const reportesHoy = reportesImportantes.filter(
-    (a) => {
-      const fecha = a.fecha || a.created_at
-      return fecha && new Date(fecha).toDateString() === new Date().toDateString()
-    }
-  ).length
+  const reportesHoy = reportesImportantes.filter((a) => {
+    const fecha = a.fecha || a.created_at
+    return fecha && new Date(fecha).toDateString() === new Date().toDateString()
+  }).length
 
   const obtenerFecha = (a: any) => {
     const fecha = a.fecha || a.created_at
     return fecha ? new Date(fecha).toLocaleDateString('es-EC') : ''
   }
-
-  const obtenerTituloReporte = (a: any) =>
-    a.nombre || a.persona || a.empleado || a.usuario || 'Reporte'
-
-  const obtenerSubtituloReporte = (a: any) =>
-    a.estado || a.tipo || a.motivo || a.descripcion || a.observacion || 'Permiso / reporte'
 
   const colorEstado = (estado: string) => {
     switch (estado) {
@@ -469,20 +534,41 @@ export default function Dashboard() {
             {reportesImportantes.length === 0 ? (
               <div className="text-sm text-gray-400">No hay reportes relevantes</div>
             ) : (
-              reportesImportantes.map((a) => (
-                <div
-                  key={a.id || `${obtenerTituloReporte(a)}-${a.fecha || a.created_at}`}
-                  className="flex justify-between text-sm border-b py-1"
-                >
-                  <div>
-                    <p className="font-semibold">{obtenerTituloReporte(a)}</p>
-                    <p className="text-xs text-gray-400">
-                      {obtenerSubtituloReporte(a)}
-                    </p>
+              reportesImportantes.map((a) => {
+                const url = obtenerUrlReporte(a)
+
+                return (
+                  <div
+                    key={a.id || `${obtenerNombrePersonaReporte(a)}-${a.fecha || a.created_at}`}
+                    className="flex flex-col gap-2 border-b py-3"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold">{obtenerNombrePersonaReporte(a)}</p>
+                        <p className="text-xs text-gray-400">
+                          {obtenerSubtituloReporte(a)}
+                        </p>
+                      </div>
+                      <span className="text-gray-400">{obtenerFecha(a)}</span>
+                    </div>
+
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block text-xs bg-cyan-600 px-3 py-1 rounded hover:bg-cyan-500"
+                      >
+                        Ver reporte
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        Sin archivo disponible
+                      </span>
+                    )}
                   </div>
-                  <span className="text-gray-400">{obtenerFecha(a)}</span>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
