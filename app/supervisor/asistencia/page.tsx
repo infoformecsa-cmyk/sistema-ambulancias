@@ -31,35 +31,30 @@ export default function Asistencia(){
   const [verExcel, setVerExcel] = useState(false)
   const [excelUrl, setExcelUrl] = useState("")
 
-  // ✅ FIX: useEffect separado solo para cargar URL del Excel, una sola vez al montar
+  // ✅ useEffect independiente para cargar URL del Excel al montar
   useEffect(()=>{
     cargarExcelUrl()
   },[])
 
-  // ✅ FIX: useEffect para cargar personal/ambulancias cuando cambia tipo o guardia
+  // ✅ useEffect para cargar personal/ambulancias cuando cambia tipo o guardia
   useEffect(()=>{
     cargar()
   },[tipo,guardia])
 
-  // ✅ FIX: Función independiente que obtiene siempre el Excel más reciente del bucket
+  // ✅ FIX CLAVE: Función independiente con encodeURIComponent para manejar espacios
   async function cargarExcelUrl(){
     try {
-      const { data: listaArchivos, error } = await supabase.storage
+      const { data: lista, error } = await supabase.storage
         .from("excel_turnos")
-        .list("", { sortBy: { column: "created_at", order: "desc" } })
+        .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } })
 
-      if(error){
-        console.error("❌ Error listando Excel:", error)
-        return
-      }
-
-      if(!listaArchivos || listaArchivos.length === 0){
+      if(error || !lista || lista.length === 0){
         console.warn("⚠️ No hay archivos en el bucket excel_turnos")
         return
       }
 
-      const archivosExcel = listaArchivos.filter(
-        f => f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
+      const archivosExcel = lista.filter(
+        (f:any) => f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
       )
 
       if(archivosExcel.length === 0){
@@ -67,9 +62,17 @@ export default function Asistencia(){
         return
       }
 
+      const nombreArchivo = archivosExcel[0].name
+
+      // ✅ FIX CLAVE: Encodear nombre para manejar espacios y caracteres especiales
+      const nombreEncodeado = nombreArchivo
+        .split("/")
+        .map((parte:string) => encodeURIComponent(parte))
+        .join("/")
+
       const { data: urlData } = supabase.storage
         .from("excel_turnos")
-        .getPublicUrl(archivosExcel[0].name)
+        .getPublicUrl(nombreEncodeado)
 
       if(urlData?.publicUrl){
         setExcelUrl(urlData.publicUrl)
@@ -97,7 +100,6 @@ export default function Asistencia(){
 
     setAmbulancias(amb || [])
 
-    /* 🔥 FIX: AGRUPACIÓN CORRECTA */
     const grupo:any = {}
 
     ;(data || []).forEach((p:any)=>{
@@ -116,12 +118,7 @@ export default function Asistencia(){
     })
 
     setAgrupado(grupo)
-    // ✅ FIX: Ya no se busca el Excel aquí, lo maneja cargarExcelUrl() de forma independiente
   }
-
-  /* ========================= */
-  /* 🔥 GUARDAR CON ARCHIVOS Y VALIDACIÓN DE DUPLICADOS */
-  /* ========================= */
 
   async function guardar(){
 
@@ -169,7 +166,9 @@ export default function Asistencia(){
             continue
           }
 
-          const nombreArchivo = `${p.id}_${Date.now()}_${file.name}`
+          // ✅ FIX: Limpiar espacios del nombre del archivo de asistencia también
+          const nombreLimpio = file.name.replace(/\s+/g, "_")
+          const nombreArchivo = `${p.id}_${Date.now()}_${nombreLimpio}`
 
           const { error: uploadError } = await supabase.storage
             .from("asistencia_docs")
@@ -266,8 +265,6 @@ export default function Asistencia(){
     }
   }
 
-  /* ========================= */
-
   return(
 
     <div style={container}>
@@ -311,7 +308,7 @@ export default function Asistencia(){
           ⬅ Volver
         </button>
 
-        {/* ✅ FIX: Al abrir el modal también recarga la URL por si acaso */}
+        {/* ✅ Al abrir el modal recarga la URL por si acaso */}
         <button onClick={()=>{ cargarExcelUrl(); setVerExcel(true) }} style={btn}>
           📊 Control mensual
         </button>
