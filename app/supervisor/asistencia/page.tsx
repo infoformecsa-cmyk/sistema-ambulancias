@@ -28,6 +28,8 @@ export default function Asistencia(){
   const [fecha,setFecha] = useState(new Date().toISOString().slice(0,10))
 
   const [registros,setRegistros] = useState<any>({})
+  const [verExcel, setVerExcel] = useState(false)
+  const [excelUrl, setExcelUrl] = useState("")
 
   useEffect(()=>{
     cargar()
@@ -69,6 +71,14 @@ export default function Asistencia(){
     })
 
     setAgrupado(grupo)
+    // 🔥 CARGAR EXCEL DE CONTROL MENSUAL
+      const { data: excelData } = supabase.storage
+        .from("excel_turnos")
+        .getPublicUrl("control_asistencia_mensual.xlsx")
+
+      if(excelData?.publicUrl){
+        setExcelUrl(excelData.publicUrl)
+      }
   }
 
   /* ========================= */
@@ -268,6 +278,9 @@ export default function Asistencia(){
         <button onClick={()=>router.push("/supervisor")} style={btn}>
           ⬅ Volver
         </button>
+        <button onClick={()=>setVerExcel(true)} style={btn}>
+          📊 Control mensual
+        </button>
 
       </div>
 
@@ -405,6 +418,79 @@ export default function Asistencia(){
       <button onClick={guardar} style={btnGuardar}>
         💾 Guardar Asistencia
       </button>
+      {/* 🔥 MODAL CONTROL ASISTENCIA MENSUAL */}
+      {verExcel && (
+      <div style={{
+        position:"fixed",
+        top:0,
+        left:0,
+        width:"100%",
+        height:"100%",
+        background:"rgba(0,0,0,0.8)",
+        display:"flex",
+        justifyContent:"center",
+        alignItems:"center",
+        zIndex:999
+        }}>
+    
+        <div style={{
+          background:"#0f172a",
+          padding:30,
+          borderRadius:12,
+          width:400,
+          textAlign:"center"
+          }}>
+
+          <h2 style={{marginBottom:10}}>
+          📊 Control de Asistencia Mensual
+          </h2>
+
+          <p style={{marginBottom:10, fontSize:12, opacity:0.6}}>
+          Uso exclusivo para validación de turnos y vacaciones
+          </p>
+
+          <p style={{marginBottom:20}}>
+          Archivo oficial de programación mensual: turnos (12h / 24h) y vacaciones del personal
+          </p>
+
+          {excelUrl ? (
+            <a 
+              href={excelUrl}
+              target="_blank"
+              style={{
+                display:"inline-block",
+                background:"#22c55e",
+                padding:"10px 15px",
+                borderRadius:8,
+                color:"white",
+                textDecoration:"none",
+                marginBottom:20
+              }}
+            >
+              ⬇ Descargar programación mensual
+            </a>
+          ) : (
+            <p style={{color:"gray"}}>No hay archivo cargado</p>
+         )}
+
+            <div>
+              <button 
+                onClick={()=>setVerExcel(false)} 
+                style={{
+                  background:"#ef4444",
+                  padding:"8px 15px",
+                  borderRadius:8,
+                  color:"white",
+                  border:"none"
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+        </div>
+     </div>
+    )}
 
     </div>
   )
