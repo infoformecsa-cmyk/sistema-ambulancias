@@ -31,9 +31,56 @@ export default function Dashboard() {
     iniciar()
   }, [])
 
+  // ✅ FIX: useEffect independiente para cargar URL del Excel al montar
+  useEffect(() => {
+    cargarExcelUrl()
+  }, [])
+
   const iniciar = async () => {
     await fetchData()
     setLoading(false)
+  }
+
+  // ✅ FIX: Función independiente con encode para manejar espacios en nombres de archivo
+  const cargarExcelUrl = async () => {
+    try {
+      const { data: lista, error } = await supabase.storage
+        .from('excel_turnos')
+        .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })
+
+      if (error || !lista || lista.length === 0) {
+        console.warn('⚠️ No hay archivos en el bucket excel_turnos')
+        return
+      }
+
+      const archivosExcel = lista.filter(
+        (f: any) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')
+      )
+
+      if (archivosExcel.length === 0) {
+        console.warn('⚠️ No hay archivos Excel en el bucket')
+        return
+      }
+
+      const nombreArchivo = archivosExcel[0].name
+
+      // ✅ FIX CLAVE: Encodear nombre para manejar espacios y caracteres especiales
+      const nombreEncodeado = nombreArchivo
+        .split('/')
+        .map((parte: string) => encodeURIComponent(parte))
+        .join('/')
+
+      const { data: urlData } = supabase.storage
+        .from('excel_turnos')
+        .getPublicUrl(nombreEncodeado)
+
+      if (urlData?.publicUrl) {
+        setExcelUrl(urlData.publicUrl)
+        console.log('✅ Excel URL cargada:', urlData.publicUrl)
+      }
+    } catch (err) {
+      console.error('❌ Error en cargarExcelUrl:', err)
+    }
   }
 
   const fetchReportes = async () => {
@@ -192,39 +239,51 @@ export default function Dashboard() {
     setNuevaAmbulancia(false)
     fetchData()
   }
+
   const subirExcel = async () => {
-  if (!excelFile) {
-    alert("Seleccione un archivo Excel")
-    return
+    if (!excelFile) {
+      alert('Seleccione un archivo Excel')
+      return
+    }
+
+    if (!excelFile.name.endsWith('.xlsx') && !excelFile.name.endsWith('.xls')) {
+      alert('Debe ser archivo Excel')
+      return
+    }
+
+    // ✅ FIX: Eliminar espacios del nombre para evitar URLs rotas
+    const nombreLimpio = excelFile.name.replace(/\s+/g, '_')
+    const nombre = `excel_turnos_${Date.now()}_${nombreLimpio}`
+
+    const { error } = await supabase.storage
+      .from('excel_turnos')
+      .upload(nombre, excelFile)
+
+    if (error) {
+      console.error(error)
+      alert('Error subiendo Excel')
+      return
+    }
+
+    // ✅ FIX: Encodear el nombre al generar la URL pública
+    const nombreEncodeado = nombre
+      .split('/')
+      .map((parte: string) => encodeURIComponent(parte))
+      .join('/')
+
+    const { data } = supabase.storage
+      .from('excel_turnos')
+      .getPublicUrl(nombreEncodeado)
+
+    setExcelUrl(data.publicUrl)
+    setModalExcel(false)
+    setExcelFile(null)
+
+    // ✅ FIX: Recargar desde bucket para confirmar
+    await cargarExcelUrl()
+
+    alert('✅ Excel subido correctamente')
   }
-
-  if (!excelFile.name.endsWith(".xlsx") && !excelFile.name.endsWith(".xls")) {
-    alert("Debe ser archivo Excel")
-    return
-  }
-
-  const nombre = `excel_turnos_${Date.now()}_${excelFile.name}`
-
-  const { error } = await supabase.storage
-    .from("excel_turnos")
-    .upload(nombre, excelFile)
-
-  if (error) {
-    console.error(error)
-    alert("Error subiendo Excel")
-    return
-  }
-
-  const { data } = supabase.storage
-    .from("excel_turnos")
-    .getPublicUrl(nombre)
-
-  setExcelUrl(data.publicUrl)
-  setModalExcel(false)
-  setExcelFile(null)
-
-  alert("✅ Excel subido correctamente")
-}
 
   const logout = () => {
     localStorage.clear()
@@ -479,40 +538,22 @@ export default function Dashboard() {
         </h1>
 
         <div className="flex gap-3 flex-wrap">
-          <button
-            onClick={fetchData}
-            className="bg-blue-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={fetchData} className="bg-blue-600 px-4 py-2 rounded-lg">
             🔄 Actualizar
           </button>
-          <button
-            onClick={() => setNuevo(true)}
-            className="bg-green-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={() => setNuevo(true)} className="bg-green-600 px-4 py-2 rounded-lg">
             ➕ Nuevo
           </button>
-          <button
-            onClick={() => setNuevaAmbulancia(true)}
-            className="bg-purple-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={() => setNuevaAmbulancia(true)} className="bg-purple-600 px-4 py-2 rounded-lg">
             🚑 Ambulancia
           </button>
-          <button
-            onClick={irHistorial}
-            className="bg-cyan-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={irHistorial} className="bg-cyan-600 px-4 py-2 rounded-lg">
             📊 Historial
           </button>
-          <button
-            onClick={logout}
-            className="bg-red-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={logout} className="bg-red-600 px-4 py-2 rounded-lg">
             🔐 Salir
           </button>
-          <button
-            onClick={() => setModalExcel(true)}
-            className="bg-yellow-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={() => setModalExcel(true)} className="bg-yellow-600 px-4 py-2 rounded-lg">
             📊 Excel
           </button>
         </div>
@@ -567,13 +608,8 @@ export default function Dashboard() {
                           <p className="text-sm font-semibold">{p.nombre}</p>
                           <p className="text-xs text-gray-400">{p.estado}</p>
                         </div>
-
                         <div className="flex items-center gap-2">
-                          <div
-                            className={`w-3 h-3 rounded-full ${colorEstado(
-                              p.estado
-                            )}`}
-                          />
+                          <div className={`w-3 h-3 rounded-full ${colorEstado(p.estado)}`} />
                           <button
                             onClick={() => editarPersonal(p)}
                             className="text-xs bg-cyan-600 px-2 py-1 rounded"
@@ -595,7 +631,6 @@ export default function Dashboard() {
                 {consola.length > 0 && (
                   <div className="mt-3 border border-green-500/40 p-3 rounded bg-black/40">
                     <h3 className="text-green-400 mb-2">💻 CONSOLA</h3>
-
                     {consola.map((p: any) => (
                       <div
                         key={p.id}
@@ -659,7 +694,6 @@ export default function Dashboard() {
             ) : (
               reportesImportantes.map((a) => {
                 const url = obtenerUrlReporte(a)
-
                 return (
                   <div
                     key={a.id || `${obtenerNombrePersonaReporte(a)}-${a.fecha || a.created_at}`}
@@ -668,13 +702,10 @@ export default function Dashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-semibold">{obtenerNombrePersonaReporte(a)}</p>
-                        <p className="text-xs text-gray-400">
-                          {obtenerSubtituloReporte(a)}
-                        </p>
+                        <p className="text-xs text-gray-400">{obtenerSubtituloReporte(a)}</p>
                       </div>
                       <span className="text-gray-400">{obtenerFecha(a)}</span>
                     </div>
-
                     {url ? (
                       <a
                         href={url}
@@ -685,26 +716,24 @@ export default function Dashboard() {
                         Ver reporte
                       </a>
                     ) : (
-                      <span className="text-xs text-gray-500">
-                        Sin archivo disponible
-                      </span>
+                      <span className="text-xs text-gray-500">Sin archivo disponible</span>
                     )}
                   </div>
                 )
               })
             )}
           </div>
+
           <div className="bg-yellow-900/20 p-4 rounded-xl border border-yellow-500/20">
             <h2 className="text-yellow-300 mb-2">📊 Excel Turnos</h2>
-
             {excelUrl ? (
-             <a
-              href={excelUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm bg-yellow-600 px-3 py-1 rounded inline-block"
+              <a
+                href={excelUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm bg-yellow-600 px-3 py-1 rounded inline-block"
               >
-              Ver archivo Excel
+                Ver archivo Excel
               </a>
             ) : (
               <p className="text-gray-400 text-sm">No hay archivo cargado</p>
@@ -717,74 +746,44 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-xl w-80">
             <h2 className="mb-4 text-white">Nuevo funcionario</h2>
-
             <input
               className="w-full mb-2 p-2 bg-black border text-white rounded"
               placeholder="Nombre"
               value={formNuevo.nombre}
-              onChange={(e) =>
-                setFormNuevo({ ...formNuevo, nombre: e.target.value })
-              }
+              onChange={(e) => setFormNuevo({ ...formNuevo, nombre: e.target.value })}
             />
-
             <select
               className="w-full mb-2 p-2 bg-black border text-white rounded"
               value={formNuevo.tipo}
-              onChange={(e) =>
-                setFormNuevo({ ...formNuevo, tipo: e.target.value })
-              }
+              onChange={(e) => setFormNuevo({ ...formNuevo, tipo: e.target.value })}
             >
               <option value="ambulancia">Ambulancia</option>
               <option value="consola">Consola</option>
             </select>
-
             <select
               className="w-full mb-2 p-2 bg-black border text-white rounded"
               value={formNuevo.guardia}
-              onChange={(e) =>
-                setFormNuevo({ ...formNuevo, guardia: e.target.value })
-              }
+              onChange={(e) => setFormNuevo({ ...formNuevo, guardia: e.target.value })}
             >
               {GUARDIAS.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
+                <option key={g} value={g}>{g}</option>
               ))}
             </select>
-
             {formNuevo.tipo === 'ambulancia' && (
               <select
                 className="w-full mb-2 p-2 bg-black border text-white rounded"
                 value={formNuevo.ambulancia_codigo}
-                onChange={(e) =>
-                  setFormNuevo({
-                    ...formNuevo,
-                    ambulancia_codigo: e.target.value
-                  })
-                }
+                onChange={(e) => setFormNuevo({ ...formNuevo, ambulancia_codigo: e.target.value })}
               >
                 <option value="">Seleccionar unidad</option>
                 {ambulancias.map((a: any) => (
-                  <option key={a.id} value={a.codigo_operativo}>
-                    {a.codigo_operativo}
-                  </option>
+                  <option key={a.id} value={a.codigo_operativo}>{a.codigo_operativo}</option>
                 ))}
               </select>
             )}
-
             <div className="flex justify-between mt-4">
-              <button
-                onClick={crearNuevo}
-                className="bg-green-600 px-4 py-2 rounded"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => setNuevo(false)}
-                className="bg-red-600 px-4 py-2 rounded"
-              >
-                Cancelar
-              </button>
+              <button onClick={crearNuevo} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
+              <button onClick={() => setNuevo(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
             </div>
           </div>
         </div>
@@ -794,27 +793,15 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-xl w-80">
             <h2 className="mb-4 text-white">Nueva ambulancia</h2>
-
             <input
               className="w-full mb-4 p-2 bg-black border text-white rounded"
               placeholder="Código operativo"
               value={codigoAmbulancia}
               onChange={(e) => setCodigoAmbulancia(e.target.value)}
             />
-
             <div className="flex justify-between">
-              <button
-                onClick={crearAmbulancia}
-                className="bg-purple-600 px-4 py-2 rounded"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => setNuevaAmbulancia(false)}
-                className="bg-red-600 px-4 py-2 rounded"
-              >
-                Cancelar
-              </button>
+              <button onClick={crearAmbulancia} className="bg-purple-600 px-4 py-2 rounded">Guardar</button>
+              <button onClick={() => setNuevaAmbulancia(false)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
             </div>
           </div>
         </div>
@@ -824,117 +811,74 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-xl w-80">
             <h2 className="mb-4">Editar funcionario</h2>
-
             <input
               className="w-full mb-3 p-2 bg-black border text-white rounded"
               value={editando.nombre}
-              onChange={(e) =>
-                setEditando({ ...editando, nombre: e.target.value })
-              }
+              onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
             />
-
             <select
               className="w-full mb-3 p-2 bg-black border text-white rounded"
               value={editando.tipo}
-              onChange={(e) =>
-                setEditando({ ...editando, tipo: e.target.value })
-              }
+              onChange={(e) => setEditando({ ...editando, tipo: e.target.value })}
             >
               <option value="ambulancia">Ambulancia</option>
               <option value="consola">Consola</option>
             </select>
-
             <select
               className="w-full mb-3 p-2 bg-black border text-white rounded"
               value={editando.guardia}
-              onChange={(e) =>
-                setEditando({ ...editando, guardia: e.target.value })
-              }
+              onChange={(e) => setEditando({ ...editando, guardia: e.target.value })}
             >
               {GUARDIAS.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
+                <option key={g} value={g}>{g}</option>
               ))}
             </select>
-
             <select
               className="w-full mb-3 p-2 bg-black border text-white rounded"
               value={editando.ambulancia_codigo}
-              onChange={(e) =>
-                setEditando({
-                  ...editando,
-                  ambulancia_codigo: e.target.value
-                })
-              }
+              onChange={(e) => setEditando({ ...editando, ambulancia_codigo: e.target.value })}
             >
               <option value="">Seleccionar unidad</option>
               {ambulancias.map((a: any) => (
-                <option key={a.id} value={a.codigo_operativo}>
-                  {a.codigo_operativo}
-                </option>
+                <option key={a.id} value={a.codigo_operativo}>{a.codigo_operativo}</option>
               ))}
             </select>
-
             <select
               className="w-full mb-4 p-2 bg-black border text-white rounded"
               value={editando.estado}
-              onChange={(e) =>
-                setEditando({ ...editando, estado: e.target.value })
-              }
+              onChange={(e) => setEditando({ ...editando, estado: e.target.value })}
             >
               <option value="Activo">Activo</option>
               <option value="Permiso">Permiso</option>
               <option value="Reposo Médico">Reposo Médico</option>
               <option value="Vacaciones">Vacaciones</option>
             </select>
-
             <div className="flex justify-between">
-              <button
-                onClick={actualizar}
-                className="bg-green-600 px-4 py-2 rounded"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => setEditando(null)}
-                className="bg-red-600 px-4 py-2 rounded"
-              >
-                Cancelar
-              </button>
+              <button onClick={actualizar} className="bg-green-600 px-4 py-2 rounded">Guardar</button>
+              <button onClick={() => setEditando(null)} className="bg-red-600 px-4 py-2 rounded">Cancelar</button>
             </div>
           </div>
         </div>
       )}
+
       {modalExcel && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-xl w-80">
-
             <h2 className="mb-4 text-white">Subir Excel de Turnos</h2>
-
             <input
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
               className="w-full mb-4 p-2 bg-black border text-white"
             />
-
             <div className="flex justify-between">
-              <button
-              onClick={subirExcel}
-              className="bg-yellow-600 px-4 py-2 rounded"
-              >
-              Subir
+              <button onClick={subirExcel} className="bg-yellow-600 px-4 py-2 rounded">
+                Subir
               </button>
-
-              <button
-              onClick={() => setModalExcel(false)}
-              className="bg-red-600 px-4 py-2 rounded"
-              >
-              Cancelar
+              <button onClick={() => setModalExcel(false)} className="bg-red-600 px-4 py-2 rounded">
+                Cancelar
               </button>
             </div>
-
           </div>
         </div>
       )}
