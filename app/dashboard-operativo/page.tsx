@@ -27,13 +27,57 @@ export default function Dashboard() {
     ambulancia_codigo: ''
   })
 
+  // ✅ FIX: useEffect separado solo para cargar la URL del Excel
   useEffect(() => {
     iniciar()
+  }, [])
+
+  useEffect(() => {
+    cargarExcelUrl()
   }, [])
 
   const iniciar = async () => {
     await fetchData()
     setLoading(false)
+  }
+
+  // ✅ FIX: Función independiente para obtener la URL del Excel más reciente
+  const cargarExcelUrl = async () => {
+    try {
+      const { data: listaArchivos, error } = await supabase.storage
+        .from('excel_turnos')
+        .list('', { sortBy: { column: 'created_at', order: 'desc' } })
+
+      if (error) {
+        console.error('Error listando Excel:', error)
+        return
+      }
+
+      if (!listaArchivos || listaArchivos.length === 0) {
+        console.warn('No hay archivos en el bucket excel_turnos')
+        return
+      }
+
+      const archivosExcel = listaArchivos.filter(
+        (f) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')
+      )
+
+      if (archivosExcel.length === 0) {
+        console.warn('No hay archivos Excel en el bucket')
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('excel_turnos')
+        .getPublicUrl(archivosExcel[0].name)
+
+      if (urlData?.publicUrl) {
+        setExcelUrl(urlData.publicUrl)
+        console.log('✅ Excel URL cargada:', urlData.publicUrl)
+      }
+    } catch (err) {
+      console.error('Error en cargarExcelUrl:', err)
+    }
   }
 
   const fetchReportes = async () => {
@@ -192,39 +236,44 @@ export default function Dashboard() {
     setNuevaAmbulancia(false)
     fetchData()
   }
+
   const subirExcel = async () => {
-  if (!excelFile) {
-    alert("Seleccione un archivo Excel")
-    return
+    if (!excelFile) {
+      alert('Seleccione un archivo Excel')
+      return
+    }
+
+    if (!excelFile.name.endsWith('.xlsx') && !excelFile.name.endsWith('.xls')) {
+      alert('Debe ser archivo Excel')
+      return
+    }
+
+    const nombre = `excel_turnos_${Date.now()}_${excelFile.name}`
+
+    const { error } = await supabase.storage
+      .from('excel_turnos')
+      .upload(nombre, excelFile)
+
+    if (error) {
+      console.error(error)
+      alert('Error subiendo Excel')
+      return
+    }
+
+    const { data } = supabase.storage
+      .from('excel_turnos')
+      .getPublicUrl(nombre)
+
+    // ✅ FIX: Setear la URL directamente y también recargar desde bucket
+    setExcelUrl(data.publicUrl)
+    setModalExcel(false)
+    setExcelFile(null)
+
+    // ✅ FIX: Recargar para confirmar que queda la más reciente
+    await cargarExcelUrl()
+
+    alert('✅ Excel subido correctamente')
   }
-
-  if (!excelFile.name.endsWith(".xlsx") && !excelFile.name.endsWith(".xls")) {
-    alert("Debe ser archivo Excel")
-    return
-  }
-
-  const nombre = `excel_turnos_${Date.now()}_${excelFile.name}`
-
-  const { error } = await supabase.storage
-    .from("excel_turnos")
-    .upload(nombre, excelFile)
-
-  if (error) {
-    console.error(error)
-    alert("Error subiendo Excel")
-    return
-  }
-
-  const { data } = supabase.storage
-    .from("excel_turnos")
-    .getPublicUrl(nombre)
-
-  setExcelUrl(data.publicUrl)
-  setModalExcel(false)
-  setExcelFile(null)
-
-  alert("✅ Excel subido correctamente")
-}
 
   const logout = () => {
     localStorage.clear()
@@ -694,17 +743,19 @@ export default function Dashboard() {
               })
             )}
           </div>
+
+          {/* ✅ FIX: Sección Excel con URL cargada correctamente */}
           <div className="bg-yellow-900/20 p-4 rounded-xl border border-yellow-500/20">
             <h2 className="text-yellow-300 mb-2">📊 Excel Turnos</h2>
 
             {excelUrl ? (
-             <a
-              href={excelUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm bg-yellow-600 px-3 py-1 rounded inline-block"
+              <a
+                href={excelUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm bg-yellow-600 px-3 py-1 rounded inline-block"
               >
-              Ver archivo Excel
+                Ver archivo Excel
               </a>
             ) : (
               <p className="text-gray-400 text-sm">No hay archivo cargado</p>
@@ -906,6 +957,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
       {modalExcel && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-xl w-80">
@@ -921,17 +973,17 @@ export default function Dashboard() {
 
             <div className="flex justify-between">
               <button
-              onClick={subirExcel}
-              className="bg-yellow-600 px-4 py-2 rounded"
+                onClick={subirExcel}
+                className="bg-yellow-600 px-4 py-2 rounded"
               >
-              Subir
+                Subir
               </button>
 
               <button
-              onClick={() => setModalExcel(false)}
-              className="bg-red-600 px-4 py-2 rounded"
+                onClick={() => setModalExcel(false)}
+                className="bg-red-600 px-4 py-2 rounded"
               >
-              Cancelar
+                Cancelar
               </button>
             </div>
 
