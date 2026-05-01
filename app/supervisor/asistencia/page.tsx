@@ -80,15 +80,10 @@ if(error){
   console.error("Error listando:", error)
 }else if(listaArchivos && listaArchivos.length > 0){
 
-  // 🔥 ORDENAR MANUALMENTE POR FECHA
-  const ordenados = listaArchivos.sort(
-    (a: any, b: any) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )
+  // 🔥 TOMAR EL ÚLTIMO ARCHIVO DIRECTAMENTE (SIN SORT)
+  const ultimoArchivo = listaArchivos[listaArchivos.length - 1].name
 
-  const ultimoArchivo = ordenados[0].name
-
-  console.log("📂 Último Excel:", ultimoArchivo)
+  console.log("📂 Archivo detectado:", ultimoArchivo)
 
   const { data: urlData } = supabase.storage
     .from("excel_turnos")
@@ -96,7 +91,13 @@ if(error){
 
   if(urlData?.publicUrl){
     setExcelUrl(urlData.publicUrl)
+    console.log("✅ URL generada:", urlData.publicUrl)
+  } else {
+    console.warn("⚠️ No se pudo generar URL")
   }
+
+}else{
+  console.warn("⚠️ No hay archivos en el bucket")
 }
   }
 
