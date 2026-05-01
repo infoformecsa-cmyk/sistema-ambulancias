@@ -72,29 +72,32 @@ export default function Asistencia(){
 
     setAgrupado(grupo)
     // 🔥 OBTENER ÚLTIMO EXCEL SUBIDO (DINÁMICO)
-    const { data: listaArchivos, error: errorLista } = await supabase.storage
-      .from("excel_turnos")
-      .list("", {
-        limit: 1,
-        offset: 0,
-        sortBy: { column: "created_at", order: "desc" }
-      })
+    const { data: listaArchivos, error } = await supabase.storage
+  .from("excel_turnos")
+  .list("")
 
-    if(errorLista){
-      console.error("Error listando archivos:", errorLista)
-    }else if(listaArchivos && listaArchivos.length > 0){
+if(error){
+  console.error("Error listando:", error)
+}else if(listaArchivos && listaArchivos.length > 0){
 
-      const nombreArchivo = listaArchivos[0].name
+  // 🔥 ORDENAR MANUALMENTE POR FECHA
+  const ordenados = listaArchivos.sort(
+    (a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
 
-      const { data: urlData } = supabase.storage
-        .from("excel_turnos")
-        .getPublicUrl(nombreArchivo)
+  const ultimoArchivo = ordenados[0].name
 
-      if(urlData?.publicUrl){
-        setExcelUrl(urlData.publicUrl)
-      }
+  console.log("📂 Último Excel:", ultimoArchivo)
 
-    }
+  const { data: urlData } = supabase.storage
+    .from("excel_turnos")
+    .getPublicUrl(ultimoArchivo)
+
+  if(urlData?.publicUrl){
+    setExcelUrl(urlData.publicUrl)
+  }
+}
   }
 
   /* ========================= */
