@@ -31,9 +31,55 @@ export default function Asistencia(){
   const [verExcel, setVerExcel] = useState(false)
   const [excelUrl, setExcelUrl] = useState("")
 
+  // ✅ FIX: useEffect separado solo para cargar URL del Excel, una sola vez al montar
+  useEffect(()=>{
+    cargarExcelUrl()
+  },[])
+
+  // ✅ FIX: useEffect para cargar personal/ambulancias cuando cambia tipo o guardia
   useEffect(()=>{
     cargar()
   },[tipo,guardia])
+
+  // ✅ FIX: Función independiente que obtiene siempre el Excel más reciente del bucket
+  async function cargarExcelUrl(){
+    try {
+      const { data: listaArchivos, error } = await supabase.storage
+        .from("excel_turnos")
+        .list("", { sortBy: { column: "created_at", order: "desc" } })
+
+      if(error){
+        console.error("❌ Error listando Excel:", error)
+        return
+      }
+
+      if(!listaArchivos || listaArchivos.length === 0){
+        console.warn("⚠️ No hay archivos en el bucket excel_turnos")
+        return
+      }
+
+      const archivosExcel = listaArchivos.filter(
+        f => f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
+      )
+
+      if(archivosExcel.length === 0){
+        console.warn("⚠️ No hay archivos Excel en el bucket")
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("excel_turnos")
+        .getPublicUrl(archivosExcel[0].name)
+
+      if(urlData?.publicUrl){
+        setExcelUrl(urlData.publicUrl)
+        console.log("✅ Excel URL cargada:", urlData.publicUrl)
+      }
+
+    } catch(err){
+      console.error("❌ Error en cargarExcelUrl:", err)
+    }
+  }
 
   async function cargar(){
 
@@ -61,7 +107,6 @@ export default function Asistencia(){
       if(tipo === "consola"){
         key = GRUPOS_COLORES[p.guardia]?.nombre || "CONSOLA"
       }else{
-        /* 🔥 CORRECCIÓN AQUÍ */
         key = p.ambulancia_codigo || "SIN ASIGNAR"
       }
 
@@ -71,46 +116,7 @@ export default function Asistencia(){
     })
 
     setAgrupado(grupo)
-    // 🔥 OBTENER EXCEL REAL (CORREGIDO Y ESTABLE)
-const { data: listaArchivos, error } = await supabase.storage
-  .from("excel_turnos")
-  .list()
-
-if(error){
-  console.error("❌ Error listando:", error)
-}else if(listaArchivos && listaArchivos.length > 0){
-
-  // 🔥 FILTRAR SOLO ARCHIVOS EXCEL (.xlsx)
-  const archivosExcel = listaArchivos.filter(f => f.name.endsWith(".xlsx"))
-
-  if(archivosExcel.length === 0){
-    console.warn("⚠️ No hay archivos Excel")
-    return
-  }
-
-  // 🔥 TOMAR EL MÁS RECIENTE (POR created_at)
-  const archivoOrdenado = archivosExcel.sort(
-    (a:any,b:any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )
-
-  const ultimoArchivo = archivoOrdenado[0].name
-
-  console.log("📂 Excel detectado:", ultimoArchivo)
-
-  const { data: urlData } = supabase.storage
-    .from("excel_turnos")
-    .getPublicUrl(ultimoArchivo)
-
-  if(urlData?.publicUrl){
-    setExcelUrl(urlData.publicUrl)
-    console.log("✅ URL generada:", urlData.publicUrl)
-  } else {
-    console.warn("⚠️ No se pudo generar URL")
-  }
-
-}else{
-  console.warn("⚠️ No hay archivos en el bucket")
-}
+    // ✅ FIX: Ya no se busca el Excel aquí, lo maneja cargarExcelUrl() de forma independiente
   }
 
   /* ========================= */
@@ -119,7 +125,6 @@ if(error){
 
   async function guardar(){
 
-    // 🔥 VALIDACIÓN: Verificar que hay registros
     const personasConRegistro = personal.filter(p => registros[p.id])
 
     if(personasConRegistro.length === 0){
@@ -127,7 +132,6 @@ if(error){
       return
     }
 
-    // 🔥 VALIDACIÓN: Verificar que todas tengan estado
     for(const p of personasConRegistro){
       const r = registros[p.id]
       if(!r.estado){
@@ -186,7 +190,6 @@ if(error){
           archivo_tipo = file.type
         }
 
-        // 🔥 VERIFICACIÓN DE DUPLICADO: Buscar si ya existe registro para esta persona, fecha y turno
         const { data: existente } = await supabase
           .from("asistencia")
           .select("id, archivo_url, archivo_nombre, tipo_archivo, size_archivo")
@@ -198,7 +201,6 @@ if(error){
         let error
 
         if(existente){
-          // Si existe, actualiza el registro existente
           const { error: updateError } = await supabase
             .from("asistencia")
             .update({
@@ -210,7 +212,7 @@ if(error){
               es_r2: r.es_r2 || false,
               origen_r2: r.ubicacion || null,
               horas,
-              archivo_url: archivo_url || existente.archivo_url,  // Solo actualiza si hay nuevo archivo
+              archivo_url: archivo_url || existente.archivo_url,
               archivo_nombre: archivo_nombre || existente.archivo_nombre,
               tipo_archivo: archivo_tipo || existente.tipo_archivo,
               size_archivo: r.archivo?.size || existente.size_archivo
@@ -219,7 +221,6 @@ if(error){
 
           error = updateError
         }else{
-          // Si no existe, inserta nuevo
           const { error: insertError } = await supabase.from("asistencia").insert([{
             personal_id: p.id,
             fecha,
@@ -255,7 +256,6 @@ if(error){
       }
     }
 
-    // 🔥 MOSTRAR RESULTADOS
     if(exitosos > 0){
       alert(`✅ ${exitosos} registro(s) guardado(s) o actualizado(s)`)
       setRegistros({})
@@ -310,7 +310,9 @@ if(error){
         <button onClick={()=>router.push("/supervisor")} style={btn}>
           ⬅ Volver
         </button>
-        <button onClick={()=>setVerExcel(true)} style={btn}>
+
+        {/* ✅ FIX: Al abrir el modal también recarga la URL por si acaso */}
+        <button onClick={()=>{ cargarExcelUrl(); setVerExcel(true) }} style={btn}>
           📊 Control mensual
         </button>
 
@@ -450,79 +452,81 @@ if(error){
       <button onClick={guardar} style={btnGuardar}>
         💾 Guardar Asistencia
       </button>
+
       {/* 🔥 MODAL CONTROL ASISTENCIA MENSUAL */}
       {verExcel && (
-      <div style={{
-        position:"fixed",
-        top:0,
-        left:0,
-        width:"100%",
-        height:"100%",
-        background:"rgba(0,0,0,0.8)",
-        display:"flex",
-        justifyContent:"center",
-        alignItems:"center",
-        zIndex:999
-        }}>
-    
         <div style={{
-          background:"#0f172a",
-          padding:30,
-          borderRadius:12,
-          width:400,
-          textAlign:"center"
+          position:"fixed",
+          top:0,
+          left:0,
+          width:"100%",
+          height:"100%",
+          background:"rgba(0,0,0,0.8)",
+          display:"flex",
+          justifyContent:"center",
+          alignItems:"center",
+          zIndex:999
+        }}>
+
+          <div style={{
+            background:"#0f172a",
+            padding:30,
+            borderRadius:12,
+            width:400,
+            textAlign:"center"
           }}>
 
-          <h2 style={{marginBottom:10}}>
-          📊 Control de Asistencia Mensual
-          </h2>
+            <h2 style={{marginBottom:10}}>
+              📊 Control de Asistencia Mensual
+            </h2>
 
-          <p style={{marginBottom:10, fontSize:12, opacity:0.6}}>
-          Uso exclusivo para validación de turnos y vacaciones
-          </p>
+            <p style={{marginBottom:10, fontSize:12, opacity:0.6}}>
+              Uso exclusivo para validación de turnos y vacaciones
+            </p>
 
-          <p style={{marginBottom:20}}>
-          Archivo oficial de programación mensual: turnos (12h / 24h) y vacaciones del personal
-          </p>
+            <p style={{marginBottom:20}}>
+              Archivo oficial de programación mensual: turnos (12h / 24h) y vacaciones del personal
+            </p>
 
-          {excelUrl ? (
-            <a 
-              href={excelUrl}
-              target="_blank"
-              style={{
-                display:"inline-block",
-                background:"#22c55e",
-                padding:"10px 15px",
-                borderRadius:8,
-                color:"white",
-                textDecoration:"none",
-                marginBottom:20
-              }}
-            >
-              ⬇ Descargar programación mensual
-            </a>
-          ) : (
-            <p style={{color:"gray"}}>No hay archivo cargado</p>
-         )}
+            {excelUrl ? (
+              <a
+                href={excelUrl}
+                target="_blank"
+                style={{
+                  display:"inline-block",
+                  background:"#22c55e",
+                  padding:"10px 15px",
+                  borderRadius:8,
+                  color:"white",
+                  textDecoration:"none",
+                  marginBottom:20
+                }}
+              >
+                ⬇ Descargar programación mensual
+              </a>
+            ) : (
+              <p style={{color:"gray", marginBottom:20}}>No hay archivo cargado</p>
+            )}
 
             <div>
-              <button 
-                onClick={()=>setVerExcel(false)} 
+              <button
+                onClick={()=>setVerExcel(false)}
                 style={{
                   background:"#ef4444",
                   padding:"8px 15px",
                   borderRadius:8,
                   color:"white",
-                  border:"none"
+                  border:"none",
+                  cursor:"pointer"
                 }}
               >
                 Cerrar
               </button>
             </div>
 
+          </div>
         </div>
-     </div>
-    )}
+      )}
 
     </div>
   )
@@ -599,7 +603,8 @@ const btn: CSSProperties = {
   color:"white",
   padding:"10px 15px",
   borderRadius:8,
-  border:"none"
+  border:"none",
+  cursor:"pointer"
 }
 
 const btnGuardar: CSSProperties = {
@@ -610,5 +615,6 @@ const btnGuardar: CSSProperties = {
   borderRadius:12,
   fontWeight:"bold",
   fontSize:16,
-  border:"none"
+  border:"none",
+  cursor:"pointer"
 }
