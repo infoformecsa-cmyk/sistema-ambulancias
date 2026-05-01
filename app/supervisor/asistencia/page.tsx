@@ -31,52 +31,68 @@ export default function Asistencia(){
   const [verExcel, setVerExcel] = useState(false)
   const [excelUrl, setExcelUrl] = useState("")
 
-  // ✅ useEffect independiente para cargar URL del Excel al montar
   useEffect(()=>{
     cargarExcelUrl()
   },[])
 
-  // ✅ useEffect para cargar personal/ambulancias cuando cambia tipo o guardia
   useEffect(()=>{
     cargar()
   },[tipo,guardia])
 
-  // ✅ FIX CLAVE: Función independiente con encodeURIComponent para manejar espacios
   async function cargarExcelUrl(){
     try {
+      // INTENTO 1: via .list() — funciona si hay política SELECT
       const { data: lista, error } = await supabase.storage
         .from("excel_turnos")
         .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } })
 
-      if(error || !lista || lista.length === 0){
-        console.warn("⚠️ No hay archivos en el bucket excel_turnos")
+      console.log("📂 list resultado:", lista, "error:", error)
+
+      if(!error && lista && lista.length > 0){
+        const archivosExcel = lista.filter(
+          (f:any) => f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
+        )
+
+        if(archivosExcel.length > 0){
+          const nombreArchivo = archivosExcel[0].name
+          const nombreEncodeado = nombreArchivo
+            .split("/")
+            .map((parte:string) => encodeURIComponent(parte))
+            .join("/")
+
+          const { data: urlData } = supabase.storage
+            .from("excel_turnos")
+            .getPublicUrl(nombreEncodeado)
+
+          if(urlData?.publicUrl){
+            setExcelUrl(urlData.publicUrl)
+            console.log("✅ URL cargada via list:", urlData.publicUrl)
+            return
+          }
+        }
+      }
+
+      // INTENTO 2: FALLBACK — construir URL directamente desde env
+      // Funciona aunque no haya política SELECT, porque el bucket es PUBLIC
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if(!supabaseUrl){
+        console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL no definida")
         return
       }
 
-      const archivosExcel = lista.filter(
-        (f:any) => f.name.endsWith(".xlsx") || f.name.endsWith(".xls")
-      )
+      // Guardar el nombre del último archivo subido en localStorage como fallback
+      const ultimoNombre = localStorage.getItem("ultimo_excel_nombre")
+      if(ultimoNombre){
+        const nombreEncodeado = ultimoNombre
+          .split("/")
+          .map((p:string) => encodeURIComponent(p))
+          .join("/")
 
-      if(archivosExcel.length === 0){
-        console.warn("⚠️ No hay archivos Excel en el bucket")
-        return
-      }
-
-      const nombreArchivo = archivosExcel[0].name
-
-      // ✅ FIX CLAVE: Encodear nombre para manejar espacios y caracteres especiales
-      const nombreEncodeado = nombreArchivo
-        .split("/")
-        .map((parte:string) => encodeURIComponent(parte))
-        .join("/")
-
-      const { data: urlData } = supabase.storage
-        .from("excel_turnos")
-        .getPublicUrl(nombreEncodeado)
-
-      if(urlData?.publicUrl){
-        setExcelUrl(urlData.publicUrl)
-        console.log("✅ Excel URL cargada:", urlData.publicUrl)
+        const urlDirecta = `${supabaseUrl}/storage/v1/object/public/excel_turnos/${nombreEncodeado}`
+        setExcelUrl(urlDirecta)
+        console.log("✅ URL cargada via fallback localStorage:", urlDirecta)
+      } else {
+        console.warn("⚠️ No hay nombre de archivo guardado en localStorage")
       }
 
     } catch(err){
@@ -103,18 +119,14 @@ export default function Asistencia(){
     const grupo:any = {}
 
     ;(data || []).forEach((p:any)=>{
-
       let key = "SIN ASIGNAR"
-
       if(tipo === "consola"){
         key = GRUPOS_COLORES[p.guardia]?.nombre || "CONSOLA"
       }else{
         key = p.ambulancia_codigo || "SIN ASIGNAR"
       }
-
       if(!grupo[key]) grupo[key] = []
       grupo[key].push(p)
-
     })
 
     setAgrupado(grupo)
@@ -143,7 +155,6 @@ export default function Asistencia(){
 
     for(const p of personasConRegistro){
       try {
-
         const r = registros[p.id]
         const turnoFinal = r.turno || turnoGlobal
 
@@ -158,32 +169,24 @@ export default function Asistencia(){
         let archivo_tipo = null
 
         if(r.archivo){
-
           const file = r.archivo
-
           if(!file.type.includes("pdf") && !file.type.includes("image")){
             errores.push(`${p.nombre}: Solo se permiten PDF o imágenes`)
             continue
           }
-
-          // ✅ FIX: Limpiar espacios del nombre del archivo de asistencia también
           const nombreLimpio = file.name.replace(/\s+/g, "_")
           const nombreArchivo = `${p.id}_${Date.now()}_${nombreLimpio}`
-
           const { error: uploadError } = await supabase.storage
             .from("asistencia_docs")
             .upload(nombreArchivo, file)
-
           if(uploadError){
             console.error("Error upload:", uploadError)
             errores.push(`${p.nombre}: Error al subir archivo`)
             continue
           }
-
           const { data: urlData } = supabase.storage
             .from("asistencia_docs")
             .getPublicUrl(nombreArchivo)
-
           archivo_url = urlData.publicUrl
           archivo_nombre = file.name
           archivo_tipo = file.type
@@ -217,7 +220,6 @@ export default function Asistencia(){
               size_archivo: r.archivo?.size || existente.size_archivo
             })
             .eq("id", existente.id)
-
           error = updateError
         }else{
           const { error: insertError } = await supabase.from("asistencia").insert([{
@@ -237,7 +239,6 @@ export default function Asistencia(){
             tipo_archivo: archivo_tipo,
             size_archivo: r.archivo?.size || null
           }])
-
           error = insertError
         }
 
@@ -246,7 +247,6 @@ export default function Asistencia(){
           errores.push(`${p.nombre}: ${error.message}`)
           continue
         }
-
         exitosos++
 
       } catch(err: any){
@@ -259,14 +259,12 @@ export default function Asistencia(){
       alert(`✅ ${exitosos} registro(s) guardado(s) o actualizado(s)`)
       setRegistros({})
     }
-
     if(errores.length > 0){
       alert(`❌ ${errores.length} error(es):\n${errores.join("\n")}`)
     }
   }
 
   return(
-
     <div style={container}>
 
       <h1>👥 Control de Asistencia</h1>
@@ -308,7 +306,6 @@ export default function Asistencia(){
           ⬅ Volver
         </button>
 
-        {/* ✅ Al abrir el modal recarga la URL por si acaso */}
         <button onClick={()=>{ cargarExcelUrl(); setVerExcel(true) }} style={btn}>
           📊 Control mensual
         </button>
@@ -318,7 +315,6 @@ export default function Asistencia(){
       {Object.keys(agrupado).sort().map(grupoNombre=>{
 
         let colorGrupo = "#38bdf8"
-
         for(const key in GRUPOS_COLORES){
           if(GRUPOS_COLORES[key].nombre === grupoNombre){
             colorGrupo = GRUPOS_COLORES[key].color
@@ -327,60 +323,34 @@ export default function Asistencia(){
 
         return(
           <div key={grupoNombre}>
-
-            <h2 style={{
-              color:colorGrupo,
-              display:"flex",
-              alignItems:"center",
-              gap:10
-            }}>
+            <h2 style={{ color:colorGrupo, display:"flex", alignItems:"center", gap:10 }}>
               {tipo === "consola" ? "💻" : "🚑"} {grupoNombre}
             </h2>
 
             {agrupado[grupoNombre].map((p:any)=>{
-
               const estado = registros[p.id]?.estado
-
               return(
                 <div key={p.id} style={card}>
-
                   <div style={{display:"flex",justifyContent:"space-between"}}>
-
                     <h3>{p.nombre}</h3>
-
                     <select
-                      onChange={(e)=>setRegistros({
-                        ...registros,
-                        [p.id]: {...registros[p.id], ubicacion:e.target.value}
-                      })}
+                      onChange={(e)=>setRegistros({...registros,[p.id]:{...registros[p.id],ubicacion:e.target.value}})}
                       style={inputMini}
                     >
                       <option value="">Ubicación</option>
                       <option value="CONSOLA">CONSOLA</option>
-
                       {ambulancias.map(a=>(
-                        <option key={a.id} value={a.codigo_operativo}>
-                          {a.codigo_operativo}
-                        </option>
+                        <option key={a.id} value={a.codigo_operativo}>{a.codigo_operativo}</option>
                       ))}
-
                     </select>
-
                   </div>
 
                   <div style={estadoContainer}>
-
                     {["asistio","atraso","falta","permiso","vacaciones"].map(s=>(
                       <button
                         key={s}
-                        onClick={()=>setRegistros({
-                          ...registros,
-                          [p.id]: {...registros[p.id], estado:s}
-                        })}
-                        style={{
-                          ...estadoBtn,
-                          background: estado === s ? colores[s] : "#1f2937"
-                        }}
+                        onClick={()=>setRegistros({...registros,[p.id]:{...registros[p.id],estado:s}})}
+                        style={{...estadoBtn, background: estado === s ? colores[s] : "#1f2937"}}
                       >
                         {s.toUpperCase()}
                       </button>
@@ -390,21 +360,14 @@ export default function Asistencia(){
                       <input
                         type="checkbox"
                         checked={registros[p.id]?.es_r2 || false}
-                        onChange={(e)=>setRegistros({
-                          ...registros,
-                          [p.id]: {...registros[p.id], es_r2:e.target.checked}
-                        })}
+                        onChange={(e)=>setRegistros({...registros,[p.id]:{...registros[p.id],es_r2:e.target.checked}})}
                       />
                       R2
                     </label>
 
                     <span style={{fontSize:12,opacity:0.7}}>Turno:</span>
-
                     <select
-                      onChange={(e)=>setRegistros({
-                        ...registros,
-                        [p.id]: {...registros[p.id], turno:e.target.value}
-                      })}
+                      onChange={(e)=>setRegistros({...registros,[p.id]:{...registros[p.id],turno:e.target.value}})}
                       style={inputMini}
                     >
                       <option value="">Seleccionar</option>
@@ -413,7 +376,6 @@ export default function Asistencia(){
                       <option value="12h_dia">12 Día</option>
                       <option value="12h_noche">12 Noche</option>
                     </select>
-
                   </div>
 
                   <input
@@ -421,27 +383,18 @@ export default function Asistencia(){
                     accept="image/*,application/pdf"
                     onChange={(e)=>{
                       const file = e.target.files?.[0]
-                      setRegistros({
-                        ...registros,
-                        [p.id]: {...registros[p.id], archivo:file}
-                      })
+                      setRegistros({...registros,[p.id]:{...registros[p.id],archivo:file}})
                     }}
                     style={input}
                   />
-
                   <input
                     placeholder="Observación"
-                    onChange={(e)=>setRegistros({
-                      ...registros,
-                      [p.id]: {...registros[p.id], obs:e.target.value}
-                    })}
+                    onChange={(e)=>setRegistros({...registros,[p.id]:{...registros[p.id],obs:e.target.value}})}
                     style={input}
                   />
-
                 </div>
               )
             })}
-
           </div>
         )
       })}
@@ -450,37 +403,20 @@ export default function Asistencia(){
         💾 Guardar Asistencia
       </button>
 
-      {/* 🔥 MODAL CONTROL ASISTENCIA MENSUAL */}
       {verExcel && (
         <div style={{
-          position:"fixed",
-          top:0,
-          left:0,
-          width:"100%",
-          height:"100%",
-          background:"rgba(0,0,0,0.8)",
-          display:"flex",
-          justifyContent:"center",
-          alignItems:"center",
-          zIndex:999
+          position:"fixed", top:0, left:0, width:"100%", height:"100%",
+          background:"rgba(0,0,0,0.8)", display:"flex",
+          justifyContent:"center", alignItems:"center", zIndex:999
         }}>
-
           <div style={{
-            background:"#0f172a",
-            padding:30,
-            borderRadius:12,
-            width:400,
-            textAlign:"center"
+            background:"#0f172a", padding:30, borderRadius:12,
+            width:400, textAlign:"center"
           }}>
-
-            <h2 style={{marginBottom:10}}>
-              📊 Control de Asistencia Mensual
-            </h2>
-
+            <h2 style={{marginBottom:10}}>📊 Control de Asistencia Mensual</h2>
             <p style={{marginBottom:10, fontSize:12, opacity:0.6}}>
               Uso exclusivo para validación de turnos y vacaciones
             </p>
-
             <p style={{marginBottom:20}}>
               Archivo oficial de programación mensual: turnos (12h / 24h) y vacaciones del personal
             </p>
@@ -490,13 +426,9 @@ export default function Asistencia(){
                 href={excelUrl}
                 target="_blank"
                 style={{
-                  display:"inline-block",
-                  background:"#22c55e",
-                  padding:"10px 15px",
-                  borderRadius:8,
-                  color:"white",
-                  textDecoration:"none",
-                  marginBottom:20
+                  display:"inline-block", background:"#22c55e",
+                  padding:"10px 15px", borderRadius:8,
+                  color:"white", textDecoration:"none", marginBottom:20
                 }}
               >
                 ⬇ Descargar programación mensual
@@ -509,109 +441,55 @@ export default function Asistencia(){
               <button
                 onClick={()=>setVerExcel(false)}
                 style={{
-                  background:"#ef4444",
-                  padding:"8px 15px",
-                  borderRadius:8,
-                  color:"white",
-                  border:"none",
-                  cursor:"pointer"
+                  background:"#ef4444", padding:"8px 15px",
+                  borderRadius:8, color:"white", border:"none", cursor:"pointer"
                 }}
               >
                 Cerrar
               </button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   )
 }
 
-/* 🎨 ESTILOS (INTACTOS) */
-
+/* 🎨 ESTILOS */
 const colores:any = {
-  asistio:"#22c55e",
-  atraso:"#eab308",
-  falta:"#ef4444",
-  permiso:"#3b82f6",
-  vacaciones:"#a855f7"
+  asistio:"#22c55e", atraso:"#eab308",
+  falta:"#ef4444", permiso:"#3b82f6", vacaciones:"#a855f7"
 }
-
 const container: CSSProperties = {
-  background:"#020617",
-  color:"white",
-  minHeight:"100vh",
-  padding:30
+  background:"#020617", color:"white", minHeight:"100vh", padding:30
 }
-
 const filtros: CSSProperties = {
-  display:"flex",
-  gap:10,
-  marginBottom:20,
-  flexWrap:"wrap"
+  display:"flex", gap:10, marginBottom:20, flexWrap:"wrap"
 }
-
 const card: CSSProperties = {
-  background:"#0f172a",
-  padding:15,
-  borderRadius:12,
-  marginBottom:10,
-  border:"1px solid #1e293b"
+  background:"#0f172a", padding:15, borderRadius:12,
+  marginBottom:10, border:"1px solid #1e293b"
 }
-
 const estadoContainer: CSSProperties = {
-  display:"flex",
-  gap:8,
-  marginTop:10,
-  flexWrap:"wrap",
-  alignItems:"center"
+  display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center"
 }
-
 const estadoBtn: CSSProperties = {
-  padding:"6px 10px",
-  borderRadius:8,
-  border:"none",
-  color:"white",
-  cursor:"pointer",
-  fontSize:12
+  padding:"6px 10px", borderRadius:8, border:"none",
+  color:"white", cursor:"pointer", fontSize:12
 }
-
 const input: CSSProperties = {
-  padding:10,
-  borderRadius:8,
-  background:"#1f2937",
-  color:"white",
-  border:"none",
-  marginTop:10
+  padding:10, borderRadius:8, background:"#1f2937",
+  color:"white", border:"none", marginTop:10
 }
-
 const inputMini: CSSProperties = {
-  padding:6,
-  borderRadius:6,
-  background:"#1f2937",
-  color:"white",
-  border:"none"
+  padding:6, borderRadius:6, background:"#1f2937", color:"white", border:"none"
 }
-
 const btn: CSSProperties = {
-  background:"#2563eb",
-  color:"white",
-  padding:"10px 15px",
-  borderRadius:8,
-  border:"none",
-  cursor:"pointer"
+  background:"#2563eb", color:"white",
+  padding:"10px 15px", borderRadius:8, border:"none", cursor:"pointer"
 }
-
 const btnGuardar: CSSProperties = {
-  marginTop:20,
-  width:"100%",
-  background:"#22c55e",
-  padding:18,
-  borderRadius:12,
-  fontWeight:"bold",
-  fontSize:16,
-  border:"none",
-  cursor:"pointer"
+  marginTop:20, width:"100%", background:"#22c55e",
+  padding:18, borderRadius:12, fontWeight:"bold",
+  fontSize:16, border:"none", cursor:"pointer"
 }
