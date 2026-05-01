@@ -71,19 +71,31 @@ export default function Asistencia(){
     })
 
     setAgrupado(grupo)
-    // 🔥 OBTENER ÚLTIMO EXCEL SUBIDO (DINÁMICO)
-    const { data: listaArchivos, error } = await supabase.storage
+    // 🔥 OBTENER EXCEL REAL (CORREGIDO Y ESTABLE)
+const { data: listaArchivos, error } = await supabase.storage
   .from("excel_turnos")
-  .list("")
+  .list()
 
 if(error){
-  console.error("Error listando:", error)
+  console.error("❌ Error listando:", error)
 }else if(listaArchivos && listaArchivos.length > 0){
 
-  // 🔥 TOMAR EL ÚLTIMO ARCHIVO DIRECTAMENTE (SIN SORT)
-  const ultimoArchivo = listaArchivos[listaArchivos.length - 1].name
+  // 🔥 FILTRAR SOLO ARCHIVOS EXCEL (.xlsx)
+  const archivosExcel = listaArchivos.filter(f => f.name.endsWith(".xlsx"))
 
-  console.log("📂 Archivo detectado:", ultimoArchivo)
+  if(archivosExcel.length === 0){
+    console.warn("⚠️ No hay archivos Excel")
+    return
+  }
+
+  // 🔥 TOMAR EL MÁS RECIENTE (POR created_at)
+  const archivoOrdenado = archivosExcel.sort(
+    (a:any,b:any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+
+  const ultimoArchivo = archivoOrdenado[0].name
+
+  console.log("📂 Excel detectado:", ultimoArchivo)
 
   const { data: urlData } = supabase.storage
     .from("excel_turnos")
