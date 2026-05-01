@@ -71,14 +71,30 @@ export default function Asistencia(){
     })
 
     setAgrupado(grupo)
-    // 🔥 CARGAR EXCEL DE CONTROL MENSUAL
-      const { data: excelData } = supabase.storage
-        .from("excel_turnos")
-        .getPublicUrl("control_asistencia_mensual.xlsx")
+    // 🔥 OBTENER ÚLTIMO EXCEL SUBIDO (DINÁMICO)
+    const { data: listaArchivos, error: errorLista } = await supabase.storage
+      .from("excel_turnos")
+      .list("", {
+        limit: 1,
+        offset: 0,
+        sortBy: { column: "created_at", order: "desc" }
+      })
 
-      if(excelData?.publicUrl){
-        setExcelUrl(excelData.publicUrl)
+    if(errorLista){
+      console.error("Error listando archivos:", errorLista)
+    }else if(listaArchivos && listaArchivos.length > 0){
+
+      const nombreArchivo = listaArchivos[0].name
+
+      const { data: urlData } = supabase.storage
+        .from("excel_turnos")
+        .getPublicUrl(nombreArchivo)
+
+      if(urlData?.publicUrl){
+        setExcelUrl(urlData.publicUrl)
       }
+
+    }
   }
 
   /* ========================= */
