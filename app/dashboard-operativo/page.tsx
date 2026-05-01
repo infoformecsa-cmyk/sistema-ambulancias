@@ -17,6 +17,9 @@ export default function Dashboard() {
   const [nuevaAmbulancia, setNuevaAmbulancia] = useState(false)
   const [codigoAmbulancia, setCodigoAmbulancia] = useState('')
   const [loading, setLoading] = useState(true)
+  const [excelFile, setExcelFile] = useState<File | null>(null)
+  const [modalExcel, setModalExcel] = useState(false)
+  const [excelUrl, setExcelUrl] = useState<string | null>(null)
   const [formNuevo, setFormNuevo] = useState<any>({
     nombre: '',
     tipo: 'ambulancia',
@@ -189,6 +192,39 @@ export default function Dashboard() {
     setNuevaAmbulancia(false)
     fetchData()
   }
+  const subirExcel = async () => {
+  if (!excelFile) {
+    alert("Seleccione un archivo Excel")
+    return
+  }
+
+  if (!excelFile.name.endsWith(".xlsx") && !excelFile.name.endsWith(".xls")) {
+    alert("Debe ser archivo Excel")
+    return
+  }
+
+  const nombre = `excel_turnos_${Date.now()}_${excelFile.name}`
+
+  const { error } = await supabase.storage
+    .from("excel_turnos")
+    .upload(nombre, excelFile)
+
+  if (error) {
+    console.error(error)
+    alert("Error subiendo Excel")
+    return
+  }
+
+  const { data } = supabase.storage
+    .from("excel_turnos")
+    .getPublicUrl(nombre)
+
+  setExcelUrl(data.publicUrl)
+  setModalExcel(false)
+  setExcelFile(null)
+
+  alert("✅ Excel subido correctamente")
+}
 
   const logout = () => {
     localStorage.clear()
@@ -473,6 +509,12 @@ export default function Dashboard() {
           >
             🔐 Salir
           </button>
+          <button
+            onClick={() => setModalExcel(true)}
+            className="bg-yellow-600 px-4 py-2 rounded-lg"
+          >
+            📊 Excel
+          </button>
         </div>
       </div>
 
@@ -650,6 +692,22 @@ export default function Dashboard() {
                   </div>
                 )
               })
+            )}
+          </div>
+          <div className="bg-yellow-900/20 p-4 rounded-xl border border-yellow-500/20">
+            <h2 className="text-yellow-300 mb-2">📊 Excel Turnos</h2>
+
+            {excelUrl ? (
+             <a
+              href={excelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm bg-yellow-600 px-3 py-1 rounded inline-block"
+              >
+              Ver archivo Excel
+              </a>
+            ) : (
+              <p className="text-gray-400 text-sm">No hay archivo cargado</p>
             )}
           </div>
         </div>
@@ -845,6 +903,38 @@ export default function Dashboard() {
                 Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {modalExcel && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-6 rounded-xl w-80">
+
+            <h2 className="mb-4 text-white">Subir Excel de Turnos</h2>
+
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+              className="w-full mb-4 p-2 bg-black border text-white"
+            />
+
+            <div className="flex justify-between">
+              <button
+              onClick={subirExcel}
+              className="bg-yellow-600 px-4 py-2 rounded"
+              >
+              Subir
+              </button>
+
+              <button
+              onClick={() => setModalExcel(false)}
+              className="bg-red-600 px-4 py-2 rounded"
+              >
+              Cancelar
+              </button>
+            </div>
+
           </div>
         </div>
       )}
