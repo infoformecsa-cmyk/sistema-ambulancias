@@ -12,7 +12,7 @@ type Ambulancia = {
   tipo: string
   estado: string
   kilometraje_actual: number
-  kilometraje_mtto: number
+  kilometraje_mtto: number 
 }
 
 type Evento = {
