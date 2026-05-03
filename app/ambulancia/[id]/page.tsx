@@ -259,7 +259,6 @@ function FichaDrawer({ open, onClose, ambulanciaId, ambulancias, onSelectAmb, fi
     setHFotoPreview(ev.foto_url || null)
   }
 
-  function setHTipoFalla(v: string) { setHTipoFalla(v) }
 
   function resetEstadoForm() {
     setMotivoCambio(""); setTipoMtto(""); setTipoFalla("")
