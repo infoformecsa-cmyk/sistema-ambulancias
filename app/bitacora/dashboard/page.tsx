@@ -29,7 +29,8 @@ type ModalMode = "ABASTECER" | "CAMBIO"
 ========================================================= */
 
 const PRIORIDAD = {
-  ALTA: {
+
+  ALTA:{
     c:"#ef4444",
     bg:"rgba(239,68,68,0.10)",
     border:"rgba(239,68,68,0.35)",
@@ -37,7 +38,7 @@ const PRIORIDAD = {
     label:"ALTA",
   },
 
-  MEDIA: {
+  MEDIA:{
     c:"#f59e0b",
     bg:"rgba(245,158,11,0.10)",
     border:"rgba(245,158,11,0.35)",
@@ -45,7 +46,7 @@ const PRIORIDAD = {
     label:"MEDIA",
   },
 
-  OK: {
+  OK:{
     c:"#22c55e",
     bg:"rgba(34,197,94,0.10)",
     border:"rgba(34,197,94,0.35)",
@@ -55,6 +56,7 @@ const PRIORIDAD = {
 }
 
 const ALERTA = {
+
   VENCIDO:{
     c:"#ef4444",
     bg:"rgba(239,68,68,0.12)",
@@ -75,7 +77,7 @@ const ALERTA = {
 }
 
 /* =========================================================
-   COMPONENTES
+   COMPONENTE BARRA
 ========================================================= */
 
 function Barra({
@@ -94,6 +96,7 @@ function Barra({
       background:"rgba(255,255,255,0.06)",
       overflow:"hidden",
     }}>
+
       <div style={{
         width:`${pct}%`,
         height:"100%",
@@ -101,6 +104,7 @@ function Barra({
         borderRadius:999,
         transition:"0.4s",
       }}/>
+
     </div>
   )
 }
@@ -152,10 +156,12 @@ export default function Dashboard(){
       ])
 
     }catch(error){
+
       console.error(error)
       alert("Error cargando dashboard")
-    }
-    finally{
+
+    }finally{
+
       setLoading(false)
     }
   }
@@ -191,7 +197,9 @@ export default function Dashboard(){
     return grupos
   }
 
-  /* ========================================================= */
+  /* =========================================================
+     ALERTAS
+  ========================================================= */
 
   async function cargarAlertas(){
 
@@ -200,9 +208,17 @@ export default function Dashboard(){
       .select(`
         ambulancia_id,
         fecha_caducidad,
-        inventario_items(nombre)
+
+        ambulancias(
+          codigo_operativo
+        ),
+
+        inventario_items(
+          nombre
+        )
       `)
       .not("fecha_caducidad","is",null)
+      .neq("estado","RETIRADO")
 
     if(error){
       console.error(error)
@@ -232,9 +248,15 @@ export default function Dashboard(){
       }
 
       return{
-        ambulancia:i.ambulancia_id,
+
+        ambulancia:
+          i.ambulancias?.codigo_operativo
+          || "N/D",
+
         nombre:getNombre(i.inventario_items),
+
         estado,
+
         dias:Math.round(diff),
       }
     })
@@ -242,10 +264,20 @@ export default function Dashboard(){
     const filtrado =
       procesado.filter(i=>i.estado !== "OK")
 
+    filtrado.sort((a,b)=>{
+
+      if(a.ambulancia < b.ambulancia) return -1
+      if(a.ambulancia > b.ambulancia) return 1
+
+      return 0
+    })
+
     setAlertas(filtrado)
   }
 
-  /* ========================================================= */
+  /* =========================================================
+     PRIORIDADES
+  ========================================================= */
 
   async function calcularPrioridad(){
 
@@ -593,8 +625,6 @@ export default function Dashboard(){
     router.replace("/")
   }
 
-  /* ========================================================= */
-
   function irHistorial(){
 
     router.push("/inventario/historial")
@@ -612,15 +642,31 @@ export default function Dashboard(){
     [resumen]
   )
 
-  const totalCriticos = useMemo(
-    ()=> resumen.reduce((s,a)=>s+a.criticos,0),
-    [resumen]
-  )
-
   const ambsAlta = useMemo(
     ()=> resumen.filter(a=>a.prioridad==="ALTA").length,
     [resumen]
   )
+
+  /* =========================================================
+     ALERTAS AGRUPADAS
+  ========================================================= */
+
+  const alertasAgrupadas = useMemo(()=>{
+
+    const grupos:Record<string,any[]> = {}
+
+    alertas.forEach(a=>{
+
+      if(!grupos[a.ambulancia]){
+        grupos[a.ambulancia] = []
+      }
+
+      grupos[a.ambulancia].push(a)
+    })
+
+    return grupos
+
+  },[alertas])
 
   /* ========================================================= */
 
@@ -639,11 +685,8 @@ export default function Dashboard(){
 
     <div style={container}>
 
-      {/* Fondo */}
-      <div style={bgDecor1}/>
-      <div style={bgDecor2}/>
-
       {/* HEADER */}
+
       <div style={headerSticky}>
 
         <div style={headerRow}>
@@ -659,6 +702,7 @@ export default function Dashboard(){
             </div>
 
             <div>
+
               <p style={title}>
                 BITÁCORA SANITARIA
               </p>
@@ -666,6 +710,7 @@ export default function Dashboard(){
               <p style={subtitle}>
                 DIRECCIÓN PROVINCIAL DE SALUD DEL GUAYAS
               </p>
+
             </div>
           </div>
 
@@ -690,9 +735,11 @@ export default function Dashboard(){
       </div>
 
       {/* CONTENIDO */}
+
       <div style={content}>
 
-        {/* KPIs */}
+        {/* KPIS */}
+
         <div style={sectionLabel}>
           ▸ RESUMEN GLOBAL
         </div>
@@ -745,11 +792,13 @@ export default function Dashboard(){
               }}>
                 {k.value}
               </h2>
+
             </div>
           ))}
         </div>
 
         {/* ALERTAS */}
+
         {alertas.length > 0 && (
 
           <>
@@ -760,495 +809,128 @@ export default function Dashboard(){
             <div style={{
               display:"flex",
               flexDirection:"column",
-              gap:8,
+              gap:14,
               marginBottom:20,
             }}>
 
-              {alertas.map((al,i)=>{
+              {Object.entries(alertasAgrupadas).map(([ambulancia,items]:any)=>(
 
-                const ac =
-                  ALERTA[
-                    al.estado as keyof typeof ALERTA
-                  ]
-
-                return(
-
-                  <div
-                    key={i}
-                    style={{
-                      background:ac.bg,
-                      border:`1px solid ${ac.border}`,
-                      borderRadius:10,
-                      padding:"10px 14px",
-                    }}
-                  >
-
-                    <div style={{
-                      display:"flex",
-                      justifyContent:"space-between",
-                      alignItems:"center",
-                      gap:10,
-                      flexWrap:"wrap",
-                    }}>
-
-                      <div>
-
-                        <div style={{
-                          fontWeight:700,
-                          fontSize:13,
-                        }}>
-                          {al.nombre}
-                        </div>
-
-                        <div style={{
-                          color:"#64748b",
-                          fontSize:11,
-                        }}>
-                          {al.ambulancia}
-                        </div>
-                      </div>
-
-                      <div style={{
-                        display:"flex",
-                        alignItems:"center",
-                        gap:8,
-                      }}>
-
-                        <span style={{
-                          color:ac.c,
-                          fontSize:11,
-                          fontWeight:800,
-                        }}>
-                          {al.estado}
-                        </span>
-
-                        <span style={{
-                          color:ac.c,
-                          fontSize:11,
-                        }}>
-                          {
-                            al.dias <= 0
-                            ? `${Math.abs(al.dias)}d vencido`
-                            : `${al.dias}d`
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        )}
-
-        {/* PRIORIDAD */}
-        <div style={sectionLabel}>
-          ▸ PRIORIDAD OPERATIVA
-        </div>
-
-        <div style={{
-          display:"flex",
-          flexDirection:"column",
-          gap:12,
-        }}>
-
-          {resumen.map((a)=>{
-
-            const pr =
-              PRIORIDAD[a.prioridad]
-
-            const isOpen =
-              expandido === a.nombre
-
-            const grupos =
-              agruparPorCategoria(
-                a.faltantesDetalle
-              )
-
-            return(
-
-              <div
-                key={a.nombre}
-                style={{
-                  background:"rgba(11,17,32,0.96)",
-                  border:isOpen
-                    ? `1px solid ${pr.border}`
-                    : "1px solid rgba(255,255,255,0.07)",
-                  borderLeft:`4px solid ${pr.c}`,
-                  borderRadius:14,
-                  overflow:"hidden",
-                }}
-              >
-
-                {/* HEADER CARD */}
                 <div
-                  onClick={()=>
-                    setExpandido(
-                      isOpen
-                      ? null
-                      : a.nombre
-                    )
-                  }
-                  style={cardHeader}
+                  key={ambulancia}
+                  style={{
+                    background:"rgba(15,23,42,0.65)",
+                    border:"1px solid rgba(255,255,255,0.06)",
+                    borderRadius:14,
+                    overflow:"hidden",
+                  }}
                 >
 
                   <div style={{
-                    display:"flex",
-                    alignItems:"center",
-                    gap:12,
-                    flexWrap:"wrap",
+                    padding:"12px 14px",
+                    borderBottom:"1px solid rgba(255,255,255,0.06)",
+                    background:"rgba(255,255,255,0.03)",
+                    fontWeight:900,
+                    fontSize:13,
+                    color:"#f8fafc",
                   }}>
-
-                    <div style={{
-                      width:10,
-                      height:10,
-                      borderRadius:"50%",
-                      background:pr.c,
-                    }}/>
-
-                    <div style={{
-                      fontWeight:900,
-                      fontSize:15,
-                    }}>
-                      {a.nombre}
-                    </div>
-
-                    <div style={{
-                      background:pr.bg,
-                      border:`1px solid ${pr.border}`,
-                      color:pr.c,
-                      borderRadius:6,
-                      padding:"4px 8px",
-                      fontSize:10,
-                      fontWeight:800,
-                    }}>
-                      {pr.icon} {pr.label}
-                    </div>
+                    🚑 {ambulancia}
                   </div>
 
                   <div style={{
-                    display:"flex",
-                    gap:6,
-                    flexWrap:"wrap",
-                  }}>
-
-                    {a.faltantes > 0 && (
-                      <span style={badgeOrange}>
-                        ❌ {a.faltantes}
-                      </span>
-                    )}
-
-                    {a.vencidos > 0 && (
-                      <span style={badgeRed}>
-                        🚨 {a.vencidos}
-                      </span>
-                    )}
-
-                    {a.criticos > 0 && (
-                      <span style={badgeYellow}>
-                        ⚠ {a.criticos}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* PROGRESOS */}
-                <div style={{
-                  padding:"0 16px 14px",
-                  display:"flex",
-                  flexDirection:"column",
-                  gap:8,
-                }}>
-
-                  {[
-                    {
-                      l:"TOTAL",
-                      v:a.porcentaje,
-                      c:
-                        a.porcentaje >= 80
-                        ? "#22c55e"
-                        : a.porcentaje >= 50
-                        ? "#f59e0b"
-                        : "#ef4444",
-                    },
-
-                    {
-                      l:"MEDICAMENTOS",
-                      v:a.porcMed,
-                      c:"#a78bfa",
-                    },
-
-                    {
-                      l:"INSUMOS",
-                      v:a.porcOtros,
-                      c:"#38bdf8",
-                    },
-
-                  ].map(b=>(
-
-                    <div
-                      key={b.l}
-                      style={{
-                        display:"flex",
-                        alignItems:"center",
-                        gap:10,
-                      }}
-                    >
-
-                      <div style={{
-                        width:100,
-                        fontSize:10,
-                        color:"#64748b",
-                        fontWeight:700,
-                      }}>
-                        {b.l}
-                      </div>
-
-                      <Barra
-                        pct={b.v}
-                        color={b.c}
-                      />
-
-                      <div style={{
-                        width:40,
-                        textAlign:"right",
-                        color:b.c,
-                        fontSize:11,
-                        fontWeight:800,
-                      }}>
-                        {b.v}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* EXPANDIDO */}
-                {isOpen && (
-
-                  <div style={{
-                    borderTop:"1px solid rgba(255,255,255,0.06)",
-                    padding:16,
+                    padding:10,
                     display:"flex",
                     flexDirection:"column",
-                    gap:14,
+                    gap:8,
                   }}>
 
-                    {/* FALTANTES */}
-                    {a.faltantesDetalle.length > 0 && (
+                    {items.slice(0,8).map((al:any,i:number)=>{
 
-                      <div style={boxOrange}>
+                      const ac =
+                        ALERTA[
+                          al.estado as keyof typeof ALERTA
+                        ]
 
-                        <div style={boxTitleOrange}>
-                          📦 REABASTECER
-                        </div>
+                      return(
 
-                        {Object.entries(grupos).map(([cat,items]:any)=>(
+                        <div
+                          key={i}
+                          style={{
+                            background:ac.bg,
+                            border:`1px solid ${ac.border}`,
+                            borderRadius:10,
+                            padding:"10px 14px",
+                          }}
+                        >
 
-                          <div key={cat}>
+                          <div style={{
+                            display:"flex",
+                            justifyContent:"space-between",
+                            alignItems:"center",
+                            gap:10,
+                            flexWrap:"wrap",
+                          }}>
 
-                            <div style={catLabel}>
-                              {cat}
-                            </div>
+                            <div>
 
-                            {items.map((f:any,idx:number)=>(
-
-                              <div
-                                key={idx}
-                                style={rowItem}
-                              >
-
-                                <div>
-
-                                  <div style={itemName}>
-                                    {f.nombre}
-                                  </div>
-
-                                  <div style={{
-                                    color:
-                                      f.estado === "SIN STOCK"
-                                      ? "#ef4444"
-                                      : "#f59e0b",
-
-                                    fontSize:11,
-                                    fontWeight:700,
-                                  }}>
-                                    {f.actual}/{f.minimo}
-                                    {" · "}
-                                    {f.estado}
-                                  </div>
-                                </div>
-
-                                <button
-                                  onClick={(e)=>{
-                                    e.stopPropagation()
-                                    abrirModal(f,"ABASTECER")
-                                  }}
-                                  style={btnGreen}
-                                >
-                                  ➕ Abastecer
-                                </button>
+                              <div style={{
+                                fontWeight:700,
+                                fontSize:13,
+                              }}>
+                                {al.nombre}
                               </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
 
-                    {/* VENCIDOS */}
-                    {a.vencidosDetalle.length > 0 && (
-
-                      <div style={boxRed}>
-
-                        <div style={boxTitleRed}>
-                          🚨 VENCIDOS
-                        </div>
-
-                        {a.vencidosDetalle.map((v:any,idx:number)=>(
-
-                          <div
-                            key={idx}
-                            style={rowItem}
-                          >
-
-                            <div style={itemName}>
-                              {
-                                getNombre(
-                                  v.inventario_items
-                                )
-                              }
                             </div>
 
                             <div style={{
                               display:"flex",
-                              gap:6,
-                              flexWrap:"wrap",
+                              alignItems:"center",
+                              gap:8,
                             }}>
 
-                              <button
-                                onClick={(e)=>{
-                                  e.stopPropagation()
-                                  retirarItem(v)
-                                }}
-                                style={btnRed}
-                              >
-                                ❌ Retirar
-                              </button>
+                              <span style={{
+                                color:ac.c,
+                                fontSize:11,
+                                fontWeight:800,
+                              }}>
+                                {al.estado}
+                              </span>
 
-                              <button
-                                onClick={(e)=>{
-                                  e.stopPropagation()
-                                  abrirModal(v,"CAMBIO")
-                                }}
-                                style={btnBlue}
-                              >
-                                🔄 Cambio
-                              </button>
+                              <span style={{
+                                color:ac.c,
+                                fontSize:11,
+                              }}>
+                                {
+                                  al.dias <= 0
+                                  ? `${Math.abs(al.dias)}d vencido`
+                                  : `${al.dias}d`
+                                }
+                              </span>
+
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      )
+                    })}
+
+                    {items.length > 8 && (
+
+                      <div style={{
+                        color:"#64748b",
+                        fontSize:11,
+                        textAlign:"center",
+                        paddingTop:6,
+                      }}>
+                        + {items.length - 8} alertas adicionales
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
       </div>
-
-      {/* MODAL */}
-      {modal && (
-
-        <div style={modalBg}>
-
-          <div style={modalBox}>
-
-            <div style={{
-              fontWeight:900,
-              fontSize:15,
-              marginBottom:6,
-            }}>
-              {
-                modo === "CAMBIO"
-                ? "🔄 CAMBIO DE ÍTEM"
-                : "📦 ABASTECER"
-              }
-            </div>
-
-            <div style={{
-              color:"#64748b",
-              marginBottom:18,
-              fontSize:12,
-            }}>
-              {itemSeleccionado?.nombre}
-            </div>
-
-            <input
-              placeholder="Cantidad"
-              value={cantidad}
-              onChange={(e)=>
-                setCantidad(e.target.value)
-              }
-              style={input}
-            />
-
-            <input
-              placeholder="Lote"
-              value={lote}
-              onChange={(e)=>
-                setLote(e.target.value)
-              }
-              style={input}
-            />
-
-            <input
-              type="date"
-              value={fechaCaducidad}
-              onChange={(e)=>
-                setFechaCaducidad(
-                  e.target.value
-                )
-              }
-              style={input}
-            />
-
-            <div style={{
-              display:"flex",
-              gap:10,
-              marginTop:10,
-            }}>
-
-              <button
-                disabled={guardando}
-                onClick={guardar}
-                style={{
-                  ...btnGreen,
-                  flex:1,
-                  opacity:guardando ? 0.5 : 1,
-                }}
-              >
-                {
-                  guardando
-                  ? "Guardando..."
-                  : "💾 Guardar"
-                }
-              </button>
-
-              <button
-                onClick={()=>
-                  setModal(false)
-                }
-                style={{
-                  ...btnRed,
-                  flex:1,
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -1262,7 +944,6 @@ const container:CSSProperties = {
   minHeight:"100vh",
   color:"white",
   fontFamily:"Inter, sans-serif",
-  position:"relative",
 }
 
 const loadingStyle:CSSProperties = {
@@ -1274,30 +955,6 @@ const loadingStyle:CSSProperties = {
   justifyContent:"center",
   fontSize:18,
   fontWeight:700,
-}
-
-const bgDecor1:CSSProperties = {
-  position:"fixed",
-  top:-100,
-  right:-100,
-  width:300,
-  height:300,
-  borderRadius:"50%",
-  background:"rgba(56,189,248,0.06)",
-  filter:"blur(80px)",
-  pointerEvents:"none",
-}
-
-const bgDecor2:CSSProperties = {
-  position:"fixed",
-  bottom:-100,
-  left:-100,
-  width:300,
-  height:300,
-  borderRadius:"50%",
-  background:"rgba(167,139,250,0.06)",
-  filter:"blur(80px)",
-  pointerEvents:"none",
 }
 
 const headerSticky:CSSProperties = {
@@ -1383,97 +1040,6 @@ const kpiLabel:CSSProperties = {
   fontWeight:700,
 }
 
-const cardHeader:CSSProperties = {
-  padding:"16px",
-  display:"flex",
-  justifyContent:"space-between",
-  alignItems:"center",
-  gap:12,
-  flexWrap:"wrap",
-  cursor:"pointer",
-}
-
-const badgeOrange:CSSProperties = {
-  background:"rgba(245,158,11,0.12)",
-  border:"1px solid rgba(245,158,11,0.3)",
-  color:"#f59e0b",
-  borderRadius:999,
-  padding:"4px 10px",
-  fontSize:11,
-  fontWeight:700,
-}
-
-const badgeRed:CSSProperties = {
-  background:"rgba(239,68,68,0.12)",
-  border:"1px solid rgba(239,68,68,0.3)",
-  color:"#ef4444",
-  borderRadius:999,
-  padding:"4px 10px",
-  fontSize:11,
-  fontWeight:700,
-}
-
-const badgeYellow:CSSProperties = {
-  background:"rgba(250,204,21,0.12)",
-  border:"1px solid rgba(250,204,21,0.3)",
-  color:"#facc15",
-  borderRadius:999,
-  padding:"4px 10px",
-  fontSize:11,
-  fontWeight:700,
-}
-
-const boxOrange:CSSProperties = {
-  background:"rgba(245,158,11,0.05)",
-  border:"1px solid rgba(245,158,11,0.15)",
-  borderRadius:14,
-  padding:14,
-}
-
-const boxRed:CSSProperties = {
-  background:"rgba(239,68,68,0.05)",
-  border:"1px solid rgba(239,68,68,0.15)",
-  borderRadius:14,
-  padding:14,
-}
-
-const boxTitleOrange:CSSProperties = {
-  color:"#f59e0b",
-  fontWeight:900,
-  marginBottom:10,
-  fontSize:12,
-}
-
-const boxTitleRed:CSSProperties = {
-  color:"#ef4444",
-  fontWeight:900,
-  marginBottom:10,
-  fontSize:12,
-}
-
-const catLabel:CSSProperties = {
-  color:"#64748b",
-  fontSize:11,
-  fontWeight:800,
-  marginBottom:8,
-  marginTop:10,
-}
-
-const rowItem:CSSProperties = {
-  display:"flex",
-  justifyContent:"space-between",
-  alignItems:"center",
-  gap:12,
-  flexWrap:"wrap",
-  padding:"10px 0",
-  borderBottom:"1px solid rgba(255,255,255,0.04)",
-}
-
-const itemName:CSSProperties = {
-  fontSize:13,
-  color:"#f1f5f9",
-}
-
 const btnBlue:CSSProperties = {
   background:"rgba(56,189,248,0.12)",
   border:"1px solid rgba(56,189,248,0.3)",
@@ -1492,47 +1058,4 @@ const btnRed:CSSProperties = {
   borderRadius:8,
   fontWeight:700,
   cursor:"pointer",
-}
-
-const btnGreen:CSSProperties = {
-  background:"rgba(34,197,94,0.12)",
-  border:"1px solid rgba(34,197,94,0.3)",
-  color:"#22c55e",
-  padding:"8px 12px",
-  borderRadius:8,
-  fontWeight:700,
-  cursor:"pointer",
-}
-
-const modalBg:CSSProperties = {
-  position:"fixed",
-  inset:0,
-  background:"rgba(0,0,0,0.85)",
-  display:"flex",
-  justifyContent:"center",
-  alignItems:"center",
-  padding:16,
-  zIndex:999,
-  backdropFilter:"blur(6px)",
-}
-
-const modalBox:CSSProperties = {
-  width:"100%",
-  maxWidth:400,
-  background:"linear-gradient(135deg,#0f172a,#111827)",
-  border:"1px solid rgba(56,189,248,0.15)",
-  borderRadius:18,
-  padding:20,
-}
-
-const input:CSSProperties = {
-  width:"100%",
-  boxSizing:"border-box",
-  marginBottom:12,
-  padding:"12px",
-  borderRadius:10,
-  border:"1px solid rgba(255,255,255,0.08)",
-  background:"rgba(255,255,255,0.04)",
-  color:"white",
-  outline:"none",
 }
