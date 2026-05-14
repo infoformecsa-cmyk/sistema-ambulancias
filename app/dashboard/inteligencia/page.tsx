@@ -5,11 +5,8 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
 /* ═══════════════════════════════════════════════════
-   PLANES DE MANTENIMIENTO POR MARCA
-   Fuente: IVECO Daily (PDF oficial), Mercedes Benz
-   Sprinter, Toyota Hilux, Dodge Ram (fabricantes)
+   TIPOS
 ═══════════════════════════════════════════════════ */
-
 type TareaMantenimiento = {
   descripcion: string
   sistema: string
@@ -22,283 +19,392 @@ type IntervaloMtto = {
   tareas: TareaMantenimiento[]
 }
 
-/* ── IVECO DAILY — extraído del PDF oficial ── */
+/* ═══════════════════════════════════════════════════
+   PLAN IVECO DAILY — PDF oficial 0-200k km
+═══════════════════════════════════════════════════ */
 const PLAN_IVECO: IntervaloMtto[] = [
   {
-    km: 5000,
-    costoRep: 363.61,
+    km: 5000, costoRep: 363.61,
     tareas: [
-      { descripcion:"Cambio de aceite de motor",              sistema:"MOTOR",   costo:73.44 },
-      { descripcion:"Cambio de filtro de aceite",             sistema:"MOTOR",   costo:99.01 },
-      { descripcion:"Cambio empaque tapón de cárter",         sistema:"MOTOR",   costo:3.01  },
-      { descripcion:"Grasa líquida",                          sistema:"LUBRIC",  costo:13.15 },
-      { descripcion:"Inspección frenos de estacionamiento",   sistema:"FRENOS"               },
-      { descripcion:"Revisión nivel líquido de frenos",       sistema:"FRENOS"               },
-      { descripcion:"Revisión nivel líquido de embrague",     sistema:"EMBRAGUE"             },
-      { descripcion:"Verificar RPM mínimas y máximas",        sistema:"MOTOR"                },
-      { descripcion:"Verificar tensión de bandas",            sistema:"MOTOR"                },
-      { descripcion:"Revisar nivel líquido refrigerante",     sistema:"MOTOR"                },
-      { descripcion:"Inspección eleva vidrios",               sistema:"CABINA"               },
-      { descripcion:"Verificación A/C mandos",                sistema:"A/C"                  },
-      { descripcion:"Verificar líquido limpiaparabrisas",     sistema:"CABINA"               },
-      { descripcion:"Inspeccionar espejos retrovisores",      sistema:"CABINA"               },
-      { descripcion:"Limpiar cerraduras de puertas",          sistema:"CABINA"               },
-      { descripcion:"Revisión luces e indicadores",           sistema:"ELECTRICO"            },
+      { descripcion:"Cambio de aceite de motor",             sistema:"MOTOR",    costo:73.44 },
+      { descripcion:"Cambio de filtro de aceite",            sistema:"MOTOR",    costo:99.01 },
+      { descripcion:"Cambio empaque tapón de cárter",        sistema:"MOTOR",    costo:3.01  },
+      { descripcion:"Grasa líquida",                         sistema:"LUBRIC",   costo:13.15 },
+      { descripcion:"Inspección frenos de estacionamiento",  sistema:"FRENOS"               },
+      { descripcion:"Revisión nivel líquido de frenos",      sistema:"FRENOS"               },
+      { descripcion:"Revisión nivel líquido de embrague",    sistema:"EMBRAGUE"             },
+      { descripcion:"Verificar RPM mínimas y máximas",       sistema:"MOTOR"                },
+      { descripcion:"Verificar tensión de bandas",           sistema:"MOTOR"                },
+      { descripcion:"Revisar nivel líquido refrigerante",    sistema:"MOTOR"                },
+      { descripcion:"Inspección eleva vidrios",              sistema:"CABINA"               },
+      { descripcion:"Verificación A/C mandos",               sistema:"A/C"                  },
+      { descripcion:"Verificar líquido limpiaparabrisas",    sistema:"CABINA"               },
+      { descripcion:"Inspeccionar espejos retrovisores",     sistema:"CABINA"               },
+      { descripcion:"Limpiar cerraduras de puertas",         sistema:"CABINA"               },
+      { descripcion:"Revisión luces e indicadores",          sistema:"ELECTRICO"            },
     ],
   },
   {
-    km: 10000,
-    costoRep: 700.86,
+    km: 10000, costoRep: 700.86,
     tareas: [
-      { descripcion:"Cambio de aceite de motor",              sistema:"MOTOR",   costo:73.44 },
-      { descripcion:"Cambio de filtro de aceite",             sistema:"MOTOR",   costo:99.01 },
-      { descripcion:"Cambio de filtro de combustible",        sistema:"MOTOR",   costo:42.24 },
-      { descripcion:"Cambio filtro separador de agua",        sistema:"MOTOR",   costo:50.22 },
-      { descripcion:"Cambio empaque tapón de cárter",         sistema:"MOTOR",   costo:3.01  },
-      { descripcion:"Alineación y balanceo / rotación",       sistema:"NEUMAT",  costo:74.80 },
-      { descripcion:"Filtro A/C",                             sistema:"A/C",     costo:22.37 },
-      { descripcion:"Grasa líquida",                          sistema:"LUBRIC",  costo:13.15 },
-      { descripcion:"Limpieza y ajuste de frenos",            sistema:"FRENOS"               },
-      { descripcion:"Drenar sedimentador filtro combustible", sistema:"MOTOR"                },
-      { descripcion:"Inspección radiador y condensador",      sistema:"MOTOR"                },
-      { descripcion:"Revisión árboles de transmisión",        sistema:"TRANSMIS"             },
-      { descripcion:"Verificar amortiguadores",               sistema:"SUSPENS"              },
-      { descripcion:"Reajustar suspensión",                   sistema:"SUSPENS"              },
-      { descripcion:"Revisión estado de batería",             sistema:"ELECTRICO"            },
-      { descripcion:"Reajuste neumáticos, presión y estado",  sistema:"NEUMAT"               },
+      { descripcion:"Cambio de aceite de motor",             sistema:"MOTOR",    costo:73.44 },
+      { descripcion:"Cambio de filtro de aceite",            sistema:"MOTOR",    costo:99.01 },
+      { descripcion:"Cambio de filtro de combustible",       sistema:"MOTOR",    costo:42.24 },
+      { descripcion:"Cambio filtro separador de agua",       sistema:"MOTOR",    costo:50.22 },
+      { descripcion:"Cambio empaque tapón de cárter",        sistema:"MOTOR",    costo:3.01  },
+      { descripcion:"Alineación, balanceo y rotación",       sistema:"NEUMAT",   costo:74.80 },
+      { descripcion:"Filtro A/C",                            sistema:"A/C",      costo:22.37 },
+      { descripcion:"Grasa líquida",                         sistema:"LUBRIC",   costo:13.15 },
+      { descripcion:"Limpieza y ajuste de frenos",           sistema:"FRENOS"               },
+      { descripcion:"Drenar sedimentador filtro combustible",sistema:"MOTOR"                },
+      { descripcion:"Inspección radiador y condensador",     sistema:"MOTOR"                },
+      { descripcion:"Revisión árboles de transmisión",       sistema:"TRANSMIS"             },
+      { descripcion:"Verificar amortiguadores",              sistema:"SUSPENS"              },
+      { descripcion:"Reajustar suspensión",                  sistema:"SUSPENS"              },
+      { descripcion:"Revisión estado de batería",            sistema:"ELECTRICO"            },
+      { descripcion:"Reajuste neumáticos, presión y estado", sistema:"NEUMAT"               },
     ],
   },
   {
-    km: 20000,
-    costoRep: 893.37,
+    km: 20000, costoRep: 893.37,
     tareas: [
-      { descripcion:"Cambio de aceite de motor",              sistema:"MOTOR",   costo:73.44  },
-      { descripcion:"Cambio de filtro de aceite",             sistema:"MOTOR",   costo:99.01  },
-      { descripcion:"Cambio filtro de aire de motor",         sistema:"MOTOR",   costo:104.62 },
-      { descripcion:"Cambio de filtro de combustible",        sistema:"MOTOR",   costo:42.24  },
-      { descripcion:"Cambio filtro separador de agua",        sistema:"MOTOR",   costo:50.22  },
-      { descripcion:"Aceite diferencial 85W140 GL5",          sistema:"EJE",     costo:39.17  },
-      { descripcion:"Aceite transmisión 75W80 GL4",           sistema:"TRANSMIS",costo:41.94  },
-      { descripcion:"Cambio empaque tapón de cárter",         sistema:"MOTOR",   costo:3.01   },
-      { descripcion:"Alineación y balanceo",                  sistema:"NEUMAT",  costo:74.80  },
-      { descripcion:"Filtro A/C",                             sistema:"A/C",     costo:22.37  },
-      { descripcion:"Grasa líquida",                          sistema:"LUBRIC",  costo:13.15  },
-      { descripcion:"Inspección dirección y columna",         sistema:"DIRECC"               },
-      { descripcion:"Inspección cañerías cremallera",         sistema:"DIRECC"               },
-      { descripcion:"Verificar juego pedal freno y embrague", sistema:"FRENOS"               },
-      { descripcion:"Inspección tubería de escape",           sistema:"MOTOR"                },
-      { descripcion:"Cambio de aceite de transmisión",        sistema:"TRANSMIS"             },
-      { descripcion:"Cambio de aceite de diferencial",        sistema:"EJE"                  },
+      { descripcion:"Cambio de aceite de motor",             sistema:"MOTOR",    costo:73.44  },
+      { descripcion:"Cambio de filtro de aceite",            sistema:"MOTOR",    costo:99.01  },
+      { descripcion:"Cambio filtro de aire de motor",        sistema:"MOTOR",    costo:104.62 },
+      { descripcion:"Cambio de filtro de combustible",       sistema:"MOTOR",    costo:42.24  },
+      { descripcion:"Cambio filtro separador de agua",       sistema:"MOTOR",    costo:50.22  },
+      { descripcion:"Aceite diferencial 85W140 GL5",         sistema:"EJE",      costo:39.17  },
+      { descripcion:"Aceite transmisión 75W80 GL4",          sistema:"TRANSMIS", costo:41.94  },
+      { descripcion:"Cambio empaque tapón de cárter",        sistema:"MOTOR",    costo:3.01   },
+      { descripcion:"Alineación y balanceo",                 sistema:"NEUMAT",   costo:74.80  },
+      { descripcion:"Filtro A/C",                            sistema:"A/C",      costo:22.37  },
+      { descripcion:"Grasa líquida",                         sistema:"LUBRIC",   costo:13.15  },
+      { descripcion:"Inspección dirección y columna",        sistema:"DIRECC"                },
+      { descripcion:"Verificar juego pedal freno/embrague",  sistema:"FRENOS"                },
+      { descripcion:"Inspección tubería de escape",          sistema:"MOTOR"                 },
+      { descripcion:"Cambio de aceite de transmisión",       sistema:"TRANSMIS"              },
+      { descripcion:"Cambio de aceite de diferencial",       sistema:"EJE"                   },
     ],
   },
   {
-    km: 40000,
-    costoRep: 1104.60,
+    km: 40000, costoRep: 1104.60,
     tareas: [
-      { descripcion:"Todo lo de 20.000 km",                   sistema:"GENERAL"              },
-      { descripcion:"Cambio de refrigerante (3GL)",           sistema:"MOTOR",   costo:63.85  },
-      { descripcion:"Líquido de frenos DOT 4",                sistema:"FRENOS",  costo:58.43  },
-      { descripcion:"Aceite dirección DeXron II",             sistema:"DIRECC",  costo:38.95  },
-      { descripcion:"Filtro blow by",                         sistema:"MOTOR",   costo:87.28  },
-      { descripcion:"Limpiador de frenos",                    sistema:"FRENOS",  costo:14.69  },
-      { descripcion:"Revisión visual turbocargador",          sistema:"MOTOR"                },
-      { descripcion:"Inspección cañerías combustible",        sistema:"MOTOR"                },
+      { descripcion:"Todo lo de 20.000 km",                  sistema:"GENERAL"               },
+      { descripcion:"Cambio de refrigerante (3GL)",          sistema:"MOTOR",    costo:63.85  },
+      { descripcion:"Líquido de frenos DOT 4",               sistema:"FRENOS",   costo:58.43  },
+      { descripcion:"Aceite dirección DeXron II",            sistema:"DIRECC",   costo:38.95  },
+      { descripcion:"Filtro blow by",                        sistema:"MOTOR",    costo:87.28  },
+      { descripcion:"Limpiador de frenos",                   sistema:"FRENOS",   costo:14.69  },
+      { descripcion:"Revisión visual turbocargador",         sistema:"MOTOR"                 },
+      { descripcion:"Inspección cañerías combustible",       sistema:"MOTOR"                 },
     ],
   },
   {
-    km: 80000,
-    costoRep: 1212.49,
+    km: 80000, costoRep: 1212.49,
     tareas: [
-      { descripcion:"Todo lo de 40.000 km",                   sistema:"GENERAL"              },
-      { descripcion:"Cambio de bandas (todas)",               sistema:"MOTOR",   costo:107.89 },
-      { descripcion:"Banda de accesorios",                    sistema:"MOTOR",   costo:35.84  },
-      { descripcion:"Banda del A/C",                          sistema:"A/C",     costo:72.05  },
+      { descripcion:"Todo lo de 40.000 km",                  sistema:"GENERAL"               },
+      { descripcion:"Cambio de bandas — todas",              sistema:"MOTOR",    costo:107.89 },
+      { descripcion:"Banda de accesorios",                   sistema:"MOTOR",    costo:35.84  },
+      { descripcion:"Banda del A/C",                         sistema:"A/C",      costo:72.05  },
+      { descripcion:"Cambio filtro blow by",                 sistema:"MOTOR",    costo:87.28  },
+    ],
+  },
+  {
+    km: 120000, costoRep: 1400,
+    tareas: [
+      { descripcion:"Todo lo de 80.000 km",                  sistema:"GENERAL"               },
+      { descripcion:"Cambio bujías de precalentamiento",     sistema:"MOTOR"                 },
+      { descripcion:"Revisión integral turbocargador",       sistema:"MOTOR"                 },
+      { descripcion:"Cambio refrigerante (3GL)",             sistema:"MOTOR",    costo:63.85  },
+      { descripcion:"Revisión completa frenos",              sistema:"FRENOS"                },
     ],
   },
 ]
 
-/* ── MERCEDES BENZ SPRINTER ── */
+/* ═══════════════════════════════════════════════════
+   PLAN MERCEDES BENZ SPRINTER
+═══════════════════════════════════════════════════ */
 const PLAN_MERCEDES: IntervaloMtto[] = [
   {
-    km: 10000,
-    costoRep: 320,
+    km: 10000, costoRep: 320,
     tareas: [
-      { descripcion:"Cambio aceite sintético y filtro (diesel)",sistema:"MOTOR"  },
-      { descripcion:"Revisión nivel fluidos",                   sistema:"MOTOR"  },
-      { descripcion:"Inspección frenos y rotación neumáticos",  sistema:"FRENOS" },
-      { descripcion:"Revisión luces y señales",                 sistema:"ELECTRICO"},
+      { descripcion:"Cambio aceite sintético y filtro (diesel)", sistema:"MOTOR"    },
+      { descripcion:"Revisión nivel fluidos",                    sistema:"MOTOR"    },
+      { descripcion:"Inspección frenos y rotación neumáticos",   sistema:"FRENOS"   },
+      { descripcion:"Revisión luces y señales",                  sistema:"ELECTRICO"},
     ],
   },
   {
-    km: 20000,
-    costoRep: 580,
+    km: 20000, costoRep: 580,
     tareas: [
-      { descripcion:"Service A — aceite + filtro + inspección general", sistema:"MOTOR" },
-      { descripcion:"Reemplazo filtro combustible (diesel)",    sistema:"MOTOR"  },
-      { descripcion:"Revisión transmisión (diesel)",           sistema:"TRANSMIS"},
-      { descripcion:"Inspección suspensión delantera/trasera", sistema:"SUSPENS" },
+      { descripcion:"Service A — aceite + filtro + inspección",  sistema:"MOTOR"    },
+      { descripcion:"Reemplazo filtro combustible (diesel)",      sistema:"MOTOR"    },
+      { descripcion:"Revisión transmisión",                       sistema:"TRANSMIS" },
+      { descripcion:"Inspección suspensión delantera/trasera",    sistema:"SUSPENS"  },
+      { descripcion:"Alineación y balanceo",                      sistema:"NEUMAT"   },
     ],
   },
   {
-    km: 40000,
-    costoRep: 950,
+    km: 40000, costoRep: 950,
     tareas: [
-      { descripcion:"Service B completo",                       sistema:"MOTOR"   },
-      { descripcion:"Reemplazo fluido de frenos",               sistema:"FRENOS"  },
-      { descripcion:"Reemplazo filtro de cabina",               sistema:"A/C"     },
-      { descripcion:"Inspección batería",                       sistema:"ELECTRICO"},
-      { descripcion:"Aceite y filtro transmisión (diesel)",     sistema:"TRANSMIS" },
+      { descripcion:"Service B completo",                         sistema:"MOTOR"    },
+      { descripcion:"Reemplazo fluido de frenos",                 sistema:"FRENOS"   },
+      { descripcion:"Reemplazo filtro de cabina",                 sistema:"A/C"      },
+      { descripcion:"Inspección batería",                         sistema:"ELECTRICO"},
+      { descripcion:"Aceite y filtro transmisión (diesel)",       sistema:"TRANSMIS" },
+      { descripcion:"Inspección dirección hidráulica",            sistema:"DIRECC"   },
     ],
   },
   {
-    km: 60000,
-    costoRep: 1100,
+    km: 60000, costoRep: 1100,
     tareas: [
-      { descripcion:"Revisión integral de sistemas",            sistema:"GENERAL"  },
-      { descripcion:"Reemplazo filtro de aire del motor",       sistema:"MOTOR"    },
-      { descripcion:"Reemplazo filtro combustible",             sistema:"MOTOR"    },
-      { descripcion:"Inspección suspensión completa",           sistema:"SUSPENS"  },
-      { descripcion:"Revisión dirección hidráulica",            sistema:"DIRECC"   },
+      { descripcion:"Revisión integral de sistemas",              sistema:"GENERAL"  },
+      { descripcion:"Reemplazo filtro de aire del motor",         sistema:"MOTOR"    },
+      { descripcion:"Reemplazo filtro combustible",               sistema:"MOTOR"    },
+      { descripcion:"Inspección suspensión completa",             sistema:"SUSPENS"  },
+      { descripcion:"Revisión dirección hidráulica completa",     sistema:"DIRECC"   },
+      { descripcion:"Cambio refrigerante",                        sistema:"MOTOR"    },
     ],
   },
   {
-    km: 120000,
-    costoRep: 1800,
+    km: 120000, costoRep: 1800,
     tareas: [
-      { descripcion:"Cambio bujías de precalentamiento (diesel)",sistema:"MOTOR"   },
-      { descripcion:"Revisión turbocargador",                    sistema:"MOTOR"   },
-      { descripcion:"Cambio refrigerante",                       sistema:"MOTOR"   },
-      { descripcion:"Revisión completa chasis y carrocería",     sistema:"GENERAL" },
+      { descripcion:"Cambio bujías de precalentamiento (diesel)", sistema:"MOTOR"    },
+      { descripcion:"Revisión turbocargador completa",            sistema:"MOTOR"    },
+      { descripcion:"Cambio refrigerante de motor",               sistema:"MOTOR"    },
+      { descripcion:"Revisión completa chasis y carrocería",      sistema:"GENERAL"  },
+      { descripcion:"Cambio correas de accesorios",               sistema:"MOTOR"    },
     ],
   },
 ]
 
-/* ── TOYOTA HILUX ── */
+/* ═══════════════════════════════════════════════════
+   PLAN TOYOTA HILUX
+═══════════════════════════════════════════════════ */
 const PLAN_TOYOTA: IntervaloMtto[] = [
   {
-    km: 5000,
-    costoRep: 180,
+    km: 5000, costoRep: 180,
     tareas: [
-      { descripcion:"Cambio aceite motor y filtro",             sistema:"MOTOR"    },
-      { descripcion:"Inspección visual general",                sistema:"GENERAL"  },
-      { descripcion:"Revisar nivel fluidos",                    sistema:"MOTOR"    },
+      { descripcion:"Cambio aceite motor y filtro",              sistema:"MOTOR"    },
+      { descripcion:"Inspección visual general",                 sistema:"GENERAL"  },
+      { descripcion:"Revisar nivel fluidos",                     sistema:"MOTOR"    },
     ],
   },
   {
-    km: 10000,
-    costoRep: 380,
+    km: 10000, costoRep: 380,
     tareas: [
-      { descripcion:"Cambio aceite y filtro",                   sistema:"MOTOR"    },
-      { descripcion:"Rotación de neumáticos",                   sistema:"NEUMAT"   },
-      { descripcion:"Inspección frenos",                        sistema:"FRENOS"   },
-      { descripcion:"Revisión nivel dirección hidráulica",      sistema:"DIRECC"   },
-      { descripcion:"Limpieza filtro de aire",                  sistema:"MOTOR"    },
+      { descripcion:"Cambio aceite y filtro",                    sistema:"MOTOR"    },
+      { descripcion:"Rotación de neumáticos",                    sistema:"NEUMAT"   },
+      { descripcion:"Inspección frenos",                         sistema:"FRENOS"   },
+      { descripcion:"Revisión nivel dirección hidráulica",       sistema:"DIRECC"   },
+      { descripcion:"Limpieza filtro de aire",                   sistema:"MOTOR"    },
     ],
   },
   {
-    km: 20000,
-    costoRep: 620,
+    km: 20000, costoRep: 620,
     tareas: [
-      { descripcion:"Cambio aceite y filtro motor",             sistema:"MOTOR"    },
-      { descripcion:"Cambio filtro de combustible",             sistema:"MOTOR"    },
-      { descripcion:"Cambio filtro de aire",                    sistema:"MOTOR"    },
-      { descripcion:"Revisión sistema de embrague",             sistema:"EMBRAGUE" },
-      { descripcion:"Inspección suspensión completa",           sistema:"SUSPENS"  },
-      { descripcion:"Alineación y balanceo",                    sistema:"NEUMAT"   },
+      { descripcion:"Cambio aceite y filtro motor",              sistema:"MOTOR"    },
+      { descripcion:"Cambio filtro de combustible",              sistema:"MOTOR"    },
+      { descripcion:"Cambio filtro de aire",                     sistema:"MOTOR"    },
+      { descripcion:"Revisión sistema de embrague",              sistema:"EMBRAGUE" },
+      { descripcion:"Inspección suspensión completa",            sistema:"SUSPENS"  },
+      { descripcion:"Alineación y balanceo",                     sistema:"NEUMAT"   },
     ],
   },
   {
-    km: 40000,
-    costoRep: 980,
+    km: 40000, costoRep: 980,
     tareas: [
-      { descripcion:"Cambio aceite y filtro motor",             sistema:"MOTOR"    },
-      { descripcion:"Cambio fluido de frenos",                  sistema:"FRENOS"   },
-      { descripcion:"Cambio aceite diferencial delantero/trasero",sistema:"EJE"    },
-      { descripcion:"Cambio aceite caja de transferencia",      sistema:"TRANSMIS" },
-      { descripcion:"Revisión bujías (gasolina)",               sistema:"MOTOR"    },
-      { descripcion:"Inspección correas accesorios",            sistema:"MOTOR"    },
+      { descripcion:"Cambio aceite y filtro motor",              sistema:"MOTOR"    },
+      { descripcion:"Cambio fluido de frenos",                   sistema:"FRENOS"   },
+      { descripcion:"Cambio aceite diferencial delantero/trasero",sistema:"EJE"     },
+      { descripcion:"Cambio aceite caja de transferencia",       sistema:"TRANSMIS" },
+      { descripcion:"Revisión bujías (gasolina)",                sistema:"MOTOR"    },
+      { descripcion:"Inspección correas accesorios",             sistema:"MOTOR"    },
     ],
   },
   {
-    km: 80000,
-    costoRep: 1400,
+    km: 80000, costoRep: 1400,
     tareas: [
-      { descripcion:"Cambio correa de distribución",            sistema:"MOTOR"    },
-      { descripcion:"Cambio bomba de agua",                     sistema:"MOTOR"    },
-      { descripcion:"Cambio refrigerante",                      sistema:"MOTOR"    },
-      { descripcion:"Cambio aceite transmisión automática",     sistema:"TRANSMIS" },
-      { descripcion:"Revisión completa suspensión y dirección", sistema:"SUSPENS"  },
+      { descripcion:"Cambio correa de distribución",             sistema:"MOTOR"    },
+      { descripcion:"Cambio bomba de agua",                      sistema:"MOTOR"    },
+      { descripcion:"Cambio refrigerante",                       sistema:"MOTOR"    },
+      { descripcion:"Cambio aceite transmisión automática",      sistema:"TRANSMIS" },
+      { descripcion:"Revisión completa suspensión y dirección",  sistema:"SUSPENS"  },
+      { descripcion:"Inspección completa frenos",                sistema:"FRENOS"   },
     ],
   },
 ]
 
-/* ── DODGE RAM ── */
+/* ═══════════════════════════════════════════════════
+   PLAN DODGE RAM
+═══════════════════════════════════════════════════ */
 const PLAN_DODGE: IntervaloMtto[] = [
   {
-    km: 5000,
-    costoRep: 200,
+    km: 5000, costoRep: 200,
     tareas: [
-      { descripcion:"Cambio aceite y filtro",                   sistema:"MOTOR"    },
-      { descripcion:"Inspección frenos y neumáticos",           sistema:"FRENOS"   },
-      { descripcion:"Revisión nivel fluidos",                   sistema:"MOTOR"    },
+      { descripcion:"Cambio aceite y filtro",                    sistema:"MOTOR"    },
+      { descripcion:"Inspección frenos y neumáticos",            sistema:"FRENOS"   },
+      { descripcion:"Revisión nivel fluidos",                    sistema:"MOTOR"    },
     ],
   },
   {
-    km: 10000,
-    costoRep: 420,
+    km: 10000, costoRep: 420,
     tareas: [
-      { descripcion:"Cambio aceite y filtro",                   sistema:"MOTOR"    },
-      { descripcion:"Rotación de neumáticos",                   sistema:"NEUMAT"   },
-      { descripcion:"Inspección sistema de frenos",             sistema:"FRENOS"   },
-      { descripcion:"Revisión batería y sistema eléctrico",     sistema:"ELECTRICO"},
-      { descripcion:"Inspección suspensión delantera",          sistema:"SUSPENS"  },
+      { descripcion:"Cambio aceite y filtro",                    sistema:"MOTOR"    },
+      { descripcion:"Rotación de neumáticos",                    sistema:"NEUMAT"   },
+      { descripcion:"Inspección sistema de frenos",              sistema:"FRENOS"   },
+      { descripcion:"Revisión batería y sistema eléctrico",      sistema:"ELECTRICO"},
+      { descripcion:"Inspección suspensión delantera",           sistema:"SUSPENS"  },
     ],
   },
   {
-    km: 30000,
-    costoRep: 750,
+    km: 30000, costoRep: 750,
     tareas: [
-      { descripcion:"Cambio aceite y filtro motor",             sistema:"MOTOR"    },
-      { descripcion:"Cambio filtro de aire",                    sistema:"MOTOR"    },
-      { descripcion:"Cambio filtro de cabina",                  sistema:"A/C"      },
-      { descripcion:"Inspección bujías",                        sistema:"MOTOR"    },
-      { descripcion:"Revisión dirección y alineación",          sistema:"DIRECC"   },
+      { descripcion:"Cambio aceite y filtro motor",              sistema:"MOTOR"    },
+      { descripcion:"Cambio filtro de aire",                     sistema:"MOTOR"    },
+      { descripcion:"Cambio filtro de cabina",                   sistema:"A/C"      },
+      { descripcion:"Inspección bujías",                         sistema:"MOTOR"    },
+      { descripcion:"Revisión dirección y alineación",           sistema:"DIRECC"   },
     ],
   },
   {
-    km: 60000,
-    costoRep: 1200,
+    km: 60000, costoRep: 1200,
     tareas: [
-      { descripcion:"Cambio fluido transmisión automática",     sistema:"TRANSMIS" },
-      { descripcion:"Cambio fluido diferencial",                sistema:"EJE"      },
-      { descripcion:"Cambio bujías (si gasolina)",              sistema:"MOTOR"    },
-      { descripcion:"Cambio fluido dirección hidráulica",       sistema:"DIRECC"   },
-      { descripcion:"Inspección completa chasis",               sistema:"GENERAL"  },
+      { descripcion:"Cambio fluido transmisión automática",      sistema:"TRANSMIS" },
+      { descripcion:"Cambio fluido diferencial",                 sistema:"EJE"      },
+      { descripcion:"Cambio bujías",                             sistema:"MOTOR"    },
+      { descripcion:"Cambio fluido dirección hidráulica",        sistema:"DIRECC"   },
+      { descripcion:"Inspección completa chasis",                sistema:"GENERAL"  },
+      { descripcion:"Revisión completa frenos",                  sistema:"FRENOS"   },
     ],
   },
   {
-    km: 100000,
-    costoRep: 1800,
+    km: 100000, costoRep: 1800,
     tareas: [
-      { descripcion:"Revisión integral tren motriz",            sistema:"MOTOR"    },
-      { descripcion:"Cambio refrigerante",                      sistema:"MOTOR"    },
-      { descripcion:"Cambio correas accesorios",                sistema:"MOTOR"    },
-      { descripcion:"Inspección inyectores",                    sistema:"MOTOR"    },
-      { descripcion:"Revisión completa frenos",                 sistema:"FRENOS"   },
+      { descripcion:"Revisión integral tren motriz",             sistema:"MOTOR"    },
+      { descripcion:"Cambio refrigerante",                       sistema:"MOTOR"    },
+      { descripcion:"Cambio correas accesorios",                 sistema:"MOTOR"    },
+      { descripcion:"Inspección inyectores",                     sistema:"MOTOR"    },
+      { descripcion:"Revisión completa frenos y suspensión",     sistema:"FRENOS"   },
     ],
   },
 ]
 
+/* ═══════════════════════════════════════════════════
+   PLAN VOLKSWAGEN CRAFTER
+   Fuente: Plan oficial VW Crafter TDI (CSOT)
+═══════════════════════════════════════════════════ */
+const PLAN_VOLKSWAGEN: IntervaloMtto[] = [
+  {
+    km: 7500, costoRep: 280,
+    tareas: [
+      { descripcion:"Cambio aceite motor VW Long Life III 5W-30", sistema:"MOTOR",    costo:90   },
+      { descripcion:"Cambio filtro de aceite",                     sistema:"MOTOR",    costo:45   },
+      { descripcion:"Revisión nivel fluidos (frenos, embrague, refrigerante)", sistema:"MOTOR" },
+      { descripcion:"Inspección visual frenos delanteros/traseros",sistema:"FRENOS"             },
+      { descripcion:"Verificar presión y estado neumáticos",       sistema:"NEUMAT"             },
+      { descripcion:"Revisión luces, claxon y limpiaparabrisas",   sistema:"ELECTRICO"          },
+    ],
+  },
+  {
+    km: 15000, costoRep: 520,
+    tareas: [
+      { descripcion:"Cambio aceite motor y filtro",                sistema:"MOTOR",    costo:135  },
+      { descripcion:"Cambio filtro de combustible (diesel TDI)",   sistema:"MOTOR",    costo:55   },
+      { descripcion:"Limpieza/cambio filtro de aire del motor",    sistema:"MOTOR",    costo:40   },
+      { descripcion:"Rotación de neumáticos y alineación",         sistema:"NEUMAT",   costo:75   },
+      { descripcion:"Inspección sistema de frenos completo",       sistema:"FRENOS"              },
+      { descripcion:"Inspección correas accesorios",               sistema:"MOTOR"               },
+      { descripcion:"Revisión estado batería",                     sistema:"ELECTRICO"           },
+      { descripcion:"Inspección articulaciones y rótulas",         sistema:"SUSPENS"             },
+    ],
+  },
+  {
+    km: 30000, costoRep: 850,
+    tareas: [
+      { descripcion:"Cambio aceite motor y filtro",                sistema:"MOTOR",    costo:135  },
+      { descripcion:"Cambio filtro de combustible TDI",            sistema:"MOTOR",    costo:55   },
+      { descripcion:"Cambio filtro de aire del motor",             sistema:"MOTOR",    costo:62   },
+      { descripcion:"Cambio filtro de habitáculo / A/C",           sistema:"A/C",      costo:35   },
+      { descripcion:"Cambio fluido de frenos DOT 4",               sistema:"FRENOS",   costo:45   },
+      { descripcion:"Verificar y ajustar freno de estacionamiento",sistema:"FRENOS"              },
+      { descripcion:"Inspección dirección — cremallera y rótulas", sistema:"DIRECC"              },
+      { descripcion:"Revisión suspensión delantera y trasera",     sistema:"SUSPENS"             },
+      { descripcion:"Alineación y balanceo completo",              sistema:"NEUMAT",   costo:80   },
+      { descripcion:"Inspección sistema de escape y soportes",     sistema:"MOTOR"               },
+      { descripcion:"Revisión del embrague",                       sistema:"EMBRAGUE"            },
+    ],
+  },
+  {
+    km: 60000, costoRep: 1250,
+    tareas: [
+      { descripcion:"Cambio aceite motor y filtro",                sistema:"MOTOR",    costo:135  },
+      { descripcion:"Cambio filtro de combustible TDI",            sistema:"MOTOR",    costo:55   },
+      { descripcion:"Cambio filtro de aire del motor",             sistema:"MOTOR",    costo:62   },
+      { descripcion:"Cambio correa dentada / distribución TDI",    sistema:"MOTOR",    costo:380  },
+      { descripcion:"Cambio bomba de agua (preventivo)",           sistema:"MOTOR",    costo:120  },
+      { descripcion:"Cambio refrigerante G13 VW",                  sistema:"MOTOR",    costo:65   },
+      { descripcion:"Cambio aceite caja de cambios DQ250",         sistema:"TRANSMIS", costo:95   },
+      { descripcion:"Cambio aceite diferencial trasero",           sistema:"EJE",      costo:55   },
+      { descripcion:"Inspección y limpieza del DPF (diesel)",      sistema:"MOTOR"               },
+      { descripcion:"Revisión turbocompresor TDI",                 sistema:"MOTOR"               },
+      { descripcion:"Inspección completa frenos",                  sistema:"FRENOS"              },
+      { descripcion:"Verificar amortiguadores delanteros/traseros",sistema:"SUSPENS"             },
+    ],
+  },
+  {
+    km: 90000, costoRep: 980,
+    tareas: [
+      { descripcion:"Cambio aceite motor y filtro",                sistema:"MOTOR",    costo:135  },
+      { descripcion:"Cambio filtro de combustible TDI",            sistema:"MOTOR",    costo:55   },
+      { descripcion:"Cambio filtro de aire",                       sistema:"MOTOR",    costo:62   },
+      { descripcion:"Cambio bujías de precalentamiento (diesel)",  sistema:"MOTOR",    costo:80   },
+      { descripcion:"Cambio fluido de frenos DOT 4",               sistema:"FRENOS",   costo:45   },
+      { descripcion:"Cambio filtro habitáculo",                    sistema:"A/C",      costo:35   },
+      { descripcion:"Revisión inyectores TDI",                     sistema:"MOTOR"               },
+      { descripcion:"Inspección válvula EGR",                      sistema:"MOTOR"               },
+      { descripcion:"Inspección sistema de frenos ABS/ESP",        sistema:"FRENOS"              },
+    ],
+  },
+  {
+    km: 120000, costoRep: 1600,
+    tareas: [
+      { descripcion:"Cambio aceite motor y filtro",                sistema:"MOTOR",    costo:135  },
+      { descripcion:"Cambio correa de distribución (2ª vez)",      sistema:"MOTOR",    costo:380  },
+      { descripcion:"Cambio bomba de agua",                        sistema:"MOTOR",    costo:120  },
+      { descripcion:"Cambio refrigerante G13 VW",                  sistema:"MOTOR",    costo:65   },
+      { descripcion:"Cambio aceite caja de cambios",               sistema:"TRANSMIS", costo:95   },
+      { descripcion:"Cambio aceite diferencial",                   sistema:"EJE",      costo:55   },
+      { descripcion:"Revisión y limpieza DPF / FAP",               sistema:"MOTOR"               },
+      { descripcion:"Inspección completa suspensión y dirección",  sistema:"SUSPENS"             },
+      { descripcion:"Revisión completa sistema eléctrico",         sistema:"ELECTRICO"           },
+      { descripcion:"Revisión integral chasis y carrocería",       sistema:"GENERAL"             },
+    ],
+  },
+]
+
+/* ═══════════════════════════════════════════════════
+   MAPA DE PLANES
+═══════════════════════════════════════════════════ */
 const PLANES: Record<string, IntervaloMtto[]> = {
-  IVECO:    PLAN_IVECO,
-  MERCEDES: PLAN_MERCEDES,
-  TOYOTA:   PLAN_TOYOTA,
-  DODGE:    PLAN_DODGE,
+  IVECO:      PLAN_IVECO,
+  MERCEDES:   PLAN_MERCEDES,
+  TOYOTA:     PLAN_TOYOTA,
+  DODGE:      PLAN_DODGE,
+  VOLKSWAGEN: PLAN_VOLKSWAGEN,
 }
 
-/* ═══════════════════════════════════════════════
-   COLORES Y HELPERS
-═══════════════════════════════════════════════ */
+const MARCA_CONFIG: Record<string, { color: string; bg: string; label: string; icon: string }> = {
+  IVECO:      { color:"#38bdf8", bg:"rgba(56,189,248,0.12)",  label:"IVECO Daily",       icon:"🔵" },
+  MERCEDES:   { color:"#94a3b8", bg:"rgba(148,163,184,0.12)", label:"Mercedes Sprinter", icon:"⭐" },
+  TOYOTA:     { color:"#22c55e", bg:"rgba(34,197,94,0.12)",   label:"Toyota Hilux",      icon:"🟢" },
+  DODGE:      { color:"#f97316", bg:"rgba(249,115,22,0.12)",  label:"Dodge RAM",         icon:"🟠" },
+  VOLKSWAGEN: { color:"#a78bfa", bg:"rgba(167,139,250,0.12)", label:"VW Crafter",        icon:"🟣" },
+}
+
+/* ═══════════════════════════════════════════════════
+   COLORES POR SISTEMA
+═══════════════════════════════════════════════════ */
 const SISTEMA_COLOR: Record<string, { c: string; bg: string }> = {
   MOTOR:     { c:"#38bdf8", bg:"rgba(56,189,248,0.12)"  },
   FRENOS:    { c:"#f87171", bg:"rgba(248,113,113,0.12)" },
@@ -319,13 +425,17 @@ function getSistemaColor(s: string) {
   return SISTEMA_COLOR[s] || { c:"#94a3b8", bg:"rgba(148,163,184,0.1)" }
 }
 
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
 function detectarMarca(marca: string): string {
   const m = (marca || "").toUpperCase()
-  if (m.includes("IVECO"))    return "IVECO"
-  if (m.includes("MERCEDES")) return "MERCEDES"
-  if (m.includes("TOYOTA"))   return "TOYOTA"
-  if (m.includes("DODGE") || m.includes("RAM")) return "DODGE"
-  return "IVECO" // default
+  if (m.includes("IVECO"))                            return "IVECO"
+  if (m.includes("MERCEDES") || m.includes("BENZ"))  return "MERCEDES"
+  if (m.includes("TOYOTA"))                           return "TOYOTA"
+  if (m.includes("DODGE") || m.includes("RAM"))       return "DODGE"
+  if (m.includes("VOLKSWAGEN") || m.includes("VW") || m.includes("CRAFTER") || m.includes("CRAWLER")) return "VOLKSWAGEN"
+  return "IVECO"
 }
 
 function proximoMantenimiento(kmActual: number, marca: string): IntervaloMtto | null {
@@ -341,9 +451,9 @@ function alertaNivel(kmActual: number, kmProximo: number): "critico" | "proximo"
   return "ok"
 }
 
-/* ═══════════════════════════════════════════════
-   TIPO
-═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   TIPO AMBULANCIA
+═══════════════════════════════════════════════════ */
 type AmbData = {
   id: string
   codigo: string
@@ -353,9 +463,9 @@ type AmbData = {
   areas: string[]
 }
 
-/* ═══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
-═══════════════════════════════════════════════ */
+═══════════════════════════════════════════════════ */
 export default function Inteligencia() {
   const router = useRouter()
 
@@ -370,30 +480,35 @@ export default function Inteligencia() {
   function normalizarArea(area: string): string | null {
     const a = (area || "").toLowerCase().trim()
     if (!a) return null
-    if (a.includes("aire") || a.includes("ac"))  return "aire acondicionado"
-    if (a.includes("elect"))                      return "electrico"
-    if (a.includes("mec"))                        return "mecanico"
-    if (a.includes("fren"))                       return "frenos"
-    if (a.includes("motor"))                      return "motor"
-    if (a.includes("suspen"))                     return "suspension"
-    if (a.includes("transmis"))                   return "transmision"
-    return a
+    if (a.includes("aire") || a.includes("ac"))   return "A/C"
+    if (a.includes("elect"))                       return "ELECTRICO"
+    if (a.includes("fren"))                        return "FRENOS"
+    if (a.includes("motor"))                       return "MOTOR"
+    if (a.includes("suspen"))                      return "SUSPENS"
+    if (a.includes("transmis"))                    return "TRANSMIS"
+    if (a.includes("direcc"))                      return "DIRECC"
+    if (a.includes("neum") || a.includes("llant")) return "NEUMAT"
+    if (a.includes("eje") || a.includes("differ")) return "EJE"
+    if (a.includes("embr"))                        return "EMBRAGUE"
+    if (a.includes("mec"))                         return "MOTOR"
+    return a.toUpperCase().slice(0, 8)
   }
 
   useEffect(() => { cargar() }, [])
 
   async function cargar() {
     setLoading(true)
-
     const [{ data: historial }, { data: ambs }] = await Promise.all([
-      supabase.from("historial_operativo").select("*,ambulancias(codigo_operativo,marca,kilometraje_actual)").order("fecha_inicio", { ascending: false }),
-      supabase.from("ambulancias").select("id,codigo_operativo,marca,kilometraje_actual"),
+      supabase.from("historial_operativo")
+        .select("*,ambulancias(codigo_operativo,marca,kilometraje_actual)")
+        .order("fecha_inicio", { ascending: false }),
+      supabase.from("ambulancias")
+        .select("id,codigo_operativo,marca,kilometraje_actual"),
     ])
 
-    const lista = historial || []
-    const ambsList = ambs || []
+    const lista     = historial || []
+    const ambsList  = ambs     || []
 
-    /* ── Construir mapa de fallas por ambulancia ── */
     const fallaMap: Record<string, string[]> = {}
     const areaMap:  Record<string, string[]> = {}
 
@@ -426,7 +541,6 @@ export default function Inteligencia() {
   function procesarEstadisticas(lista: any[]) {
     const hoy = new Date()
     const hace30 = new Date(); hace30.setDate(hoy.getDate() - 30)
-
     const recientes = lista.filter(i => new Date(i.fecha_inicio) >= hace30)
 
     const registros: any[] = []
@@ -438,34 +552,34 @@ export default function Inteligencia() {
       })
     })
 
-    /* Alertas */
     const mapaA: any = {}
     registros.forEach(r => {
       const key = `${r.ambulancia_id}-${r.area_individual}`
-      if (!mapaA[key]) mapaA[key] = { codigo:r.ambulancias?.codigo_operativo||r.ambulancia_id, area:r.area_individual, count:0 }
+      if (!mapaA[key]) mapaA[key] = { codigo: r.ambulancias?.codigo_operativo || r.ambulancia_id, area: r.area_individual, count: 0 }
       mapaA[key].count++
     })
     setAlertas(Object.values(mapaA).filter((a: any) => a.count >= 2).sort((a: any, b: any) => b.count - a.count))
 
-    /* Ranking áreas */
     const mapaR: any = {}
     registros.forEach(r => { mapaR[r.area_individual] = (mapaR[r.area_individual] || 0) + 1 })
     const total = registros.length || 1
-    setRanking(Object.keys(mapaR).map(area => ({ area, valor: mapaR[area], porcentaje: Math.round((mapaR[area] / total) * 100) })).sort((a, b) => b.valor - a.valor))
+    setRanking(Object.keys(mapaR).map(area => ({
+      area,
+      valor: mapaR[area],
+      porcentaje: Math.round((mapaR[area] / total) * 100),
+    })).sort((a, b) => b.valor - a.valor))
 
-    /* Recurrentes */
     const mapaRec: any = {}
     registros.forEach(r => {
       const key = r.ambulancias?.codigo_operativo || r.ambulancia_id
-      if (!mapaRec[key]) mapaRec[key] = { codigo:key, total:0 }
+      if (!mapaRec[key]) mapaRec[key] = { codigo: key, total: 0 }
       mapaRec[key].total++
     })
     setRecurrentes(Object.values(mapaRec).sort((a: any, b: any) => b.total - a.total))
   }
 
-  /* ── COLORES NIVEL ALERTA ── */
   const NA = {
-    critico: { c:"#dc2626", bg:"rgba(220,38,38,0.12)", border:"rgba(220,38,38,0.4)", label:"⚠ VENCIDO"  },
+    critico: { c:"#dc2626", bg:"rgba(220,38,38,0.12)", border:"rgba(220,38,38,0.4)", label:"⚠ VENCIDO" },
     proximo: { c:"#d97706", bg:"rgba(217,119,6,0.12)", border:"rgba(217,119,6,0.4)", label:"↑ PRÓXIMO"  },
     ok:      { c:"#22c55e", bg:"rgba(34,197,94,0.12)", border:"rgba(34,197,94,0.3)", label:"✓ AL DÍA"   },
   }
@@ -505,13 +619,13 @@ export default function Inteligencia() {
         {/* Tabs */}
         <div style={{ maxWidth:1300, margin:"0 auto", padding:"0 18px 12px", display:"flex", gap:6 }}>
           {([
-            { k:"prediccion", l:"🔮 Predicción Mtto."   },
-            { k:"alertas",    l:"🚨 Alertas de Fallas"  },
-            { k:"ranking",    l:"📊 Distribución"        },
+            { k:"prediccion", l:"🔮 Predicción Mtto."  },
+            { k:"alertas",    l:"🚨 Alertas de Fallas" },
+            { k:"ranking",    l:"📊 Distribución"       },
           ] as const).map(t => (
             <button key={t.k} onClick={() => setTabActiva(t.k)} style={{
               background: tabActiva===t.k ? "rgba(124,58,237,0.15)" : "rgba(255,255,255,0.03)",
-              border:     `1px solid ${tabActiva===t.k ? "rgba(124,58,237,0.4)" : "rgba(255,255,255,0.07)"}`,
+              border:    `1px solid ${tabActiva===t.k ? "rgba(124,58,237,0.4)" : "rgba(255,255,255,0.07)"}`,
               color:      tabActiva===t.k ? "#a78bfa" : "#475569",
               padding:"7px 14px", borderRadius:7, fontSize:9, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em",
             }}>{t.l}</button>
@@ -521,7 +635,7 @@ export default function Inteligencia() {
 
       <div style={{ maxWidth:1300, margin:"0 auto", padding:"16px 18px 40px", position:"relative", zIndex:1 }}>
 
-        {/* ══════════ TAB: PREDICCIÓN ══════════ */}
+        {/* ══════════ TAB PREDICCIÓN ══════════ */}
         {tabActiva === "prediccion" && (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
@@ -529,32 +643,37 @@ export default function Inteligencia() {
               <span style={{ fontSize:10, color:"#e2e8f0", letterSpacing:"0.1em", fontWeight:800 }}>PREDICCIÓN DE MANTENIMIENTO POR AMBULANCIA</span>
             </div>
 
-            {/* Banner info */}
-            <div style={{ background:"rgba(124,58,237,0.06)", border:"1px solid rgba(124,58,237,0.18)", borderRadius:10, padding:"10px 14px", marginBottom:18, display:"flex", alignItems:"center", gap:9 }}>
-              <span style={{ fontSize:14 }}>📋</span>
-              <p style={{ margin:0, fontSize:9, color:"#64748b", lineHeight:1.6 }}>
-                Basado en el <b style={{ color:"#a78bfa" }}>Plan Oficial IVECO Daily</b> (0–200k km), <b style={{ color:"#38bdf8" }}>Mercedes Benz Sprinter</b>, <b style={{ color:"#22c55e" }}>Toyota Hilux</b> y <b style={{ color:"#f97316" }}>Dodge RAM</b>.
-                Las predicciones combinan el kilometraje actual con el historial de fallas registradas.
-              </p>
+            {/* Banner marcas */}
+            <div style={{ background:"rgba(124,58,237,0.06)", border:"1px solid rgba(124,58,237,0.18)", borderRadius:10, padding:"10px 14px", marginBottom:18 }}>
+              <p style={{ margin:"0 0 8px", fontSize:9, color:"#64748b", fontWeight:700, letterSpacing:"0.06em" }}>📋 PLANES DE MANTENIMIENTO INTEGRADOS</p>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {Object.entries(MARCA_CONFIG).map(([k, v]) => (
+                  <span key={k} style={{ background:v.bg, border:`1px solid ${v.color}30`, color:v.color, fontSize:8, fontWeight:700, padding:"3px 9px", borderRadius:5 }}>
+                    {v.icon} {v.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {ambulancias.map(amb => {
-                const marcaKey = detectarMarca(amb.marca)
-                const proximo  = proximoMantenimiento(amb.kmActual, amb.marca)
-                const nivel    = proximo ? alertaNivel(amb.kmActual, proximo.km) : "ok"
-                const na       = NA[nivel]
-                const isOpen   = expandido === amb.id
-                const kmFalta  = proximo ? Math.max(0, proximo.km - amb.kmActual) : 0
+                const marcaKey  = detectarMarca(amb.marca)
+                const marcaConf = MARCA_CONFIG[marcaKey] || MARCA_CONFIG["IVECO"]
+                const proximo   = proximoMantenimiento(amb.kmActual, amb.marca)
+                const nivel     = proximo ? alertaNivel(amb.kmActual, proximo.km) : "ok"
+                const na        = NA[nivel]
+                const isOpen    = expandido === amb.id
+                const kmFalta   = proximo ? Math.max(0, proximo.km - amb.kmActual) : 0
 
-                /* Sistemas con fallas históricas frecuentes */
                 const sistemasFrecuentes: Record<string, number> = {}
                 amb.areas.forEach(a => { sistemasFrecuentes[a] = (sistemasFrecuentes[a] || 0) + 1 })
-                const topSistemas = Object.entries(sistemasFrecuentes).sort((a,b) => b[1]-a[1]).slice(0,3)
+                const topSistemas = Object.entries(sistemasFrecuentes).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
-                /* Tareas del próximo mtto que coinciden con fallas históricas */
                 const tareasRiesgo = proximo?.tareas.filter(t =>
-                  amb.areas.some(a => t.sistema.toLowerCase().includes(a.toLowerCase().slice(0,5)) || a.toLowerCase().includes(t.sistema.toLowerCase().slice(0,5)))
+                  amb.areas.some(a =>
+                    t.sistema.toLowerCase().includes(a.toLowerCase().slice(0, 5)) ||
+                    a.toLowerCase().includes(t.sistema.toLowerCase().slice(0, 5))
+                  )
                 ) || []
 
                 return (
@@ -562,14 +681,16 @@ export default function Inteligencia() {
 
                     {/* Header */}
                     <div onClick={() => setExpandido(isOpen ? null : amb.id)} style={{ padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap", cursor:"pointer" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                         <div style={{ width:9, height:9, borderRadius:"50%", background:na.c, flexShrink:0, boxShadow:`0 0 7px ${na.c}` }}/>
                         <span style={{ fontSize:14, fontWeight:900, color:"#f1f5f9", letterSpacing:"0.05em" }}>🚑 {amb.codigo}</span>
-                        <span style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#64748b", fontSize:8, fontWeight:700, padding:"2px 8px", borderRadius:4 }}>{amb.marca.toUpperCase()}</span>
+                        <span style={{ background:marcaConf.bg, border:`1px solid ${marcaConf.color}30`, color:marcaConf.color, fontSize:8, fontWeight:700, padding:"2px 8px", borderRadius:4 }}>
+                          {marcaConf.icon} {marcaConf.label}
+                        </span>
                         <span style={{ background:na.bg, border:`1px solid ${na.border}`, color:na.c, fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:5 }}>{na.label}</span>
                         {tareasRiesgo.length > 0 && (
                           <span style={{ background:"rgba(251,146,60,0.12)", border:"1px solid rgba(251,146,60,0.3)", color:"#fb923c", fontSize:8, fontWeight:700, padding:"2px 8px", borderRadius:4 }}>
-                            ⚡ {tareasRiesgo.length} riesgos detectados
+                            ⚡ {tareasRiesgo.length} riesgos
                           </span>
                         )}
                       </div>
@@ -588,40 +709,44 @@ export default function Inteligencia() {
                       </div>
                     </div>
 
-                    {/* Barra progreso al próximo mtto */}
+                    {/* Barra progreso */}
                     {proximo && (
                       <div style={{ padding:"0 18px 12px" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                          <span style={{ fontSize:8, color:"#475569", fontWeight:700, letterSpacing:"0.06em" }}>PROGRESO → PRÓXIMO MANTENIMIENTO ({proximo.km.toLocaleString()} km)</span>
+                          <span style={{ fontSize:8, color:"#475569", fontWeight:700, letterSpacing:"0.06em" }}>
+                            PROGRESO → PRÓX. MTTO ({proximo.km.toLocaleString()} km)
+                          </span>
                           <span style={{ fontSize:8, color:na.c, fontWeight:700 }}>
                             {nivel==="critico" ? "⚠ VENCIDO" : `Faltan ${kmFalta.toLocaleString()} km`}
                           </span>
                         </div>
                         <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:999, height:7, overflow:"hidden" }}>
-                          <div style={{ width:`${Math.min((amb.kmActual/proximo.km)*100,100)}%`, height:"100%", background:`linear-gradient(90deg,${na.c},${na.c}99)`, borderRadius:999, transition:"width 0.5s" }}/>
+                          <div style={{ width:`${Math.min((amb.kmActual/proximo.km)*100, 100)}%`, height:"100%", background:`linear-gradient(90deg,${na.c},${na.c}88)`, borderRadius:999, transition:"width 0.5s" }}/>
                         </div>
                         <div style={{ display:"flex", justifyContent:"space-between", marginTop:3 }}>
                           <span style={{ fontSize:7, color:"#334155" }}>0 km</span>
-                          <span style={{ fontSize:7, color:"#334155" }}>{proximo.km.toLocaleString()} km · Costo estimado: <b style={{ color:"#fbbf24" }}>${proximo.costoRep.toLocaleString()}</b></span>
+                          <span style={{ fontSize:7, color:"#334155" }}>
+                            {proximo.km.toLocaleString()} km · Costo est.: <b style={{ color:"#fbbf24" }}>${proximo.costoRep.toLocaleString()}</b>
+                          </span>
                         </div>
                       </div>
                     )}
 
-                    {/* Expandido */}
+                    {/* Detalle expandido */}
                     {isOpen && proximo && (
                       <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", padding:"16px 18px", display:"flex", flexDirection:"column", gap:14 }}>
 
-                        {/* Fallas históricas detectadas */}
+                        {/* Sistemas frecuentes */}
                         {topSistemas.length > 0 && (
                           <div style={{ background:"rgba(251,146,60,0.05)", border:"1px solid rgba(251,146,60,0.15)", borderRadius:12, padding:"12px 14px" }}>
-                            <p style={{ margin:"0 0 10px", fontSize:10, fontWeight:800, color:"#fb923c", letterSpacing:"0.06em" }}>⚡ SISTEMAS CON FALLAS HISTÓRICAS FRECUENTES</p>
+                            <p style={{ margin:"0 0 10px", fontSize:10, fontWeight:800, color:"#fb923c", letterSpacing:"0.06em" }}>⚡ SISTEMAS CON FALLAS HISTÓRICAS</p>
                             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                               {topSistemas.map(([sistema, count]) => {
-                                const sc = getSistemaColor(sistema.toUpperCase())
+                                const sc = getSistemaColor(sistema)
                                 return (
                                   <div key={sistema} style={{ background:sc.bg, border:`1px solid ${sc.c}30`, borderRadius:8, padding:"6px 12px", display:"flex", alignItems:"center", gap:6 }}>
-                                    <span style={{ fontSize:10, fontWeight:700, color:sc.c, textTransform:"uppercase" }}>{sistema}</span>
-                                    <span style={{ background:"rgba(255,255,255,0.08)", color:"#94a3b8", fontSize:9, fontWeight:700, padding:"1px 6px", borderRadius:10 }}>{count}x</span>
+                                    <span style={{ fontSize:10, fontWeight:700, color:sc.c }}>{sistema}</span>
+                                    <span style={{ background:"rgba(255,255,255,0.08)", color:"#94a3b8", fontSize:9, fontWeight:700, padding:"1px 6px", borderRadius:10 }}>{count}×</span>
                                   </div>
                                 )
                               })}
@@ -629,7 +754,7 @@ export default function Inteligencia() {
                           </div>
                         )}
 
-                        {/* Tareas de riesgo elevado */}
+                        {/* Tareas de riesgo */}
                         {tareasRiesgo.length > 0 && (
                           <div style={{ background:"rgba(220,38,38,0.05)", border:"1px solid rgba(220,38,38,0.15)", borderRadius:12, padding:"12px 14px" }}>
                             <p style={{ margin:"0 0 10px", fontSize:10, fontWeight:800, color:"#ef4444", letterSpacing:"0.06em" }}>🔴 RIESGO ELEVADO — COINCIDENCIA CON HISTORIAL</p>
@@ -648,18 +773,17 @@ export default function Inteligencia() {
                           </div>
                         )}
 
-                        {/* Todas las tareas del próximo mtto */}
+                        {/* Plan completo agrupado */}
                         <div style={{ background:"rgba(34,211,238,0.04)", border:"1px solid rgba(34,211,238,0.12)", borderRadius:12, padding:"12px 14px" }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                             <p style={{ margin:0, fontSize:10, fontWeight:800, color:"#22d3ee", letterSpacing:"0.06em" }}>
-                              📋 PLAN COMPLETO — {marcaKey} · {proximo.km.toLocaleString()} km
+                              📋 PLAN {marcaKey} · {proximo.km.toLocaleString()} km
                             </p>
                             <span style={{ background:"rgba(251,191,36,0.12)", border:"1px solid rgba(251,191,36,0.3)", color:"#fbbf24", fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:5 }}>
                               Total: ${proximo.costoRep.toLocaleString()}
                             </span>
                           </div>
 
-                          {/* Agrupar por sistema */}
                           {(() => {
                             const grupos: Record<string, TareaMantenimiento[]> = {}
                             proximo.tareas.forEach(t => {
@@ -669,7 +793,7 @@ export default function Inteligencia() {
                             return Object.entries(grupos).map(([sis, tareas]) => {
                               const sc = getSistemaColor(sis)
                               return (
-                                <div key={sis} style={{ marginBottom:10 }}>
+                                <div key={sis} style={{ marginBottom:12 }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
                                     <div style={{ width:3, height:12, borderRadius:2, background:sc.c }}/>
                                     <span style={{ fontSize:8, color:sc.c, fontWeight:700, letterSpacing:"0.08em" }}>{sis}</span>
@@ -697,12 +821,12 @@ export default function Inteligencia() {
           </>
         )}
 
-        {/* ══════════ TAB: ALERTAS ══════════ */}
+        {/* ══════════ TAB ALERTAS ══════════ */}
         {tabActiva === "alertas" && (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
               <div style={{ width:3, height:16, borderRadius:2, background:"#ef4444" }}/>
-              <span style={{ fontSize:10, color:"#e2e8f0", letterSpacing:"0.1em", fontWeight:800 }}>ALERTAS CRÍTICAS — FALLAS RECURRENTES (ÚLTIMOS 30 DÍAS)</span>
+              <span style={{ fontSize:10, color:"#e2e8f0", letterSpacing:"0.1em", fontWeight:800 }}>ALERTAS — FALLAS RECURRENTES ÚLTIMOS 30 DÍAS</span>
             </div>
 
             {alertas.length === 0 ? (
@@ -711,7 +835,7 @@ export default function Inteligencia() {
                 <p style={{ margin:"10px 0 0", fontSize:11, color:"#334155" }}>Sin alertas críticas en los últimos 30 días</p>
               </div>
             ) : alertas.map((a, i) => {
-              const sc = getSistemaColor(a.area.toUpperCase())
+              const sc = getSistemaColor(a.area)
               const urgente = a.count >= 4
               return (
                 <div key={i} style={{ background:"rgba(11,17,32,0.97)", border:`1px solid ${urgente?"rgba(220,38,38,0.35)":"rgba(255,255,255,0.08)"}`, borderLeft:`4px solid ${urgente?"#dc2626":"#f59e0b"}`, borderRadius:11, padding:"13px 16px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
@@ -720,26 +844,26 @@ export default function Inteligencia() {
                     <div>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <span style={{ fontSize:12, fontWeight:800, color:"#f1f5f9" }}>🚑 {a.codigo}</span>
-                        <span style={{ background:sc.bg, border:`1px solid ${sc.c}30`, color:sc.c, fontSize:8, fontWeight:700, padding:"2px 7px", borderRadius:4 }}>{a.area.toUpperCase()}</span>
+                        <span style={{ background:sc.bg, border:`1px solid ${sc.c}30`, color:sc.c, fontSize:8, fontWeight:700, padding:"2px 7px", borderRadius:4 }}>{a.area}</span>
                       </div>
-                      <p style={{ margin:"3px 0 0", fontSize:9, color:"#475569" }}>{a.count} fallas registradas en 30 días</p>
+                      <p style={{ margin:"3px 0 0", fontSize:9, color:"#475569" }}>{a.count} fallas en 30 días</p>
                     </div>
                   </div>
-                  <div style={{ background:urgente?"rgba(220,38,38,0.12)":"rgba(245,158,11,0.12)", border:`1px solid ${urgente?"rgba(220,38,38,0.3)":"rgba(245,158,11,0.3)"}`, color:urgente?"#ef4444":"#f59e0b", fontSize:12, fontWeight:900, padding:"6px 14px", borderRadius:8, minWidth:50, textAlign:"center" }}>
+                  <div style={{ background:urgente?"rgba(220,38,38,0.12)":"rgba(245,158,11,0.12)", border:`1px solid ${urgente?"rgba(220,38,38,0.3)":"rgba(245,158,11,0.3)"}`, color:urgente?"#ef4444":"#f59e0b", fontSize:12, fontWeight:900, padding:"6px 14px", borderRadius:8, textAlign:"center" }}>
                     {a.count}×
                   </div>
                 </div>
               )
             })}
 
-            {/* Top unidades */}
+            {/* Ranking unidades */}
             <div style={{ marginTop:24, display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
               <div style={{ width:3, height:16, borderRadius:2, background:"#38bdf8" }}/>
               <span style={{ fontSize:10, color:"#e2e8f0", letterSpacing:"0.1em", fontWeight:800 }}>UNIDADES CON MÁS FALLAS</span>
             </div>
             {recurrentes.slice(0, 8).map((r: any, i) => {
-              const maxV = recurrentes[0]?.total || 1
-              const pct  = Math.round((r.total / maxV) * 100)
+              const maxV  = recurrentes[0]?.total || 1
+              const pct   = Math.round((r.total / maxV) * 100)
               const color = i===0?"#fbbf24":i===1?"#94a3b8":i===2?"#cd7f32":"#38bdf8"
               return (
                 <div key={i} style={{ background:"rgba(11,17,32,0.97)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"11px 14px", marginBottom:7 }}>
@@ -759,7 +883,7 @@ export default function Inteligencia() {
           </>
         )}
 
-        {/* ══════════ TAB: RANKING ══════════ */}
+        {/* ══════════ TAB RANKING ══════════ */}
         {tabActiva === "ranking" && (
           <>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
@@ -773,13 +897,11 @@ export default function Inteligencia() {
                 <p style={{ margin:"10px 0 0", fontSize:11, color:"#334155" }}>Sin datos suficientes</p>
               </div>
             ) : ranking.map((r, i) => {
-              const sc = getSistemaColor(r.area.toUpperCase())
+              const sc = getSistemaColor(r.area)
               return (
                 <div key={i} style={{ background:"rgba(11,17,32,0.97)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:11, padding:"12px 16px", marginBottom:8 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ background:sc.bg, border:`1px solid ${sc.c}30`, color:sc.c, fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:5 }}>{r.area.toUpperCase()}</span>
-                    </div>
+                    <span style={{ background:sc.bg, border:`1px solid ${sc.c}30`, color:sc.c, fontSize:9, fontWeight:700, padding:"3px 9px", borderRadius:5 }}>{r.area}</span>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <span style={{ fontSize:11, color:"#64748b" }}>{r.valor} casos</span>
                       <span style={{ fontSize:12, fontWeight:800, color:sc.c, minWidth:40, textAlign:"right" }}>{r.porcentaje}%</span>
