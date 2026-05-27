@@ -29,9 +29,14 @@ const inputStyle: React.CSSProperties = {
   outline:"none", width:"80px", fontFamily:"'Space Mono','Courier New',monospace",
 }
 
+/* ── input más ancho para base operativa en tabla ── */
+const inputStyleWide: React.CSSProperties = {
+  ...inputStyle,
+  width:"110px",
+}
+
 function pct(n: number, t: number) { return t > 0 ? Math.round(n / t * 100) : 0 }
 
-/* ── STAT CARD ── */
 function StatCard({ label, value, color }: { label: string; value: any; color: string }) {
   return (
     <div style={{ background:'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(13,20,36,0.95))', border:`1px solid ${color}30`, borderRadius:12, padding:'12px 14px', position:'relative', overflow:'hidden' }}>
@@ -42,7 +47,6 @@ function StatCard({ label, value, color }: { label: string; value: any; color: s
   )
 }
 
-/* ── TIPO CARD ── */
 function TipoCard({ tipo, list, accent }: { tipo: string; list: Ambulancia[]; accent: string }) {
   const op    = list.filter(a => a.estado === "operativa").length
   const mt    = list.filter(a => a.estado === "mantenimiento").length
@@ -76,10 +80,7 @@ function TipoCard({ tipo, list, accent }: { tipo: string; list: Ambulancia[]; ac
    BUSCADOR DE UNIDADES
 ══════════════════════════════════════════ */
 function BuscadorUnidad({
-  ambulancias,
-  horasMap,
-  onVerFicha,
-  onEditar,
+  ambulancias, horasMap, onVerFicha, onEditar,
 }: {
   ambulancias: Ambulancia[]
   horasMap: Record<string, number>
@@ -113,16 +114,11 @@ function BuscadorUnidad({
         a.placa.toLowerCase().includes(q)
       )
     })()
-    setResultado(found || null)
-    setBuscado(true)
-    setShowDrop(false)
+    setResultado(found || null); setBuscado(true); setShowDrop(false)
   }
 
   function seleccionar(a: Ambulancia) {
-    setQuery(a.codigo_operativo)
-    setResultado(a)
-    setBuscado(true)
-    setShowDrop(false)
+    setQuery(a.codigo_operativo); setResultado(a); setBuscado(true); setShowDrop(false)
   }
 
   function limpiar() {
@@ -130,10 +126,10 @@ function BuscadorUnidad({
     inputRef.current?.focus()
   }
 
-  const ec       = resultado ? (EA[resultado.estado] || EA["no operativa"]) : null
-  const kmAlert  = resultado ? resultado.kilometraje_actual >= resultado.kilometraje_mtto : false
-  const kmPct    = resultado ? Math.min(resultado.kilometraje_actual / resultado.kilometraje_mtto * 100, 100) : 0
-  const horas    = resultado ? (horasMap[String(resultado.id)] || 0) : 0
+  const ec      = resultado ? (EA[resultado.estado] || EA["no operativa"]) : null
+  const kmAlert = resultado ? resultado.kilometraje_actual >= resultado.kilometraje_mtto : false
+  const kmPct   = resultado ? Math.min(resultado.kilometraje_actual / resultado.kilometraje_mtto * 100, 100) : 0
+  const horas   = resultado ? (horasMap[String(resultado.id)] || 0) : 0
 
   const inpSt: React.CSSProperties = {
     flex:1, background:"transparent", border:"none", outline:"none",
@@ -144,13 +140,7 @@ function BuscadorUnidad({
   const val: React.CSSProperties = { margin:"3px 0 0", fontSize:11, fontWeight:700 }
 
   return (
-    <div style={{
-      background:"linear-gradient(135deg,rgba(15,23,42,0.97),rgba(11,17,32,0.97))",
-      border:"1px solid rgba(34,211,238,0.18)",
-      borderRadius:16, padding:18, marginBottom:20,
-      boxShadow:"0 0 30px rgba(34,211,238,0.07)",
-    }}>
-      {/* Título */}
+    <div style={{ background:"linear-gradient(135deg,rgba(15,23,42,0.97),rgba(11,17,32,0.97))", border:"1px solid rgba(34,211,238,0.18)", borderRadius:16, padding:18, marginBottom:20, boxShadow:"0 0 30px rgba(34,211,238,0.07)" }}>
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
         <span style={{ fontSize:16 }}>🔍</span>
         <div>
@@ -159,18 +149,11 @@ function BuscadorUnidad({
         </div>
       </div>
 
-      {/* Input */}
       <div style={{ position:'relative' }}>
-        <div style={{
-          display:'flex', background:'rgba(255,255,255,0.05)',
-          border:`1px solid ${showDrop || buscado ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.1)'}`,
-          borderRadius: showDrop && sugerencias.length > 0 ? '10px 10px 0 0' : '10px',
-          overflow:'hidden', transition:'border-color 0.2s',
-        }}>
+        <div style={{ display:'flex', background:'rgba(255,255,255,0.05)', border:`1px solid ${showDrop || buscado ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: showDrop && sugerencias.length > 0 ? '10px 10px 0 0' : '10px', overflow:'hidden', transition:'border-color 0.2s' }}>
           <div style={{ padding:'0 12px', display:'flex', alignItems:'center', color:'#22d3ee', fontSize:14, flexShrink:0 }}>🔍</div>
           <input
-            ref={inputRef}
-            value={query}
+            ref={inputRef} value={query}
             onChange={e => { setQuery(e.target.value); setBuscado(false); setShowDrop(true) }}
             onFocus={() => { if (query.length >= 2) setShowDrop(true) }}
             onBlur={() => setTimeout(() => setShowDrop(false), 150)}
@@ -178,39 +161,17 @@ function BuscadorUnidad({
             placeholder="Ej: GA-01, MEA1891, IVECO, Colimes..."
             style={inpSt}
           />
-          {query && (
-            <button onClick={limpiar} style={{ padding:'0 12px', background:'transparent', border:'none', color:'#475569', fontSize:14, cursor:'pointer' }}>✕</button>
-          )}
-          <button
-            onClick={() => ejecutarBusqueda()}
-            style={{
-              background:'linear-gradient(135deg,#0891b2,#0e7490)', border:'none',
-              color:'white', padding:'10px 16px', fontSize:9, fontWeight:700,
-              cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.04em', flexShrink:0,
-            }}>
-            BUSCAR
-          </button>
+          {query && <button onClick={limpiar} style={{ padding:'0 12px', background:'transparent', border:'none', color:'#475569', fontSize:14, cursor:'pointer' }}>✕</button>}
+          <button onClick={() => ejecutarBusqueda()} style={{ background:'linear-gradient(135deg,#0891b2,#0e7490)', border:'none', color:'white', padding:'10px 16px', fontSize:9, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.04em', flexShrink:0 }}>BUSCAR</button>
         </div>
 
-        {/* Dropdown */}
         {showDrop && sugerencias.length > 0 && (
-          <div style={{
-            position:'absolute', top:'100%', left:0, right:0, zIndex:50,
-            background:'rgba(9,14,24,0.99)', border:'1px solid rgba(34,211,238,0.2)',
-            borderTop:'none', borderRadius:'0 0 10px 10px',
-            overflow:'hidden', boxShadow:'0 12px 30px rgba(0,0,0,0.6)',
-          }}>
+          <div style={{ position:'absolute', top:'100%', left:0, right:0, zIndex:50, background:'rgba(9,14,24,0.99)', border:'1px solid rgba(34,211,238,0.2)', borderTop:'none', borderRadius:'0 0 10px 10px', overflow:'hidden', boxShadow:'0 12px 30px rgba(0,0,0,0.6)' }}>
             {sugerencias.map((a, idx) => {
               const ec2 = EA[a.estado] || EA["no operativa"]
               return (
-                <div
-                  key={a.id}
-                  onMouseDown={() => seleccionar(a)}
-                  style={{
-                    padding:'10px 14px', cursor:'pointer',
-                    borderBottom: idx < sugerencias.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                    display:'flex', alignItems:'center', gap:10,
-                  }}
+                <div key={a.id} onMouseDown={() => seleccionar(a)}
+                  style={{ padding:'10px 14px', cursor:'pointer', borderBottom: idx < sugerencias.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', display:'flex', alignItems:'center', gap:10 }}
                   onMouseEnter={e => (e.currentTarget.style.background='rgba(34,211,238,0.06)')}
                   onMouseLeave={e => (e.currentTarget.style.background='transparent')}
                 >
@@ -220,22 +181,11 @@ function BuscadorUnidad({
                       <span style={{ fontSize:11, fontWeight:800, color:'#f1f5f9' }}>{a.codigo_operativo}</span>
                       <span style={{ fontSize:8, color:'#334155' }}>·</span>
                       <span style={{ fontSize:9, color:'#64748b' }}>{a.placa}</span>
-                      <span style={{
-                        background:a.tipo==="ALFA"?"rgba(56,189,248,0.12)":"rgba(167,139,250,0.12)",
-                        color:a.tipo==="ALFA"?"#38bdf8":"#a78bfa",
-                        border:`1px solid ${a.tipo==="ALFA"?"rgba(56,189,248,0.25)":"rgba(167,139,250,0.25)"}`,
-                        fontSize:7, fontWeight:800, padding:'1px 5px', borderRadius:3,
-                      }}>{a.tipo}</span>
+                      <span style={{ background:a.tipo==="ALFA"?"rgba(56,189,248,0.12)":"rgba(167,139,250,0.12)", color:a.tipo==="ALFA"?"#38bdf8":"#a78bfa", border:`1px solid ${a.tipo==="ALFA"?"rgba(56,189,248,0.25)":"rgba(167,139,250,0.25)"}`, fontSize:7, fontWeight:800, padding:'1px 5px', borderRadius:3 }}>{a.tipo}</span>
                     </div>
-                    <p style={{ margin:0, fontSize:8, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {a.base_operativa} · {a.marca}
-                    </p>
+                    <p style={{ margin:0, fontSize:8, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.base_operativa} · {a.marca}</p>
                   </div>
-                  <span style={{
-                    background:ec2.bg, border:`1px solid ${ec2.border}`,
-                    color:ec2.c, fontSize:8, fontWeight:700,
-                    padding:'2px 7px', borderRadius:4, whiteSpace:'nowrap',
-                  }}>{a.estado.toUpperCase()}</span>
+                  <span style={{ background:ec2.bg, border:`1px solid ${ec2.border}`, color:ec2.c, fontSize:8, fontWeight:700, padding:'2px 7px', borderRadius:4, whiteSpace:'nowrap' }}>{a.estado.toUpperCase()}</span>
                 </div>
               )
             })}
@@ -243,33 +193,16 @@ function BuscadorUnidad({
         )}
       </div>
 
-      {/* Resultado encontrado */}
       {buscado && resultado && ec && (
-        <div style={{
-          marginTop:14,
-          background:"rgba(255,255,255,0.02)",
-          border:`1px solid ${ec.border}`,
-          borderRadius:12, overflow:'hidden',
-          boxShadow:`0 0 20px ${ec.glow}`,
-        }}>
-          {/* Header */}
+        <div style={{ marginTop:14, background:"rgba(255,255,255,0.02)", border:`1px solid ${ec.border}`, borderRadius:12, overflow:'hidden', boxShadow:`0 0 20px ${ec.glow}` }}>
           <div style={{ padding:'12px 14px', background:ec.bg, borderBottom:`1px solid ${ec.border}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <div style={{ width:10, height:10, borderRadius:'50%', background:ec.c, boxShadow:`0 0 8px ${ec.glow}` }}/>
               <span style={{ fontSize:15, fontWeight:900, color:'#f1f5f9', letterSpacing:'0.06em' }}>{resultado.codigo_operativo}</span>
-              <span style={{
-                background:resultado.tipo==="ALFA"?"rgba(56,189,248,0.15)":"rgba(167,139,250,0.15)",
-                color:resultado.tipo==="ALFA"?"#38bdf8":"#a78bfa",
-                border:`1px solid ${resultado.tipo==="ALFA"?"rgba(56,189,248,0.3)":"rgba(167,139,250,0.3)"}`,
-                fontSize:9, fontWeight:800, padding:'2px 8px', borderRadius:5,
-              }}>{resultado.tipo}</span>
+              <span style={{ background:resultado.tipo==="ALFA"?"rgba(56,189,248,0.15)":"rgba(167,139,250,0.15)", color:resultado.tipo==="ALFA"?"#38bdf8":"#a78bfa", border:`1px solid ${resultado.tipo==="ALFA"?"rgba(56,189,248,0.3)":"rgba(167,139,250,0.3)"}`, fontSize:9, fontWeight:800, padding:'2px 8px', borderRadius:5 }}>{resultado.tipo}</span>
             </div>
-            <span style={{ background:ec.bg, border:`1px solid ${ec.border}`, color:ec.c, fontSize:9, fontWeight:700, padding:'3px 10px', borderRadius:5, letterSpacing:'0.05em' }}>
-              {resultado.estado.toUpperCase()}
-            </span>
+            <span style={{ background:ec.bg, border:`1px solid ${ec.border}`, color:ec.c, fontSize:9, fontWeight:700, padding:'3px 10px', borderRadius:5, letterSpacing:'0.05em' }}>{resultado.estado.toUpperCase()}</span>
           </div>
-
-          {/* Info grid */}
           <div style={{ padding:'14px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             {[
               { l:"PLACA",       v:resultado.placa,                                      c:"#e2e8f0"                   },
@@ -285,54 +218,27 @@ function BuscadorUnidad({
               </div>
             ))}
           </div>
-
-          {/* Barra KM */}
           <div style={{ padding:'0 14px 14px' }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
               <span style={{ fontSize:8, color:'#475569', fontWeight:700, letterSpacing:'0.08em' }}>PROGRESO KM → MANTENIMIENTO</span>
-              <span style={{ fontSize:8, color:kmAlert?"#dc2626":"#64748b", fontWeight:700 }}>
-                {kmAlert ? "⚠ VENCIDO" : `${Math.round(100-kmPct)}% restante`}
-              </span>
+              <span style={{ fontSize:8, color:kmAlert?"#dc2626":"#64748b", fontWeight:700 }}>{kmAlert ? "⚠ VENCIDO" : `${Math.round(100-kmPct)}% restante`}</span>
             </div>
             <div style={{ background:'rgba(255,255,255,0.06)', borderRadius:4, height:7, overflow:'hidden' }}>
-              <div style={{
-                width:`${kmPct}%`, height:'100%',
-                background: kmAlert
-                  ? "linear-gradient(90deg,#dc2626,#b91c1c)"
-                  : "linear-gradient(90deg,#22d3ee,#0891b2)",
-                borderRadius:4, transition:'width 0.5s',
-              }}/>
+              <div style={{ width:`${kmPct}%`, height:'100%', background: kmAlert ? "linear-gradient(90deg,#dc2626,#b91c1c)" : "linear-gradient(90deg,#22d3ee,#0891b2)", borderRadius:4, transition:'width 0.5s' }}/>
             </div>
           </div>
-
-          {/* Botones */}
           <div style={{ padding:'0 14px 14px', display:'grid', gridTemplateColumns:'1fr 1fr 42px', gap:7 }}>
-            <button
-              onClick={() => onVerFicha(resultado.id)}
-              style={{ background:'rgba(34,211,238,0.1)', border:'1px solid rgba(34,211,238,0.3)', color:'#22d3ee', padding:'10px', borderRadius:8, fontSize:10, fontWeight:700, cursor:'pointer', letterSpacing:'0.03em' }}>
-              📋 Ver Ficha
-            </button>
-            <button
-              onClick={() => onEditar(resultado)}
-              style={{ background:'rgba(217,119,6,0.1)', border:'1px solid rgba(217,119,6,0.3)', color:'#d97706', padding:'10px', borderRadius:8, fontSize:10, fontWeight:700, cursor:'pointer', letterSpacing:'0.03em' }}>
-              ✏️ Editar
-            </button>
-            <button
-              onClick={limpiar}
-              style={{ background:'rgba(220,38,38,0.1)', border:'1px solid rgba(220,38,38,0.3)', color:'#f87171', padding:'10px', borderRadius:8, fontSize:12, cursor:'pointer' }}>
-              ✕
-            </button>
+            <button onClick={() => onVerFicha(resultado.id)} style={{ background:'rgba(34,211,238,0.1)', border:'1px solid rgba(34,211,238,0.3)', color:'#22d3ee', padding:'10px', borderRadius:8, fontSize:10, fontWeight:700, cursor:'pointer', letterSpacing:'0.03em' }}>📋 Ver Ficha</button>
+            <button onClick={() => onEditar(resultado)} style={{ background:'rgba(217,119,6,0.1)', border:'1px solid rgba(217,119,6,0.3)', color:'#d97706', padding:'10px', borderRadius:8, fontSize:10, fontWeight:700, cursor:'pointer', letterSpacing:'0.03em' }}>✏️ Editar</button>
+            <button onClick={limpiar} style={{ background:'rgba(220,38,38,0.1)', border:'1px solid rgba(220,38,38,0.3)', color:'#f87171', padding:'10px', borderRadius:8, fontSize:12, cursor:'pointer' }}>✕</button>
           </div>
         </div>
       )}
 
-      {/* Sin resultados */}
       {buscado && !resultado && (
         <div style={{ marginTop:14, padding:'20px', textAlign:'center', border:'1px dashed rgba(255,255,255,0.07)', borderRadius:10 }}>
           <span style={{ fontSize:24 }}>🔍</span>
-          <p style={{ margin:'8px 0 0', fontSize:10, color:'#475569', letterSpacing:'0.06em' }}>
-            Sin resultados para <span style={{ color:'#22d3ee' }}>"{query}"</span>
-          </p>
+          <p style={{ margin:'8px 0 0', fontSize:10, color:'#475569', letterSpacing:'0.06em' }}>Sin resultados para <span style={{ color:'#22d3ee' }}>"{query}"</span></p>
           <p style={{ margin:'4px 0 0', fontSize:8, color:'#334155' }}>Intenta con código (GA-01) o placa (MEA1891)</p>
         </div>
       )}
@@ -417,12 +323,14 @@ export default function Dashboard() {
     cargar()
   }
 
+  /* ── FIX: ahora incluye base_operativa ── */
   async function guardarEdicion(id: string) {
     await supabase.from("ambulancias").update({
       codigo_operativo: editData.codigo_operativo,
       placa:            editData.placa,
       marca:            editData.marca,
       tipo:             editData.tipo,
+      base_operativa:   editData.base_operativa,   // ← NUEVO
     }).eq("id", id)
     setEditando(null)
     cargar()
@@ -435,20 +343,24 @@ export default function Dashboard() {
 
   function cerrarSesion() { localStorage.clear(); router.push("/") }
 
-  const alfas       = ambulancias.filter(a => a.tipo === "ALFA")
-  const bravos      = ambulancias.filter(a => a.tipo === "BRAVO")
-  const total       = ambulancias.length
-  const operativas  = ambulancias.filter(a => a.estado === "operativa").length
+  const alfas         = ambulancias.filter(a => a.tipo === "ALFA")
+  const bravos        = ambulancias.filter(a => a.tipo === "BRAVO")
+  const total         = ambulancias.length
+  const operativas    = ambulancias.filter(a => a.estado === "operativa").length
   const mantenimiento = ambulancias.filter(a => a.estado === "mantenimiento").length
-  const fuera       = ambulancias.filter(a => a.estado === "no operativa").length
-  const totalHoras  = Object.values(horasMap).reduce((a, b) => a + (b || 0), 0)
-  const promedioH   = total ? Math.round(totalHoras / total) : 0
-  const mttoVencido = ambulancias.filter(a => a.kilometraje_actual >= a.kilometraje_mtto)
-  const mttoProximo = ambulancias.filter(a => {
-    const d = a.kilometraje_mtto - a.kilometraje_actual
-    return d <= 400 && d > 0
-  })
-  const visible = filtro === "ALFA" ? alfas : filtro === "BRAVO" ? bravos : ambulancias
+  const fuera         = ambulancias.filter(a => a.estado === "no operativa").length
+  const totalHoras    = Object.values(horasMap).reduce((a, b) => a + (b || 0), 0)
+  const promedioH     = total ? Math.round(totalHoras / total) : 0
+  const mttoVencido   = ambulancias.filter(a => a.kilometraje_actual >= a.kilometraje_mtto)
+  const mttoProximo   = ambulancias.filter(a => { const d = a.kilometraje_mtto - a.kilometraje_actual; return d <= 400 && d > 0 })
+  const visible       = filtro === "ALFA" ? alfas : filtro === "BRAVO" ? bravos : ambulancias
+
+  const modalInp: React.CSSProperties = {
+    background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)',
+    color:'#f1f5f9', padding:'9px 12px', borderRadius:8, fontSize:11,
+    outline:'none', width:'100%', boxSizing:'border-box' as const,
+    fontFamily:"'Space Mono','Courier New',monospace",
+  }
 
   return (
     <>
@@ -461,7 +373,7 @@ export default function Dashboard() {
       position:"relative",
     }}>
 
-      {/* Fondo decorativo */}
+      {/* Fondo */}
       <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, overflow:'hidden' }}>
         <div style={{ position:'absolute', top:-100, right:-80, width:350, height:350, borderRadius:'50%', background:'radial-gradient(circle,rgba(34,211,238,0.04) 0%,transparent 70%)' }}/>
         <div style={{ position:'absolute', bottom:100, left:-80, width:250, height:250, borderRadius:'50%', background:'radial-gradient(circle,rgba(167,139,250,0.04) 0%,transparent 70%)' }}/>
@@ -482,8 +394,6 @@ export default function Dashboard() {
             <button onClick={cerrarSesion} style={{ background:'rgba(220,38,38,0.12)', border:'1px solid rgba(220,38,38,0.3)', color:'#f87171', padding:'6px 11px', borderRadius:7, fontSize:9, fontWeight:700, cursor:'pointer', letterSpacing:'0.04em' }}>🔐 SALIR</button>
           </div>
         </div>
-
-        {/* Botones nav — scroll horizontal en móvil */}
         <div style={{ overflowX:'auto', paddingBottom:2 }}>
           <div style={{ display:'flex', gap:7, width:'max-content' }}>
             {[
@@ -500,7 +410,7 @@ export default function Dashboard() {
 
       <div style={{ padding:'14px 16px 30px', position:'relative', zIndex:1 }}>
 
-        {/* ── ALERTAS ── */}
+        {/* Alertas */}
         {mttoVencido.length > 0 && (
           <div style={{ background:'linear-gradient(135deg,rgba(127,29,29,0.5),rgba(127,29,29,0.25))', border:'1px solid rgba(220,38,38,0.35)', borderRadius:10, padding:'9px 13px', marginBottom:8, fontSize:10 }}>
             🚨 <b style={{ color:'#fca5a5' }}>Mtto vencido:</b>{' '}
@@ -519,7 +429,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── BUSCADOR ── */}
+        {/* Buscador */}
         <BuscadorUnidad
           ambulancias={ambulancias}
           horasMap={horasMap}
@@ -527,12 +437,10 @@ export default function Dashboard() {
           onEditar={(a) => abrirEdicion(a)}
         />
 
-        {/* ── KPI FLOTA TOTAL ── */}
-        <div style={{ marginBottom:6 }}>
-          <span style={{ fontSize:8, color:'#475569', letterSpacing:'0.12em', fontWeight:700 }}>▸ FLOTA TOTAL</span>
-        </div>
+        {/* KPIs */}
+        <div style={{ marginBottom:6 }}><span style={{ fontSize:8, color:'#475569', letterSpacing:'0.12em', fontWeight:700 }}>▸ FLOTA TOTAL</span></div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:8 }}>
-          <StatCard label="OPERATIVAS"    value={operativas}   color="#22c55e"/>
+          <StatCard label="OPERATIVAS"    value={operativas}    color="#22c55e"/>
           <StatCard label="MANTENIMIENTO" value={mantenimiento} color="#d97706"/>
           <StatCard label="NO OPERATIVAS" value={fuera}         color="#dc2626"/>
         </div>
@@ -542,16 +450,14 @@ export default function Dashboard() {
           <StatCard label="PROMEDIO"       value={promedioH+"h"}             color="#64748b"/>
         </div>
 
-        {/* ── ALFA / BRAVO ── */}
-        <div style={{ marginBottom:6 }}>
-          <span style={{ fontSize:8, color:'#475569', letterSpacing:'0.12em', fontWeight:700 }}>▸ POR TIPO DE UNIDAD</span>
-        </div>
+        {/* ALFA / BRAVO */}
+        <div style={{ marginBottom:6 }}><span style={{ fontSize:8, color:'#475569', letterSpacing:'0.12em', fontWeight:700 }}>▸ POR TIPO DE UNIDAD</span></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
           <TipoCard tipo="ALFA"  list={alfas}  accent="#38bdf8"/>
           <TipoCard tipo="BRAVO" list={bravos} accent="#a78bfa"/>
         </div>
 
-        {/* ── FILTROS TABLA ── */}
+        {/* Filtros */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
           <span style={{ fontSize:8, color:'#475569', letterSpacing:'0.1em', fontWeight:700 }}>▸ FLOTA — {visible.length} unidades</span>
           <div style={{ display:'flex', gap:5 }}>
@@ -561,9 +467,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── TABLA — scroll horizontal en móvil ── */}
+        {/* Tabla */}
         <div style={{ background:'rgba(11,17,32,0.95)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, overflowX:'auto', WebkitOverflowScrolling:'touch' as any }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10, minWidth:580 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:10, minWidth:640 }}>
             <thead>
               <tr style={{ background:'rgba(255,255,255,0.04)', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
                 {["Estado","Código","Placa","Marca","Tipo","Base Op.","KM","Horas","Acciones"].map(h => (
@@ -573,12 +479,12 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {visible.map((a, i) => {
-                const c        = TC[a.estado] || TC["no operativa"]
-                const isEdit   = editando === a.id
-                const isHover  = hoveredRow === a.id
-                const horas    = horasMap[String(a.id)] || 0
-                const kmAlerta = a.kilometraje_actual >= a.kilometraje_mtto
-                const kmProximo= !kmAlerta && (a.kilometraje_mtto - a.kilometraje_actual) <= 400
+                const c         = TC[a.estado] || TC["no operativa"]
+                const isEdit    = editando === a.id
+                const isHover   = hoveredRow === a.id
+                const horas     = horasMap[String(a.id)] || 0
+                const kmAlerta  = a.kilometraje_actual >= a.kilometraje_mtto
+                const kmProximo = !kmAlerta && (a.kilometraje_mtto - a.kilometraje_actual) <= 400
 
                 return (
                   <tr key={a.id}
@@ -586,81 +492,57 @@ export default function Dashboard() {
                     onMouseLeave={() => setHoveredRow(null)}
                     style={{
                       borderBottom:'1px solid rgba(255,255,255,0.05)',
-                      background: isEdit    ? "rgba(56,189,248,0.05)"
-                                : isHover   ? "rgba(255,255,255,0.03)"
-                                : i%2===0   ? "transparent"
-                                            : "rgba(255,255,255,0.015)",
+                      background: isEdit   ? "rgba(56,189,248,0.05)"
+                                : isHover  ? "rgba(255,255,255,0.03)"
+                                : i%2===0  ? "transparent"
+                                           : "rgba(255,255,255,0.015)",
                       transition:'background 0.15s',
                       borderLeft: kmAlerta  ? "2px solid #dc2626"
                                 : kmProximo ? "2px solid #d97706"
-                                            : "2px solid transparent",
+                                           : "2px solid transparent",
                     }}
                   >
-                    {/* Estado */}
                     <td style={{ padding:'9px 10px' }}>
-                      <span style={{ background:c.bg, border:`1px solid ${c.border}`, color:c.c, fontSize:8, fontWeight:700, padding:'2px 7px', borderRadius:4, whiteSpace:'nowrap' }}>
-                        {a.estado.toUpperCase()}
-                      </span>
+                      <span style={{ background:c.bg, border:`1px solid ${c.border}`, color:c.c, fontSize:8, fontWeight:700, padding:'2px 7px', borderRadius:4, whiteSpace:'nowrap' }}>{a.estado.toUpperCase()}</span>
                     </td>
-
-                    {/* Código */}
                     <td style={{ padding:'9px 10px' }}>
-                      {isEdit
-                        ? <input value={editData.codigo_operativo||""} style={inputStyle} onChange={e=>setEditData({...editData,codigo_operativo:e.target.value})}/>
-                        : <span style={{ fontWeight:800, color:'#f1f5f9', whiteSpace:'nowrap' }}>{a.codigo_operativo}</span>
-                      }
+                      {isEdit ? <input value={editData.codigo_operativo||""} style={inputStyle} onChange={e=>setEditData({...editData,codigo_operativo:e.target.value})}/> : <span style={{ fontWeight:800, color:'#f1f5f9', whiteSpace:'nowrap' }}>{a.codigo_operativo}</span>}
                     </td>
-
-                    {/* Placa */}
                     <td style={{ padding:'9px 10px' }}>
-                      {isEdit
-                        ? <input value={editData.placa||""} style={inputStyle} onChange={e=>setEditData({...editData,placa:e.target.value})}/>
-                        : <span style={{ color:'#94a3b8' }}>{a.placa}</span>
-                      }
+                      {isEdit ? <input value={editData.placa||""} style={inputStyle} onChange={e=>setEditData({...editData,placa:e.target.value})}/> : <span style={{ color:'#94a3b8' }}>{a.placa}</span>}
                     </td>
-
-                    {/* Marca */}
                     <td style={{ padding:'9px 10px' }}>
-                      {isEdit
-                        ? <input value={editData.marca||""} style={inputStyle} onChange={e=>setEditData({...editData,marca:e.target.value})}/>
-                        : <span style={{ color:'#94a3b8' }}>{a.marca||"—"}</span>
-                      }
+                      {isEdit ? <input value={editData.marca||""} style={inputStyle} onChange={e=>setEditData({...editData,marca:e.target.value})}/> : <span style={{ color:'#94a3b8' }}>{a.marca||"—"}</span>}
                     </td>
-
-                    {/* Tipo */}
                     <td style={{ padding:'9px 10px' }}>
                       {isEdit
                         ? <select value={editData.tipo||""} style={inputStyle} onChange={e=>setEditData({...editData,tipo:e.target.value})}>
                             <option value="ALFA">ALFA</option>
                             <option value="BRAVO">BRAVO</option>
                           </select>
-                        : <span style={{
-                            background: a.tipo==="ALFA"?"rgba(56,189,248,0.12)":"rgba(167,139,250,0.12)",
-                            color:      a.tipo==="ALFA"?"#38bdf8":"#a78bfa",
-                            border:    `1px solid ${a.tipo==="ALFA"?"rgba(56,189,248,0.3)":"rgba(167,139,250,0.3)"}`,
-                            fontSize:8, fontWeight:800, padding:'2px 7px', borderRadius:4,
-                          }}>{a.tipo}</span>
+                        : <span style={{ background:a.tipo==="ALFA"?"rgba(56,189,248,0.12)":"rgba(167,139,250,0.12)", color:a.tipo==="ALFA"?"#38bdf8":"#a78bfa", border:`1px solid ${a.tipo==="ALFA"?"rgba(56,189,248,0.3)":"rgba(167,139,250,0.3)"}`, fontSize:8, fontWeight:800, padding:'2px 7px', borderRadius:4 }}>{a.tipo}</span>
                       }
                     </td>
 
-                    {/* Base */}
-                    <td style={{ padding:'9px 10px', color:'#94a3b8', fontSize:9, maxWidth:90, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {a.base_operativa||"—"}
+                    {/* ── BASE OPERATIVA — ahora editable ── */}
+                    <td style={{ padding:'9px 10px' }}>
+                      {isEdit
+                        ? <input
+                            value={editData.base_operativa||""}
+                            style={inputStyleWide}
+                            placeholder="Base operativa"
+                            onChange={e=>setEditData({...editData,base_operativa:e.target.value})}
+                          />
+                        : <span style={{ color:'#94a3b8', fontSize:9, maxWidth:90, display:'inline-block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.base_operativa||"—"}</span>
+                      }
                     </td>
 
-                    {/* KM */}
                     <td style={{ padding:'9px 10px' }}>
-                      <span style={{ color:kmAlerta?"#dc2626":kmProximo?"#d97706":"#94a3b8", whiteSpace:'nowrap', fontWeight:kmAlerta||kmProximo?700:400 }}>
-                        {a.kilometraje_actual?.toLocaleString()}
-                      </span>
+                      <span style={{ color:kmAlerta?"#dc2626":kmProximo?"#d97706":"#94a3b8", whiteSpace:'nowrap', fontWeight:kmAlerta||kmProximo?700:400 }}>{a.kilometraje_actual?.toLocaleString()}</span>
                       {kmAlerta  && <span style={{ fontSize:7, color:'#dc2626', marginLeft:3 }}>⚠</span>}
                       {kmProximo && <span style={{ fontSize:7, color:'#d97706', marginLeft:3 }}>↑</span>}
                     </td>
-
-                    {/* Horas */}
                     <td style={{ padding:'9px 10px', color:'#64748b' }}>{horas}h</td>
-
-                    {/* Acciones */}
                     <td style={{ padding:'9px 10px' }}>
                       {isEdit ? (
                         <div style={{ display:'flex', gap:4 }}>
@@ -682,33 +564,37 @@ export default function Dashboard() {
           </table>
         </div>
 
-        {/* ── MODAL EDICIÓN ── */}
+        {/* ── MODAL EDICIÓN — ahora con base_operativa ── */}
         {editando && (
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:16, backdropFilter:'blur(4px)' }}>
-            <div style={{ background:'linear-gradient(135deg,#0f172a,#0b1120)', border:'1px solid rgba(34,211,238,0.18)', borderRadius:16, padding:20, width:'100%', maxWidth:360 }}>
+            <div style={{ background:'linear-gradient(135deg,#0f172a,#0b1120)', border:'1px solid rgba(34,211,238,0.18)', borderRadius:16, padding:20, width:'100%', maxWidth:380 }}>
               <p style={{ margin:'0 0 16px', fontSize:12, fontWeight:800, color:'#f1f5f9', letterSpacing:'0.06em' }}>EDITAR UNIDAD</p>
 
+              {/* Campos de texto */}
               {[
-                { l:"CÓDIGO OPERATIVO", k:"codigo_operativo" },
-                { l:"PLACA",            k:"placa"            },
-                { l:"MARCA",            k:"marca"            },
+                { l:"CÓDIGO OPERATIVO", k:"codigo_operativo",  ph:"Ej: GA-01"           },
+                { l:"PLACA",            k:"placa",             ph:"Ej: MEA1891"          },
+                { l:"MARCA",            k:"marca",             ph:"Ej: IVECO"            },
+                { l:"BASE OPERATIVA",   k:"base_operativa",    ph:"Ej: Hosp. Mariana"    }, // ← NUEVO
               ].map(f => (
                 <div key={f.k} style={{ marginBottom:10 }}>
                   <label style={{ fontSize:9, color:'#475569', letterSpacing:'0.1em', fontWeight:700, display:'block', marginBottom:5 }}>{f.l}</label>
                   <input
                     value={editData[f.k]||""}
+                    placeholder={f.ph}
                     onChange={e => setEditData({...editData,[f.k]:e.target.value})}
-                    style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', color:'#f1f5f9', padding:'9px 12px', borderRadius:8, fontSize:11, outline:'none', width:'100%', boxSizing:'border-box' as const, fontFamily:"'Space Mono','Courier New',monospace" }}
+                    style={modalInp}
                   />
                 </div>
               ))}
 
-              <div style={{ marginBottom:14 }}>
+              {/* Tipo */}
+              <div style={{ marginBottom:16 }}>
                 <label style={{ fontSize:9, color:'#475569', letterSpacing:'0.1em', fontWeight:700, display:'block', marginBottom:5 }}>TIPO</label>
                 <select
                   value={editData.tipo||""}
                   onChange={e => setEditData({...editData,tipo:e.target.value})}
-                  style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', color:'#f1f5f9', padding:'9px 12px', borderRadius:8, fontSize:11, outline:'none', width:'100%', fontFamily:"'Space Mono','Courier New',monospace" }}
+                  style={{ ...modalInp, cursor:'pointer' }}
                 >
                   <option value="ALFA">ALFA</option>
                   <option value="BRAVO">BRAVO</option>
@@ -730,7 +616,6 @@ export default function Dashboard() {
       </div>
     </div>
 
-    {/* DRAWER — fuera del div con filter */}
     <FichaDrawer
       open={drawerOpen}
       onClose={() => setDrawerOpen(false)}
